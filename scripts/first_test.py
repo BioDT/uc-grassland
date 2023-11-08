@@ -1,4 +1,4 @@
-import copernicus
+# import copernicus
 from copernicus import utils as ut
 
 print("hello")

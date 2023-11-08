@@ -1,1 +1,5 @@
-# copernicus @ git+https://github.com/BioDT/general-copernicus-weather-data.git@main
+# loading copernicus pck not needed here, because it is installed directly in the .venv 
+# for instant updates via command: 
+#        pip install -e ../general-copernicus-weather-data
+# but reading from git would be possible via this line here:
+#        copernicus @ git+https://github.com/BioDT/general-copernicus-weather-data.git@main
