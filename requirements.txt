@@ -1,0 +1,1 @@
+# copernicus @ git+https://github.com/BioDT/general-copernicus-weather-data.git@main
