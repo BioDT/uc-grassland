@@ -11,14 +11,31 @@ import pandas as pd
 import csv
 
 
-def create_species_pft_dict(file_name, species_column=1, pft_column=2, header_lines=1):
+# Set undetermined epithet entries for replacing.
+undetermined_epithets = [
+    "sp.",
+    "x",
+    "varia",
+    "varium",
+    "varius",
+    "variana",
+    "varians",
+    "variabile",
+    "variabilis",
+]
+
+
+def create_species_pft_dict(
+    file_name, pft_column=2, genus_column=3, epithet_column=4, header_lines=1
+):
     """
     Create a dictionary from a text file containing species and plant functional types (PFTs).
 
     Parameters:
     - file_name (str): Path to the text file.
-    - species_column (int): Species column number (default is 1).
     - pft_column (int): PFT column number (default is 2).
+    - genus_column (int): Species column number (default is 3).
+    - epithet_column (int): Epithet column number (default is 4).
     - header_lines (int): Number of header lines to skip (default is 1).
 
     Returns:
@@ -42,7 +59,19 @@ def create_species_pft_dict(file_name, species_column=1, pft_column=2, header_li
             # Split the line into columns using tab as delimiter
             columns = line.strip().split("\t")
             # Use species and PFT columns as key and value
-            key, value = columns[species_column - 1], columns[pft_column - 1]
+            value, genus, epithet = (
+                columns[pft_column - 1],
+                columns[genus_column - 1],
+                columns[epithet_column - 1],
+            )
+
+            # Replace undetermined epithets
+            if epithet in undetermined_epithets:
+                print(f"Hint: '{genus} {epithet}' replaced with '{genus} species'.")
+                epithet = "species"
+
+            # Compose species name
+            key = f"{genus} {epithet}"
 
             # Warning if PFT is not valid or starts with "not assigned"
             if value not in valid_pfts and not value.startswith("not assigned"):
@@ -189,6 +218,15 @@ def read_species_list(file_name, column_identifier, header_lines=1):
             f"Error: Unsupported file format. Supported formats are 'xlsx' and 'txt'."
         )
         return []
+
+    # Remove middle 'x' in species name
+    species_list = ut.replace_substrings(species_list, " x ", " ")
+
+    # Replace substrings for unspecified SpeciesEpiphet (strings to be replaced need to be at end of species name)
+    substrings_to_replace = [" " + s for s in undetermined_epithets]
+    species_list = ut.replace_substrings(
+        species_list, substrings_to_replace, " species", True
+    )
 
     return species_list
 
