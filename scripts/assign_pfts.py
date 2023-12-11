@@ -231,6 +231,53 @@ def read_species_list(file_name, column_identifier, header_lines=1):
     return species_list
 
 
+def user_input_pfts(species_pft_list, start_string):
+    """
+    Iterate through species without PFT assigned and prompt user to select a new PFT.
+
+    Parameters:
+    - species_pft_list (list of tuples): List of tuples where each tuple contains a species and its PFT.
+    - start_string (string): Beginning of PFTs that get suggested for reassignment.
+
+    Returns:
+    - list of tuples: Modified list with updated PFTs based on user input.
+    """
+
+    print("Going through unassigned species.")
+    print("You can select the new PFT from the following options:")
+    print("1. 'grass'")
+    print("2. 'forb'")
+    print("3. 'legume'")
+    print("4. 'not assigned'")
+    print("5. Skip (leave PFT as is). ")
+    print("6. Exit PFT assignment.")
+
+    for index, (species, pft) in enumerate(species_pft_list):
+        if pft.startswith(start_string) and isinstance(species, str):
+            print(f"Species: {species}. Current PFT: '{pft}'.")
+            user_choice = input(
+                "Enter your choice (1 'grass' 2 'forb' 3 'legume' 4 'not assigned' 5 Skip 6 Exit): "
+            )
+
+            if user_choice == "1":
+                species_pft_list[index] = (species, "grass (user input)")
+            elif user_choice == "2":
+                species_pft_list[index] = (species, "forb (user input)")
+            elif user_choice == "3":
+                species_pft_list[index] = (species, "legume (user input)")
+            elif user_choice == "4":
+                species_pft_list[index] = (species, "not assigned (user input)")
+            elif user_choice == "5":
+                pass  # Leave as is, no change needed
+            elif user_choice == "6":
+                print("Exiting the manual PFT assignment.")
+                break  # Exit the loop
+            else:
+                print("Invalid choice. Leaving PFT as is.")
+
+    return species_pft_list
+
+
 def get_species_pfts(species_list, species_pft_dict):
     """
     Create a list with species and corresponding PFTs from a dictionary.
@@ -251,6 +298,24 @@ def get_species_pfts(species_list, species_pft_dict):
             value = "not found"
 
         species_pft_list.append((species, value))
+
+    # Ask user if species not found shall be modified manually?
+    if any("not found" in pft for _, pft in species_pft_list):
+        manual_input = input(
+            f"Do you want to make manual inputs for species not found? (y/n): "
+        ).lower()
+
+        if manual_input == "y":
+            species_pft_list = user_input_pfts(species_pft_list, "not found")
+
+    # Ask user if species not assigned shall be modified manually?
+    if any("not assigned" in pft for _, pft in species_pft_list):
+        manual_input = input(
+            f"Do you want to make manual inputs for species not assigned to PFTs? (y/n): "
+        ).lower()
+
+        if manual_input == "y":
+            species_pft_list = user_input_pfts(species_pft_list, "not assigned")
 
     return species_pft_list
 
