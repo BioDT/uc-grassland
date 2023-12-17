@@ -1,4 +1,4 @@
-Species name	PFT
+Species	PFT
 Aloe aageodonta	not assigned ()
 Papuechites aambe	not assigned ()
 Musa abaca	not assigned ()

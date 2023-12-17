@@ -3,3 +3,4 @@
 #        pip install -e ../general-copernicus-weather-data
 # but reading from git would be possible via this line here:
 #        copernicus @ git+https://github.com/BioDT/general-copernicus-weather-data.git@main
+pygbif>=0.6.3
