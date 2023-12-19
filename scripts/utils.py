@@ -37,31 +37,6 @@ def add_string_to_file_name(file_name, string_to_add):
     return new_file_name
 
 
-# def replace_substring(input_data, substring_to_replace, replacement_string):
-#     """
-#     Replace a substring with another string in a single string or a list of strings.
-
-#     Parameters:
-#     - input_data (str or list): String or list of strings.
-#     - substring_to_replace (str): Substring to be replaced.
-#     - replacement_string (str): New string to replace the specified substring.
-
-#     Returns:
-#     - str or list: Modified string or list of strings (same as format input_data
-#     """
-#     if isinstance(input_data, str):
-#         return input_data.replace(substring_to_replace, replacement_string)
-#     elif isinstance(input_data, list):
-#         return [
-#             original_string.replace(substring_to_replace, replacement_string)
-#             if isinstance(original_string, str)
-#             else original_string
-#             for original_string in input_data
-#         ]
-#     else:
-#         raise ValueError("Input data must be a string or a list of strings.")
-
-
 def replace_substrings(
     input_data,
     substrings_to_replace,
@@ -137,7 +112,7 @@ def count_duplicates(lst):
     - dict: A dictionary where keys are duplicate items and values are their counts.
     """
     counter = Counter(lst)
-    duplicates = {item: count for item, count in counter.items() if count > 1}
+    duplicates = {item: count for item, count in sorted(counter.items()) if count > 1}
 
     return duplicates
 

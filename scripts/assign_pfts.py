@@ -2,8 +2,12 @@
 Module Name: assign_pfts.py
 Author: Thomas Banitz, Franziska Taubert, BioDT
 Date: December 17, 2023
-Description: Assign PFTs to species based on TRY categorical traits table.
-             Correct species names or replace by synonym names based on GBIF taxonomic backbone.
+Description: Assign PFTs to species with the following options:
+             - based on TRY categorical traits table
+             - based on TRY categorical traits table with species names corrected or
+               replaced by synonym names based on GBIF taxonomic backbone
+             - based on GBIF taxonomic backbone for family and https://github.com/traitecoevo/growthform
+               table (Zanne et al.) for woodiness   
 """
 
 from pathlib import Path
@@ -13,17 +17,17 @@ import csv
 from pygbif import species
 
 
-def resolve_pfts(spec, pft1, pft2):
+def resolve_pfts(spec, pft_1, pft_2):
     """
     Resolve conflicting PFT entries for a species.
 
     Parameters:
-    - spec (str): The species for which PFTs are being resolved.
-    - pft1 (str): The first PFT entry.
-    - pft2 (str): The second PFT entry.
+    - spec (str): Species for which PFTs are being resolved.
+    - pft_1 (str): First PFT entry.
+    - pft_2 (str): Second PFT entry.
 
     Returns:
-    - str: The resolved PFT entry.
+    - str: Resolved PFT entry.
 
     Raises:
     - ValueError: If different assigned grassland PFTs were found for the same species.
@@ -33,38 +37,41 @@ def resolve_pfts(spec, pft1, pft2):
     print(f"Warning: Duplicate species entry found for species: {spec}")
 
     # Check if the PFTs are the same, no need to change the dictionary
-    if pft1 == pft2:
-        pft_resolved = pft1
+    if pft_1 == pft_2:
+        pft_resolved = pft_1
         print(f"         PFTs are equal. Keeping the PFT '{pft_resolved}'.")
     # Check if PFTs start with "not assigned", keep other one in dictionary
     else:
-        if pft1.startswith("not assigned") and not pft2.startswith("not assigned"):
-            pft_resolved = pft2
-        elif not pft1.startswith("not assigned") and pft2.startswith("not assigned"):
-            pft_resolved = pft1
-        elif pft1.startswith("not assigned") and pft2.startswith("not assigned"):
+        if pft_1.startswith("not assigned") and not pft_2.startswith("not assigned"):
+            pft_resolved = pft_2
+        elif not pft_1.startswith("not assigned") and pft_2.startswith("not assigned"):
+            pft_resolved = pft_1
+        elif pft_1.startswith("not assigned") and pft_2.startswith("not assigned"):
             pft_resolved = "not assigned (varying)"
         # Raise an error for two different assigned PFTs
         else:
             raise ValueError(
-                f"Different assigned PFTs found for species {spec}: '{pft1}' vs. '{pft2}'."
+                f"Different assigned PFTs found for species {spec}: '{pft_1}' vs. '{pft_2}'."
             )
         print(
-            f"         PFTs differ: '{pft1}' vs. '{pft2}'. Keeping the PFT '{pft_resolved}'."
+            f"         PFTs differ: '{pft_1}' vs. '{pft_2}'. Keeping the PFT '{pft_resolved}'."
         )
 
     return pft_resolved
 
 
-def create_species_pft_dict(file_name, species_column=0, pft_column=1, header_lines=1):
+def read_species_pft_dict(
+    file_name, species_column=0, pft_column=1, header_lines=1, save_new_file=False
+):
     """
-    Create a dictionary from a text file containing species and plant functional types (PFTs).
+    Read a dictionary from a text file containing species and plant functional types (PFTs).
 
     Parameters:
     - file_name (str): Path to the text file.
     - species_column(int): Species column number (0-based index, default is 0).
     - pft_column (int): PFT column number (0-based index, default is 1).
     - header_lines (int): Number of header lines to skip (default is 1).
+    - save_new_file (bool): If true, save result dictionary to new file (default is False).
 
     Returns:
     - dict: Dictionary where species names are keys, and PFTs are values.
@@ -109,6 +116,11 @@ def create_species_pft_dict(file_name, species_column=0, pft_column=1, header_li
     print(f"Processed {processed_lines} lines.")
     print(f"Final species-PFT lookup table has {len(species_pft_dict)} entries.")
 
+    # Save created dictionary to new file
+    if save_new_file:
+        file_name = ut.add_string_to_file_name(file_name, "__UserDictionary")
+        ut.species_dict_to_file(species_pft_dict, ["Species", "PFT"], file_name)
+
     # Return resulting dictionary
     return species_pft_dict
 
@@ -131,24 +143,25 @@ def get_gbif_species(spec):
         # No match, return input species
         print(f"Warning: '{spec}' not found.")
         return spec
-    elif "species" in spec_gbif_dict:
-        # if spec_gbif_dict["matchType"] in ["EXACT", "FUZZY"] does not work, sometime "species" does not exist
+    elif spec_gbif_dict["rank"] == "SPECIES":
         # Use 'species' entry
         spec_match = spec_gbif_dict["species"]
         if spec_match != spec:
-            print(f"Hint: '{spec}' replaced with GBIF name '{spec_match}'.")
+            print(f"Hint: '{spec}' replaced with GBIF NAME '{spec_match}'.")
     elif "canonicalName" in spec_gbif_dict:
-        # No exact match, use the 'canonicalName' entry
+        # No exact match, use 'canonicalName' entry
         spec_match = spec_gbif_dict["canonicalName"]
+
         if spec_match != spec:
             print(f"Warning: '{spec}' not exactly identified by GBIF.")
 
-            if spec.startswith(spec_match):
-                # GBIF result starts like the input species name, keep this result
-                print(f"         '{spec}' replaced with GBIF match '{spec_match}'.")
+            if spec_gbif_dict["rank"] == "GENUS":
+                # GBIF result is only GENUS, keep this result
+                print(f"         '{spec}' replaced with GBIF GENUS '{spec_match}'.")
             else:
                 # Check for GBIF suggestions
                 spec_gbif_suggest = species.name_suggest(q=spec, rank="species")
+
                 if len(spec_gbif_suggest) > 0:
                     # Suggestions found, use first suggestion
                     spec_gbif_suggest = [sgs["species"] for sgs in spec_gbif_suggest]
@@ -158,8 +171,11 @@ def get_gbif_species(spec):
                         f"         '{spec}' replaced with GBIF suggestion '{spec_match}'."
                     )
                 else:
-                    # No suggestions found, keep 'canonicalName'
-                    print(f"         '{spec}' replaced with GBIF match '{spec_match}'.")
+                    # No suggestions, return input species (matches above rank GENUS do not help for PFT mapping)
+                    print(
+                        f"         No replacement (GBIF match was {spec_gbif_dict['rank']} '{spec_match}')."
+                    )
+                    return spec
     else:
         print(
             f"surprise: neither 'species' nor 'canonicalName' in result, match type {spec_gbif_dict['matchType']}"
@@ -168,12 +184,13 @@ def get_gbif_species(spec):
     return spec_match
 
 
-def get_gbif_dict(species_pft_dict):
+def get_gbif_dict(species_pft_dict, save_new_file=False):
     """
     Screen and correct species-PFT lookup table with GBIF taxonomic backbone.
 
     Parameters:
     - species_pft_dict (dict): Dictionary where species names are keys, and PFTs are values.
+    - save_new_file (bool): If true, save result dictionary to new file (default is False).
 
     Returns:
     - dict: Processed dictionary where species names are keys, and values are dictionaries with keys:
@@ -205,6 +222,13 @@ def get_gbif_dict(species_pft_dict):
     print(f"Processed {processed_lines} lines.")
     print(f"Final species-PFT lookup table has {len(species_pft_dict_gbif)} entries.")
 
+    # Save created dictionary to new file
+    if save_new_file:
+        file_name = ut.add_string_to_file_name(file_name, "__GBIFDictionary")
+        ut.species_dict_to_file(
+            species_pft_dict, ["Species", "PFT", "Original names"], file_name
+        )
+
     # Return resulting dictionary
     return species_pft_dict_gbif
 
@@ -217,7 +241,7 @@ def read_species_list(file_name, species_column, header_lines=1, check_gbif=True
     - file_name (str): Name of the file.
     - species_column (str or int): Species column name or number (0-based index).
     - header_lines (int): Number of header line, lines before will be skipped (default is 1).
-    - check_gbif (bool): If True, check and potentially correct species name with GBIF taxonomic backbone.
+    - check_gbif (bool): If True, check/correct species name with GBIF taxonomic backbone (default is True).
 
     Returns:
     - species_list (list): List of species names.
@@ -250,8 +274,10 @@ def read_species_list(file_name, species_column, header_lines=1, check_gbif=True
             )
             return []
 
-        # Extract species names from the specified column
+        # Extract species names from the specified column, convert to string and replace 'nan' by empty string
         species_list = df.iloc[:, column_index].tolist()
+        species_list = [str(spec) for spec in species_list]
+        species_list = ut.replace_substrings(species_list, "nan", "")
 
     elif file_extension == ".txt":
         # Read from tab-separated text file
@@ -294,15 +320,14 @@ def read_species_list(file_name, species_column, header_lines=1, check_gbif=True
             species_list[index] = get_gbif_species(spec)
 
     # No removal of 'nan' or double species, so that assigned PFTs can be matched with original list later
+    empty_strings = species_list.count("")
+    print(
+        f"Species list has {len(species_list)} entries, including {empty_strings} empty entries."
+    )
     duplicates = ut.count_duplicates(species_list)
     if len(duplicates) > 0:
-        print("Hint: Species list has duplicate entries:")
-        print(duplicates)
-
-    count_no_string = sum(not (isinstance(spec, str)) for spec in species_list)
-    print(
-        f"Species list has {len(species_list)} entries, including {count_no_string} entries that could not be resolved to strings."
-    )
+        print("Duplicates: ", end="")
+        print(", ".join([f"'{spec}' ({count})" for spec, count in duplicates.items()]))
 
     return species_list
 
@@ -354,13 +379,15 @@ def user_input_pfts(species_pft_dict, start_string):
     return species_pft_dict
 
 
-def get_species_pfts(species_list, species_pft_dict):
+def get_species_pfts(species_list, species_pft_dict, file_name):
     """
-    Create a dictionary with species and corresponding PFTs from a lookup table.
+    Create a dictionary with species and corresponding PFTs from a species-PFT lookup table,
+    and save to file.
 
     Parameters:
     - species_list (list): List of species names.
     - species_pft_dict (dict): Dictionary with species names as keys and corresponding PFTs.
+    - file_name (str): Name of the file for saving the new dictionary.
 
     Returns:
     - dict: Dictionary with species names as keys and corresponding PFTs.
@@ -393,37 +420,30 @@ def get_species_pfts(species_list, species_pft_dict):
                     species_pfts_assigned, unclear_pft_string
                 )
 
+    # Save created dictionary to specified file
+    ut.species_dict_to_file(species_pfts_assigned, ["Species name", "PFT"], file_name)
+
     return species_pfts_assigned
 
 
 # Example usage:
 
 # Get dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
-folder = "speciesMappingLookupTable"
-folder = Path(folder)
-file_name = "TRY_Categorical_Traits_Lookup_Table_2012_03_17__Grassmind_PFTs.txt"
-file_name = folder / file_name
-species_pft_dict = create_species_pft_dict(file_name)
-file_name_user = ut.add_string_to_file_name(file_name, "__UserDictionary")
-ut.species_dict_to_file(species_pft_dict, ["Species", "PFT"], file_name_user)
+folder = Path("speciesMappingLookupTable")
+file_name = folder / "TRY_Categorical_Traits__Grassmind_PFTs.txt"
+species_pft_dict = read_species_pft_dict(file_name, save_new_file=True)
 
 # # Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
-# species_pft_dict_gbif = get_gbif_dict(species_pft_dict)
-# file_name_gbif = ut.add_string_to_file_name(file_name, "__GBIFDictionary")
-# ut.species_dict_to_file(
-#     species_pft_dict_gbif, ["Species", "PFT", "Original names"], file_name_gbif
-# )
+# species_pft_dict_gbif = get_gbif_dict(species_pft_dict, save_new_file=True)
 
 # Get example list, here from GCEF site
-folder = "D:/home/BioDT/_data/GCEF/Vegetation/"
-folder = Path(folder)
-file_name = "102ae489-04e3-481d-97df-45905837dc1a_Species.xlsx"
-# file_name = "102ae489-04e3-481d-97df-45905837dc1a_Species.txt"
-file_name = folder / file_name
-species_column = "Name"  # 0
+folder = Path("speciesMappingExampleLists")
+file_name = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species.xlsx"
+# file_name = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species.txt"
+species_column = "Name"  # 1
 species_list = read_species_list(file_name, species_column)
 
 # Find PFTs (optional user modifications) and write to file
-species_pfts_assigned = get_species_pfts(species_list, species_pft_dict)
 file_name = ut.add_string_to_file_name(file_name, "__TRYmapping")
-ut.species_dict_to_file(species_pfts_assigned, ["Species name", "PFT"], file_name)
+species_pfts_assigned = get_species_pfts(species_list, species_pft_dict, file_name)
+# species_pfts_assigned = get_species_pfts(species_list, species_pft_dict_gbif)
