@@ -106,10 +106,10 @@ def count_duplicates(lst):
     Count occurrences of duplicate items in a list.
 
     Parameters:
-    - lst (list): The list to analyze.
+    - lst (list): List to analyze.
 
     Returns:
-    - dict: A dictionary where keys are duplicate items and values are their counts.
+    - dict: Dictionary where (sorted) keys are duplicate items and values are their counts.
     """
     counter = Counter(lst)
     duplicates = {item: count for item, count in sorted(counter.items()) if count > 1}
@@ -129,21 +129,20 @@ def get_row_values(key, values):
     - list: Row values to be written to the file.
     """
     if isinstance(values, dict):
-        # row_values = [key] + list(values.values())
-        row_values = [key, f"'{values}'"]
+        row_values = [key] + list(values.values())
     else:
         row_values = [key, values]
 
     return row_values
 
 
-def species_dict_to_file(species_dict, column_names, file_name):
+def dict_to_file(dict_to_write, column_names, file_name):
     """
     Write a dictionary to a text file (tab-separated) or an Excel file.
 
     Parameters:
-    - species_dict (dict): Dictionary to be written to the file.
-    - column_names (list): List of all column names (strings, includes first column for species_dict keys).
+    - dict_to_write (dict): Dictionary to be written to the file.
+    - column_names (list): List of all column names (strings, includes first column for dict_to_write keys).
     - file_name (str or Path): The path of the output file.
     """
     file_path = Path(file_name)
@@ -155,16 +154,16 @@ def species_dict_to_file(species_dict, column_names, file_name):
             header = column_names
             writer.writerow(header)  # Header row
 
-            for spec, values in species_dict.items():
-                writer.writerow(get_row_values(spec, values))
+            for key, values in dict_to_write.items():
+                writer.writerow(get_row_values(key, values))
 
     elif file_suffix == ".xlsx":
         df = pd.DataFrame(columns=column_names)
-        for spec, values in species_dict.items():
+        for key, values in dict_to_write.items():
             df = pd.concat(
                 [
                     df,
-                    pd.DataFrame([get_row_values(spec, values)], columns=column_names),
+                    pd.DataFrame([get_row_values(key, values)], columns=column_names),
                 ],
                 ignore_index=True,
             )
@@ -175,4 +174,113 @@ def species_dict_to_file(species_dict, column_names, file_name):
             f"Error: Unsupported file format. Supported formats are '.txt' and '.xlsx'."
         )
 
-    print(f"Species dictionary written to file '{file_name}'.")
+    print(f"Dictionary written to file '{file_name}'.")
+
+
+def list_to_file(tuple_list, column_names, file_name):
+    """
+    Write a list of tuples to a text file (tab-separated) or an Excel file.
+
+    Parameters:
+    - tuple_list (list): List of tuples to be written to the file.
+    - column_names (list): List of column names (strings).
+    - file_name (str or Path): The path of the output file.
+    """
+    if not all(len(entry) == len(column_names) for entry in tuple_list):
+        print(
+            f"Error: All tuples in the list must have {len(column_names)} entries (same as column_names)."
+        )
+        return
+
+    file_path = Path(file_name)
+    file_suffix = file_path.suffix.lower()
+
+    if file_suffix == ".txt":
+        with open(file_path, "w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file, delimiter="\t")
+            header = column_names
+            writer.writerow(header)  # Header row
+
+            for entry in tuple_list:
+                writer.writerow(entry)
+
+    elif file_suffix == ".xlsx":
+        df = pd.DataFrame(tuple_list, columns=column_names)
+        df.to_excel(file_path, index=False)
+    else:
+        print(
+            f"Error: Unsupported file format. Supported formats are '.txt' and '.xlsx'."
+        )
+
+    print(f"List written to file '{file_name}'.")
+
+
+def add_to_dict(
+    dict_prev, dict_to_add, value_name_prev="info1", value_name_add="info2"
+):
+    """
+    Add values from a dictionary to an existing dictionary under a specified key.
+
+    Args:
+        dict_prev (dict): Existing dictionary.
+        dict_to_add (dict): Dictionary of new values to add.
+        value_name_prev (str): Name for the existing values in the updated dictionary (default is 'info1').
+        value_name_add (str): Name for the new values in the updated dictionary (default is 'info2').
+
+    Returns:
+        dict: Updated dictionary with combined old and new values.
+
+    Raises:
+        ValueError: If the keys in dict_prev and dict_to_add are not the same.
+    """
+    # Check if the keys are the same
+    if set(dict_prev.keys()) != set(dict_to_add.keys()):
+        raise ValueError(
+            "Keys in previous dictionary and added dictionary must be the same."
+        )
+
+    # Convert dict_prev to a dictionary of dictionaries if not already
+    if all(isinstance(value, dict) for value in dict_prev.values()):
+        dict_added = dict_prev
+    else:
+        dict_added = {key: {value_name_prev: value} for key, value in dict_prev.items()}
+
+    # Add the new values to each key
+    for key, value in dict_to_add.items():
+        dict_added[key][value_name_add] = value
+
+    return dict_added
+
+
+def add_to_list(list_prev, list_to_add):
+    """
+    Combine values from two lists of tuples based on the equality of the first column.
+
+    Args:
+        list_prev (list): Existing list of tuples.
+        list_to_add (list): List of tuples with new values to add.
+
+    Returns:
+        list: Combined list of tuples with old and new values.
+
+    Raises:
+        ValueError: If the lists are not lists of tuples or if the first columns are not equal.
+    """
+    # Check if both lists are lists of tuples
+    if not all(
+        isinstance(item, tuple) and len(item) >= 2 for item in list_prev
+    ) or not all(isinstance(item, tuple) and len(item) >= 2 for item in list_to_add):
+        raise ValueError("Both lists must be lists of tuples with at least two values.")
+
+    # Check if the first columns are the same
+    if any(prev[0] != to_add[0] for prev, to_add in zip(list_prev, list_to_add)):
+        raise ValueError(
+            "First columns in the previous list and list to add must be the same."
+        )
+
+    # Add values from the second list to the tuples of the first list
+    list_added = [
+        (*prev[0:], *to_add[1:]) for prev, to_add in zip(list_prev, list_to_add)
+    ]
+
+    return list_added
