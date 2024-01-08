@@ -1,0 +1,220 @@
+Species	Woodiness
+	not found
+Acer	not assigned
+Acer campestre	woody
+Acer negundo	woody
+Acer platanoides	woody
+Acer pseudoplatanus	woody
+Achillea millefolium	herbaceous
+Agrimonia eupatoria	herbaceous
+Agrostis capillaris	herbaceous
+Allium	not assigned
+Allium vineale	herbaceous
+Alopecurus pratensis	herbaceous
+Anthemis arvensis	herbaceous
+Anthoxanthum odoratum	herbaceous
+Anthriscus sylvestris	herbaceous
+Apiaceae	not found
+Arabidopsis thaliana	herbaceous
+Arenaria serpyllifolia	herbaceous
+Arrhenatherum elatius	herbaceous
+Artemisia vulgaris	herbaceous
+Asteraceae	conflicting
+Avena sativa	herbaceous
+Avenula pubescens	herbaceous
+Bellis perennis	herbaceous
+Betonica officinalis	not found
+Betula	not found
+Borago officinalis	herbaceous
+Brachypodium pinnatum	herbaceous
+Brassica napus	herbaceous
+Brassica oleracea	herbaceous
+Brassicaceae	not assigned
+Bromus erectus	herbaceous
+Bromus hordeaceus	herbaceous
+Bromus sterilis	herbaceous
+Calamagrostis epigejos	not assigned
+Campanula patula	not found
+Campanula rapunculoides	herbaceous
+Campanula rotundifolia	not found
+Capsella bursa-pastoris	herbaceous
+Carduus acanthoides	not assigned
+Carduus crispus	herbaceous
+Carum carvi	herbaceous
+Centaurea jacea	herbaceous
+Centaurea scabiosa	herbaceous
+Cerastium glomeratum	herbaceous
+Cerastium holosteoides	not found
+Chenopodium album	herbaceous
+Cichorium intybus	herbaceous
+Cirsium arvense	herbaceous
+Cirsium vulgare	herbaceous
+Clematis vitalba	woody
+Colchicum autumnale	herbaceous
+Convolvulus arvensis	herbaceous
+Cornus sanguinea	woody
+Coronilla varia	not found
+Crataegus monogyna	woody
+Crepis biennis	herbaceous
+Crepis capillaris	herbaceous
+Cynosurus cristatus	herbaceous
+Dactylis glomerata	herbaceous
+Daucus carota	herbaceous
+Descurainia sophia	herbaceous
+Dianthus carthusianorum	herbaceous
+Dianthus seguieri	herbaceous
+Draba	herbaceous
+Elymus repens	herbaceous
+Epilobium tetragonum	herbaceous
+Equisetum arvense	herbaceous
+Erigeron acris	not assigned
+Erigeron annuus	herbaceous
+Erigeron canadensis	herbaceous
+Erodium cicutarium	herbaceous
+Eryngium campestre	herbaceous
+Falcaria vulgaris	not found
+Fallopia convolvulus	herbaceous
+Festuca	herbaceous
+Festuca ovina	herbaceous
+Festuca rubra	herbaceous
+Festuca rupicola	herbaceous
+Festulolium	not found
+Filipendula ulmaria	not found
+Filipendula vulgaris	herbaceous
+Fraxinus excelsior	woody
+Fumaria officinalis	herbaceous
+Galium album	herbaceous
+Galium aparine	not found
+Galium mollugo	not found
+Galium pomeranicum	not found
+Galium verum	herbaceous
+Geranium	not found
+Geranium molle	herbaceous
+Geranium pratense	herbaceous
+Geranium pusillum	herbaceous
+Geranium pyrenaicum	not found
+Geranium rotundifolium	herbaceous
+Geum urbanum	herbaceous
+Glechoma hederacea	herbaceous
+Helictotrichon pratense	herbaceous
+Heracleum sphondylium	herbaceous
+Holcus lanatus	herbaceous
+Hypericum perforatum	herbaceous
+Hypochaeris radicata	not assigned
+Knautia arvensis	herbaceous
+Koeleria macrantha	herbaceous
+Lactuca serriola	herbaceous
+Lamium amplexicaule	herbaceous
+Lamium purpureum	herbaceous
+Lapsana communis	herbaceous
+Lathyrus pratensis	herbaceous
+Lathyrus tuberosus	herbaceous
+Leontodon autumnalis	not found
+Leontodon hispidus	herbaceous
+Leucanthemum vulgare	herbaceous
+Linaria vulgaris	herbaceous
+Lolium multiflorum	herbaceous
+Lolium perenne	herbaceous
+Lotus corniculatus	herbaceous
+Lotus pedunculatus	not found
+Lysimachia arvensis	herbaceous
+Lysimachia nummularia	herbaceous
+Malva sylvestris	herbaceous
+Medicago	not found
+Medicago falcata	herbaceous
+Medicago lupulina	herbaceous
+Medicago varia	not found
+Melampyrum pratense	herbaceous
+Myosotis arvensis	herbaceous
+Noccaea perfoliata	herbaceous
+Papaver rhoeas	herbaceous
+Pastinaca sativa	not assigned
+Petrorhagia prolifera	not assigned
+Phleum pratense	herbaceous
+Picris hieracioides	herbaceous
+Pilosella officinarum	herbaceous
+Pimpinella saxifraga	not found
+Plantago lanceolata	herbaceous
+Plantago major	herbaceous
+Plantago media	not found
+Poa angustifolia	herbaceous
+Poa annua	herbaceous
+Poa bulbosa	herbaceous
+Poa pratensis	herbaceous
+Poa trivialis	herbaceous
+Poaceae	herbaceous
+Polygonum aviculare	herbaceous
+Populus canadensis	woody
+Potentilla argentea	herbaceous
+Poterium sanguisorba	herbaceous
+Prunella vulgaris	herbaceous
+Prunus	woody
+Prunus avium	woody
+Prunus mahaleb	woody
+Ranunculus acris	not found
+Ranunculus auricomus	not found
+Ranunculus bulbosus	herbaceous
+Ranunculus repens	herbaceous
+Rhinanthus minor	herbaceous
+Rubus	not assigned
+Rubus caesius	woody
+Rubus idaeus	woody
+Rumex crispus	herbaceous
+Salvia pratensis	herbaceous
+Sambucus nigra	woody
+Saxifraga granulata	not found
+Scabiosa ochroleuca	not found
+Senecio	not assigned
+Senecio jacobaea	not found
+Senecio vernalis	not found
+Senecio vulgaris	herbaceous
+Seseli libanotis	herbaceous
+Setaria viridis	herbaceous
+Silaum silaus	not found
+Silene flos-cuculi	not found
+Silene latifolia	herbaceous
+Silene noctiflora	not found
+Silene nutans	herbaceous
+Silene vulgaris	herbaceous
+Sinapis arvensis	herbaceous
+Solanum tuberosum	herbaceous
+Solidago canadensis	herbaceous
+Sonchus arvensis	herbaceous
+Sonchus asper	herbaceous
+Sonchus oleraceus	herbaceous
+Stachys recta	not found
+Stellaria graminea	herbaceous
+Stellaria media	not found
+Tanacetum vulgare	herbaceous
+Taraxacum officinale	not found
+Thlaspi arvense	herbaceous
+Tragopogon dubius	herbaceous
+Tragopogon orientalis	not found
+Tragopogon pratensis	not found
+Trifolium arvense	not assigned
+Trifolium campestre	herbaceous
+Trifolium dubium	herbaceous
+Trifolium hybridum	herbaceous
+Trifolium pratense	herbaceous
+Trifolium repens	herbaceous
+Tripleurospermum inodorum	herbaceous
+Trisetum flavescens	herbaceous
+Triticum	not assigned
+Tussilago farfara	herbaceous
+Urtica urens	herbaceous
+Verbascum lychnitis	not found
+Verbascum thapsus	herbaceous
+Veronica agrestis	herbaceous
+Veronica arvensis	herbaceous
+Veronica chamaedrys	herbaceous
+Veronica hederifolia	herbaceous
+Veronica persica	herbaceous
+Veronica serpyllifolia	not assigned
+Vicia	not assigned
+Vicia cracca	herbaceous
+Vicia hirsuta	herbaceous
+Vicia sativa	herbaceous
+Vicia sepium	not assigned
+Vicia tetrasperma	not assigned
+Vicia villosa	herbaceous
+Viola arvensis	herbaceous

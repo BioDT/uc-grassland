@@ -177,16 +177,22 @@ def dict_to_file(dict_to_write, column_names, file_name):
     print(f"Dictionary written to file '{file_name}'.")
 
 
-def list_to_file(tuple_list, column_names, file_name):
+def list_to_file(list_to_write, column_names, file_name):
     """
     Write a list of tuples to a text file (tab-separated) or an Excel file.
 
     Parameters:
-    - tuple_list (list): List of tuples to be written to the file.
+    - list_to_write (list): List of strings or tuples to be written to the file.
     - column_names (list): List of column names (strings).
     - file_name (str or Path): The path of the output file.
     """
-    if not all(len(entry) == len(column_names) for entry in tuple_list):
+    # Convert string entries to single item tuples
+    list_to_write = [
+        (entry,) if isinstance(entry, str) else entry for entry in list_to_write
+    ]
+
+    # Check if all tuples in the list have the same length as the column_names list
+    if not all(len(entry) == len(column_names) for entry in list_to_write):
         print(
             f"Error: All tuples in the list must have {len(column_names)} entries (same as column_names)."
         )
@@ -201,11 +207,11 @@ def list_to_file(tuple_list, column_names, file_name):
             header = column_names
             writer.writerow(header)  # Header row
 
-            for entry in tuple_list:
+            for entry in list_to_write:
                 writer.writerow(entry)
 
     elif file_suffix == ".xlsx":
-        df = pd.DataFrame(tuple_list, columns=column_names)
+        df = pd.DataFrame(list_to_write, columns=column_names)
         df.to_excel(file_path, index=False)
     else:
         print(
@@ -284,3 +290,64 @@ def add_to_list(list_prev, list_to_add):
     ]
 
     return list_added
+
+
+def lookup_info_in_dict(key, info_lookup):
+    """
+    Look up info for a given key in a dictionary.
+
+    Args:
+        key: Key to look up.
+        info_lookup (dict): Dictionary containing key-value pairs.
+
+    Returns:
+        Value associated with the given key if found, or "not found" otherwise.
+    """
+    if key in info_lookup:
+        return info_lookup[key]
+
+    return "not found"
+
+
+def add_info_to_list(list_to_lookup, info_lookup):
+    """
+    Extend a list with information looked up from a dictionary.
+
+    Args:
+        list_to_lookup (list): List of keys to look up in the dictionary.
+        info_lookup (dict): Dictionary containing key-value pairs.
+
+    Returns:
+        list: List of tuples (entry paired with either its info looked up or "not found").
+    """
+    info_list = []
+    for entry in list_to_lookup:
+        info_list.append((entry, lookup_info_in_dict(entry, info_lookup)))
+
+    return info_list
+
+
+def reduce_dict_to_single_info(info_lookup, info_name):
+    """
+    Reduce a dictionary of dictionaries to a single information specified by the given info_name.
+
+    Args:
+        info_lookup (dict): Dictionary where values can be dictionaries.
+        info_name (str): Name of the information to extract from the nested dictionaries.
+
+    Returns:
+        dict: Updated dictionary where each value is replaced with the specified information.
+
+    Raises:
+        KeyError: If the specified info_name is not found in any of the nested dictionaries.
+    """
+    for key, value in info_lookup.items():
+        if isinstance(value, dict):
+            try:
+                info_lookup[key] = value[info_name]
+            except KeyError:
+                raise KeyError(
+                    f"Info '{info_name}' not found in the dictionary for key '{key}'."
+                )
+
+    return info_lookup
