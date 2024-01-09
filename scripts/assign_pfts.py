@@ -18,28 +18,29 @@ import csv
 from pygbif import species
 
 
-def resolve_species_infos(spec, info_name, info_1, info_2, do_warning=True):
+def resolve_species_infos(spec, info_name, info_1, info_2, warning_duplicates=True):
     """
-    Resolve conflicting info entries for a species.
+    Resolve conflicting infos for a species.
 
     Parameters:
     - spec (str): Species for which infos are being resolved.
     - info_name (str): Information name ('PFT' or 'Woodiness').
     - info_1 (str): First info entry.
     - info_2 (str): Second info entry.
-    - do_warning (bool): If True, warn user as resolving means there were duplicate entries (default is True).
+    - warning_duplicates (bool): Throw warnings for resolving duplicate entries (default is True).
 
     Returns:
     - str: Resolved info entry.
     """
     # Warning for duplicate species
-    if do_warning:
+    if warning_duplicates:
         print(f"Warning: Duplicate species entry found for species '{spec}'.")
 
     # Check if the infos are the same, no need to change the info
     if info_1 == info_2:
         info_resolved = info_1
-        if do_warning:
+
+        if warning_duplicates:
             print(f"{info_name} is equal. Keeping the {info_name} '{info_resolved}'.")
     # Check if infos start with "not assigned", keep other one
     else:
@@ -54,7 +55,7 @@ def resolve_species_infos(spec, info_name, info_1, info_2, do_warning=True):
             print(f"ERROR: Different assigned {info_name} found for species {spec}!")
             info_resolved = "conflicting"
 
-        if do_warning:
+        if warning_duplicates:
             print(
                 f"{info_name} differs: '{info_1}' vs. '{info_2}'. Keeping the {info_name} '{info_resolved}'."
             )
@@ -63,16 +64,16 @@ def resolve_species_infos(spec, info_name, info_1, info_2, do_warning=True):
 
 
 def resolve_species_info_dicts(
-    info_name, info_dict_1, info_dict_2, ask_user_input=True
+    info_name, info_dict_1, info_dict_2, ask_user_input=False
 ):
     """
-    Resolve conflicting info entries for all species between two dictionaries.
+    Resolve conflicting info entries for all species from two dictionaries.
 
     Parameters:
     - info_name (str): Information name ('PFT' or 'Woodiness').
     - info_dict_1 (dict): First dictionary mapping species to information entries.
     - info_dict_2 (dict): Second dictionary mapping species to information entries.
-    - ask_user_input (bool): If True, ask user for manual input of unclear infos (default is True).
+    - ask_user_input (bool): Ask user for manual input of unclear infos (default is False).
 
     Returns:
     - dict: Dictionary with resolved information entries for each species.
@@ -82,14 +83,20 @@ def resolve_species_info_dicts(
 
     # Iterate over keys present in both dictionaries and resolve infos
     common_keys = set(info_dict_1.keys()) & set(info_dict_2.keys())
+
     for spec in common_keys:
         resolved_dict[spec] = resolve_species_infos(
-            spec, info_name, info_dict_1[spec], info_dict_2[spec], do_warning=False
+            spec,
+            info_name,
+            info_dict_1[spec],
+            info_dict_2[spec],
+            warning_duplicates=False,
         )
 
     # Add entries present only in one of the dictionaries
     for spec in set(info_dict_1.keys()) - common_keys:
         resolved_dict[spec] = info_dict_1[spec]
+
     for spec in set(info_dict_2.keys()) - common_keys:
         resolved_dict[spec] = info_dict_2[spec]
 
@@ -105,10 +112,10 @@ def get_valid_infos(info_name):
     Get valid information entries based on the specified information type.
 
     Args:
-        info_name (str): The type of species information ('PFT' or 'Woodiness').
+        info_name (str): Type of species information ('PFT' or 'Woodiness').
 
     Returns:
-        list: A list of valid information entries for the specified type.
+        list: List of valid information entries for the specified type.
 
     Raises:
         ValueError: If an unsupported species information type is provided.
@@ -127,8 +134,8 @@ def get_valid_infos(info_name):
 
 def read_species_info_dict(
     file_name,
+    info_name,
     species_column=0,
-    info_name="PFT",
     info_column=1,
     header_lines=1,
     save_new_file=False,
@@ -138,11 +145,11 @@ def read_species_info_dict(
 
     Parameters:
     - file_name (str): Path to the text file.
+    - info_name (str): Information name ('PFT' or 'Woodiness', default is 'PFT').
     - species_column(int): Species column number (0-based index, default is 0).
-    - info_name (str): Information name ('PFT' or 'Woodiness', default is 'PFT')
     - info_column (int): Information column number (0-based index, default is 1).
     - header_lines (int): Number of header lines to skip (default is 1).
-    - save_new_file (bool): If true, save result dictionary to new file (default is False).
+    - save_new_file (bool): Save result dictionary to new file (default is False).
 
     Returns:
     - dict: Dictionary where species names are keys, and infos are values.
@@ -220,15 +227,17 @@ def get_gbif_species(spec, accepted_ranks=["GENUS"]):
     if spec_gbif_dict["matchType"] == "NONE":
         # No match, return input species
         print(f"Warning: '{spec}' not found.")
+
         return spec
     elif spec_gbif_dict["rank"] == "SPECIES":
-        # Use 'species' entry
-
         if "species" in spec_gbif_dict:
+            # Use 'species' entry
             spec_match = spec_gbif_dict["species"]
+
             if spec_match != spec:
                 print(f"'{spec}' replaced with GBIF NAME '{spec_match}'.")
         else:
+            # No 'species' entry, use 'canonicalName' entry (should not happen)
             spec_match = spec_gbif_dict["canonicalName"]
             print(f"Warning: '{spec}' not exactly identified by GBIF.")
             print(
@@ -236,7 +245,6 @@ def get_gbif_species(spec, accepted_ranks=["GENUS"]):
             )
             if spec_match != spec:
                 print(f"'{spec}' replaced with GBIF CANONICALNAME '{spec_match}'.")
-
     elif "canonicalName" in spec_gbif_dict:
         # No exact match, use 'canonicalName' entry
         spec_match = spec_gbif_dict["canonicalName"]
@@ -264,7 +272,7 @@ def get_gbif_species(spec, accepted_ranks=["GENUS"]):
                     sgs_string = ", ".join([f"'{sgs}'" for sgs in spec_gbif_suggest])
                     print(f"Candidate species: {sgs_string}.")
 
-                    # Check if suggestions include the input species name
+                    # Check if suggestions include the input species name but not at first position
                     if spec in spec_gbif_suggest and spec_gbif_suggest.index(spec) > 0:
                         print(
                             f"SURPRISE: '{spec}' included, but not the first GBIF suggestion!"
@@ -273,12 +281,12 @@ def get_gbif_species(spec, accepted_ranks=["GENUS"]):
                     print(
                         f"'{spec}' replaced with first GBIF suggestion '{spec_match}'."
                     )
-
                 else:
                     # No suggestions, return input species
                     print(
                         f"No replacement (GBIF match was {spec_gbif_dict['rank']} '{spec_match}')."
                     )
+
                     return spec
     else:
         print(
@@ -304,6 +312,7 @@ def get_gbif_family(spec):
         return spec_gbif_dict["family"]
     else:
         print(f"Warning: Family for '{spec}' not found by GBIF.")
+
         return "not found"
 
 
@@ -357,7 +366,7 @@ def get_gbif_dict(species_info_dict, file_name="", info_name="PFT"):
     )
 
     # Save created dictionary to new file
-    if file_name != "":
+    if file_name:
         ut.dict_to_file(
             species_info_dict_gbif, ["Species", info_name, "Original names"], file_name
         )
@@ -390,12 +399,14 @@ def get_pft_from_family_woodiness(spec, species_family_dict, species_woodiness_d
     else:
         print(f"Warning: Woodiness for '{spec}' not found in lookup table.")
         woodiness = "not found"
+
         # Return "not found" as PFT if no info was found
         if family == "not found":
             return "not found"
 
     # Assign PFT according to heuristics
     grass_families = ["Poaceae", "Cyperaceae", "Juncaceae"]
+
     if family in grass_families:
         return "grass"
     elif woodiness == "herbaceous":
@@ -415,7 +426,7 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
     - file_name (str): Name of the species list file.
     - species_column (str or int): Species column name or number (0-based index, default is 0).
     - header_lines (int): Number of header line, lines before will be skipped (default is 1).
-    - check_gbif (bool): If True, check/correct species name with GBIF taxonomic backbone (default is True).
+    - check_gbif (bool): Check/correct species name with GBIF taxonomic backbone (default is True).
 
     Returns:
     - species_list (list): List of species names.
@@ -431,6 +442,7 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
             df = pd.read_excel(file_name, header=header_lines - 1)
         except Exception as e:
             print(f"ERROR reading Excel file: {e}")
+
             return []
 
         # Determine column index
@@ -439,6 +451,7 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
                 column_index = df.columns.get_loc(species_column)
             except KeyError:
                 print(f"ERROR: Column '{species_column}' not found in the Excel file.")
+
                 return []
         elif isinstance(species_column, int):
             column_index = species_column
@@ -446,21 +459,21 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
             print(
                 "ERROR: Invalid column identifier. Please provide a column name (str) or column number (int)."
             )
+
             return []
 
         # Extract species names from the specified column, convert to string and replace 'nan' by empty string
         species_list = df.iloc[:, column_index].tolist()
         species_list = [str(spec) for spec in species_list]
         species_list = ut.replace_substrings(species_list, "nan", "", at_end=True)
-
     elif file_extension == ".txt":
         # Read from tab-separated text file
         try:
             with open(file_name, "r") as file:
                 species_data = [line.strip().split("\t") for line in file]
-
         except Exception as e:
             print(f"ERROR reading text file: {e}")
+
             return []
 
         # Determine column index
@@ -471,6 +484,7 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
                 print(
                     f"ERROR: Column '{species_column}' not found in the specified header line of the text file."
                 )
+
                 return []
         elif isinstance(species_column, int):
             column_index = species_column
@@ -478,20 +492,22 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
             print(
                 "ERROR: Invalid column identifier. Please provide a column name (str) or column number (int)."
             )
+
             return []
 
         species_list = [line[column_index] for line in species_data[header_lines:]]
-
     else:
         print(
             f"ERROR: Unsupported file format. Supported formats are 'xlsx' and 'txt'."
         )
+
         return []
 
     # GBIF check and correction if selected
     if check_gbif:
         print(f"Searching for species in GBIF taxonomic backbone ...")
         species_list_renamed = []
+
         for spec in species_list:
             species_list_renamed.append(
                 (get_gbif_species(spec, accepted_ranks=["GENUS", "FAMILY"]), spec)
@@ -515,6 +531,7 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
         f"Species list has {len(species_list)} entries, including {empty_strings} empty entries."
     )
     duplicates = ut.count_duplicates(species_list)
+
     if len(duplicates) > 0:
         print("Duplicates: ", end="")
         print(", ".join([f"'{spec}' ({count})" for spec, count in duplicates.items()]))
@@ -583,7 +600,7 @@ def check_unclear_infos(info_name, species_info_dict, ask_user_input=True):
     Parameters:
     - info_name (str): Information name ('PFT' or 'Woodiness').
     - species_info_dict (dict): Dictionary mapping species to information entries.
-    - ask_user_input (bool): If True, ask user for manual input of unclear infos (default is True).
+    - ask_user_input (bool): Ask user for manual input of unclear infos (default is True).
 
     Returns:
     - dict: Updated dictionary after resolving unclear information entries manually (if requested).
@@ -595,9 +612,11 @@ def check_unclear_infos(info_name, species_info_dict, ask_user_input=True):
             bool(spec) and info.startswith(unclear_info)
             for spec, info in species_info_dict.items()
         )
+
         if count_unclear:
             # Inform about unclear infos
             print(f"Species with {info_name} '{unclear_info}': {count_unclear}.")
+
             if ask_user_input:
                 # Ask user if species with unclear info shall be modified manually
                 manual_input = input(
@@ -612,13 +631,34 @@ def check_unclear_infos(info_name, species_info_dict, ask_user_input=True):
     return species_info_dict
 
 
+def return_as_list_or_dict(
+    return_as_list, info_name, species_list, species_info_dict, file_name
+):
+    if return_as_list:
+        # New list of species and infos, allowing for duplicates and preserving order
+        species_info_list = ut.add_info_to_list(species_list, species_info_dict)
+
+        if file_name:
+            ut.list_to_file(species_info_list, ["Species", info_name], file_name)
+
+        return species_info_list
+    else:
+        # Sort, save and return species info dictionary
+        species_info_dict = dict(sorted(species_info_dict.items()))
+
+        if file_name:
+            ut.dict_to_file(species_info_dict, ["Species", info_name], file_name)
+
+        return species_info_dict
+
+
 def get_species_info(
     species_list,
     species_info_lookup,
     info_name,
     file_name,
     return_as_list=False,
-    ask_user_input=True,
+    ask_user_input=False,
 ):
     """
     Create a dict or list with species and corresponding infos from a species-info lookup table,
@@ -629,8 +669,8 @@ def get_species_info(
     - species_info_lookup (dict): Dictionary with species names as keys and corresponding infos.
     - info_name (str): Information name ('PFT' or 'Woodiness').
     - file_name (str): File name to save the result (empty string to skip saving).
-    - return_as_list(bool): If True, return argument is a list, otherwise a dict (default is False)
-    - ask_user_input (bool): If True, ask user for manual input of unclear infos (default is True).
+    - return_as_list(bool): Return as a list, otherwise as a dict (default is False).
+    - ask_user_input (bool): Ask user for manual input of unclear infos (default is False).
 
     Returns:
     - dict or list: Dict or list of pairs of the species names and corresponding infos.
@@ -642,28 +682,20 @@ def get_species_info(
 
     # Read info from lookup dict if available
     species_info_dict = {}
-    for spec in species_list:
-        species_info_dict[spec] = ut.lookup_info_in_dict(spec, species_info_lookup)
 
-    # Check for unclear infos
+    for spec in species_list:
+        if spec not in species_info_dict:
+            species_info_dict[spec] = ut.lookup_info_in_dict(spec, species_info_lookup)
+
+    # Check for unclear infos and get result (list or dict)
     species_info_dict = check_unclear_infos(
         info_name, species_info_dict, ask_user_input
     )
+    species_info_result = return_as_list_or_dict(
+        return_as_list, info_name, species_list, species_info_dict, file_name
+    )
 
-    if return_as_list:
-        # New list of species and infos, allowing for duplicates and preserving order
-        species_info_list = ut.add_info_to_list(species_list, species_info_dict)
-        if file_name != "":
-            ut.list_to_file(species_info_list, ["Species", info_name], file_name)
-
-        return species_info_list
-    else:
-        # Sort, save and return created dict
-        species_info_dict = dict(sorted(species_info_dict.items()))
-        if file_name != "":
-            ut.dict_to_file(species_info_dict, ["Species", info_name], file_name)
-
-        return species_info_dict
+    return species_info_result
 
 
 def get_species_family(species_list, file_name, return_as_list=False):
@@ -673,32 +705,25 @@ def get_species_family(species_list, file_name, return_as_list=False):
     Parameters:
     - species_list (list): List of species names.
     - file_name (str): File name to save the result (empty string to skip saving).
-    - return_as_list(bool): If True, return argument is a list, otherwise a dict (default is False).
+    - return_as_list(bool): Return as a list, otherwise as a dict (default is False).
 
     Returns:
     - dict or list: Resulting dictionary or list with species and their Family information.
     """
-    info_name = "Family GBIF"
+    info_name = "Family"
     print("Searching for species' Family in GBIF taxonomic backbone ...")
     species_info_dict = {}
+
     for spec in species_list:
         if spec not in species_info_dict:
             species_info_dict[spec] = get_gbif_family(spec)
 
-    if return_as_list:
-        # New list of species and infos, allowing for duplicates and preserving order
-        species_info_list = ut.add_info_to_list(species_list, species_info_dict)
-        if file_name != "":
-            ut.list_to_file(species_info_list, ["Species", info_name], file_name)
+    # Get result (list or dict)
+    species_info_result = return_as_list_or_dict(
+        return_as_list, info_name, species_list, species_info_dict, file_name
+    )
 
-        return species_info_list
-    else:
-        # Sort, save and return created dict
-        species_info_dict = dict(sorted(species_info_dict.items()))
-        if file_name != "":
-            ut.dict_to_file(species_info_dict, ["Species", info_name], file_name)
-
-        return species_info_dict
+    return species_info_result
 
 
 def get_species_pft_from_family_woodiness(
@@ -707,7 +732,7 @@ def get_species_pft_from_family_woodiness(
     species_woodiness_dict,
     file_name,
     return_as_list=False,
-    ask_user_input=True,
+    ask_user_input=False,
 ):
     """
     Get PFT for a list of species based on family and woodiness.
@@ -717,8 +742,8 @@ def get_species_pft_from_family_woodiness(
     - species_family_dict (dict): Dictionary mapping species to their families.
     - species_woodiness_dict (dict): Dictionary mapping species to their woodiness.
     - file_name (str): File name to save the result (empty string to skip saving).
-    - return_as_list(bool): If True, return argument is a list, otherwise a dict (default is False).
-    - ask_user_input (bool): If True, ask user for manual input of unclear infos (default is True).
+    - return_as_list(bool): Return as a list, otherwise as a dict (default is False).
+    - ask_user_input (bool): Ask user for manual input of unclear infos (default is False).
 
     Returns:
     - dict or list: Resulting dictionary or list with species and their PFT information.
@@ -728,166 +753,127 @@ def get_species_pft_from_family_woodiness(
         f"Searching for species' {info_name} in species-Family and species-Woodiness lookup tables ..."
     )
     species_info_dict = {}
+
     for spec in species_list:
         if spec not in species_info_dict:
             species_info_dict[spec] = get_pft_from_family_woodiness(
                 spec, species_family_dict, species_woodiness_dict
             )
 
-    # Check for unclear infos
+    # Check for unclear infos and get result (list or dict)
     species_info_dict = check_unclear_infos(
         info_name, species_info_dict, ask_user_input
     )
+    species_info_result = return_as_list_or_dict(
+        return_as_list, info_name, species_list, species_info_dict, file_name
+    )
 
-    if return_as_list:
-        # New list of species and infos, allowing for duplicates and preserving order
-        species_info_list = ut.add_info_to_list(species_list, species_info_dict)
-        if file_name != "":
-            ut.list_to_file(
-                species_info_list, ["Species", "PFT Family_Woodiness"], file_name
-            )
-
-        return species_info_list
-    else:
-        # Sort, save and return created dict
-        species_info_dict = dict(sorted(species_info_dict.items()))
-        if file_name != "":
-            ut.dict_to_file(
-                species_info_dict, ["Species", "PFT Family_Woodiness"], file_name
-            )
-
-        return species_info_dict
+    return species_info_result
 
 
+##########################################################################################################################
 # Example usage:
 
 # Get PFT dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
 folder = Path("speciesMappingLookupTables")
 # file_name = folder / "TRY_Categorical_Traits__Grassmind_PFTs.txt"
 file_name = folder / "TRY_Categorical_Traits__Grassmind_PFTs__GBIFDictionary.txt"
-species_pft_dict = read_species_info_dict(file_name, save_new_file=True)
-
+species_pft_lookup = read_species_info_dict(
+    file_name, info_name="PFT", save_new_file=True
+)
 # # Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
 # file_name = ut.add_string_to_file_name(file_name, "__GBIFDictionary")
-# species_pft_dict_gbif = get_gbif_dict(species_pft_dict, file_name, info_name="PFT")
+# species_pft_lookup = get_gbif_dict(species_pft_lookup, file_name, info_name="PFT")
 
 # Get Woodiness dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
 # file_name = folder / "traitecoevo__growth_form.txt"
-# species_woodiness_dict = read_species_info_dict(
+# species_woodiness_lookup = read_species_info_dict(
 #     file_name, info_name="Woodiness", info_column=2, save_new_file=True
 # )
 file_name = folder / "traitecoevo__growth_form__GBIFDictionary.txt"
-species_woodiness_dict = read_species_info_dict(
+species_woodiness_lookup = read_species_info_dict(
     file_name, info_name="Woodiness", info_column=1, save_new_file=True
 )
-
 # # Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
 # file_name = ut.add_string_to_file_name(file_name, "__GBIFDictionary")
-# species_woodiness_dict_gbif = get_gbif_dict(
-#     species_woodiness_dict, file_name, info_name="Woodiness"
+# species_woodiness_lookup = get_gbif_dict(
+#     species_woodiness_lookup, file_name, info_name="Woodiness"
 # )
 
 # Get example list, here from GCEF site
 folder = Path("speciesMappingExampleLists")
-# file_name = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species.xlsx"
-# file_name = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species.txt"
+# file_name_species_list = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species.xlsx"
 # species_list_renamed = read_species_list(
-#     file_name, species_column="Name", check_gbif=True
+#     file_name_species_list, species_column="Name", check_gbif=True
 # )
-file_name = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species__GBIFList.xlsx"
-species_list_renamed = read_species_list(file_name, check_gbif=False)
+file_name_species_list = (
+    folder / "102ae489-04e3-481d-97df-45905837dc1a_Species__GBIFList.xlsx"
+)
+species_list_renamed = read_species_list(file_name_species_list, check_gbif=False)
 
-# Use first column only for subsequent lookup of infos
+# Use first column of renamed list only for subsequent lookup of infos
+# (list can have original species names in additional column)
 species_list = [entry[0] for entry in species_list_renamed]
 
 # Find PFT (optional user modifications) based on prepared TRY lookup table and write to file
-info_name = "PFT"
-file_name_pft = ut.add_string_to_file_name(file_name, f"__{info_name}")
-species_pft_from_try_assigned = get_species_info(
+file_name = ut.add_string_to_file_name(file_name_species_list, "__PFT_TRY")
+species_pft_try = get_species_info(
     species_list,
-    species_pft_dict,
-    info_name,
-    file_name_pft,
-    return_as_list=False,
-    ask_user_input=False,
+    species_pft_lookup,
+    "PFT",
+    file_name,
 )
 
 # Find GBIF Family and write to file
-## TODO: perhaps combine with get_species_info?
-info_name = "FamilyGBIF"
-file_name_family = ut.add_string_to_file_name(file_name, f"__{info_name}")
-species_family_assigned = get_species_family(
-    species_list, file_name_family, return_as_list=False
-)
+file_name = ut.add_string_to_file_name(file_name_species_list, "__FamilyGBIF")
+species_family = get_species_family(species_list, file_name)
 
 # Find Woodiness (optional user modifications) and write to file
-info_name = "Woodiness"
-file_name_woodiness = ut.add_string_to_file_name(file_name, f"__{info_name}")
-species_woodiness_assigned = get_species_info(
+file_name = ut.add_string_to_file_name(file_name_species_list, "__WoodinessZanne")
+species_woodiness = get_species_info(
     species_list,
-    species_woodiness_dict,
-    info_name,
-    file_name_woodiness,
-    return_as_list=False,
-    ask_user_input=False,
+    species_woodiness_lookup,
+    "Woodiness",
+    file_name,
 )
 
 # Find PFT (optional user modifications) based on Family and Woodiness
-info_name = "PFTFamilyWoodiness"
-file_name_pft_from_family_woodiness = ut.add_string_to_file_name(
-    file_name, f"__{info_name}"
-)
-species_pft_from_family_woodiness_assigned = get_species_pft_from_family_woodiness(
+file_name = ut.add_string_to_file_name(file_name_species_list, "__PFTFamilyWoodiness")
+species_pft_family_woodiness = get_species_pft_from_family_woodiness(
     species_list,
-    species_family_assigned,
-    species_woodiness_assigned,
-    file_name_pft_from_family_woodiness,
-    ask_user_input=False,
+    species_family,
+    species_woodiness,
+    file_name,
 )
 
-# Find PFT (optional user modifications) based on Family and Woodiness
-info_name = "PFTCombined"
-file_name_pft_combined = ut.add_string_to_file_name(file_name, f"__{info_name}")
-species_pft_combined_assigned = resolve_species_info_dicts(
+# Combine and resolve PFT from both sources (TRY & FamilyWoodiness, optional user modifications)
+file_name = ut.add_string_to_file_name(file_name_species_list, "__PFTCombined")
+species_pft_combined = resolve_species_info_dicts(
     "PFT",
-    species_pft_from_try_assigned,
-    species_pft_from_family_woodiness_assigned,
-    ask_user_input=True,
+    species_pft_try,
+    species_pft_family_woodiness,
 )
 
 # Combine all infos to one list, and write to file
-species_infos_assigned = ut.add_to_list(
+all_species_infos = ut.add_infos_to_list(
     species_list_renamed,
-    ut.add_info_to_list(species_list, species_pft_from_try_assigned),
+    species_pft_try,
+    species_family,
+    species_woodiness,
+    species_pft_family_woodiness,
+    species_pft_combined,
 )
-species_infos_assigned = ut.add_to_list(
-    species_infos_assigned,
-    ut.add_info_to_list(species_list, species_woodiness_assigned),
-)
-species_infos_assigned = ut.add_to_list(
-    species_infos_assigned, ut.add_info_to_list(species_list, species_family_assigned)
-)
-species_infos_assigned = ut.add_to_list(
-    species_infos_assigned,
-    ut.add_info_to_list(species_list, species_pft_from_family_woodiness_assigned),
-)
-
-species_infos_assigned = ut.add_to_list(
-    species_infos_assigned,
-    ut.add_info_to_list(species_list, species_pft_combined_assigned),
-)
-
-file_name_combined = ut.add_string_to_file_name(file_name, f"__combined_infos")
+file_name = ut.add_string_to_file_name(file_name_species_list, "__combined_infos")
 ut.list_to_file(
-    species_infos_assigned,
+    all_species_infos,
     [
         "Species",
         "Species Original",
         "PFT TRY",
-        "Woodiness",
         "Family GBIF",
+        "Woodiness Zanne",
         "PFT Family_Woodiness",
         "PFT Combined",
     ],
-    file_name_combined,
+    file_name,
 )

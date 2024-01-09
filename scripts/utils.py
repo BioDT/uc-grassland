@@ -1,7 +1,7 @@
 """
 Module Name: utils.py
 Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
-Date: December 11, 2023
+Date: January 10, 2024
 Description: Utility functions for uc-grassland building block. 
 """
 
@@ -16,13 +16,13 @@ def add_string_to_file_name(file_name, string_to_add):
     Add a string before the suffix of a file name.
 
     Parameters:
-    - file_name (Path): The path of the file.
-    - string_to_add (str): The string to add before the suffix.
+    - file_name (Path): Path of the file.
+    - string_to_add (str): String to add before the suffix.
 
     Returns:
-    - new_file_name (Path): The new file path with the added string.
+    - new_file_name (Path): New file path with the added string.
     """
-    # Convert the WindowsPath object to a string
+    # Convert the WindowsPath object to a stringdo_warning
     file_str = str(file_name)
 
     # Get the suffix (including the dot)
@@ -58,7 +58,7 @@ def replace_substrings(
     - str or list: If input_data is a string, the modified string; if input_data is a list, a new list with the specified substrings replaced in each element.
     """
 
-    # Nested functions for either replacing substring at the end or everywhere.
+    # Nested functions for either replacing substring at the end or everywhere
     def replace_substring_at_end(original_string, substring_to_replace):
         return (
             original_string[: -len(substring_to_replace)] + replacement_string
@@ -69,7 +69,7 @@ def replace_substrings(
     def replace_substring(original_string, substring_to_replace):
         return original_string.replace(substring_to_replace, replacement_string)
 
-    # Convert single strings to lists for unified handling.
+    # Convert single strings to lists for unified handling
     if isinstance(substrings_to_replace, str):
         substrings_to_replace = [substrings_to_replace]
 
@@ -81,6 +81,7 @@ def replace_substrings(
         modified_list = []
         for original_string in input_data:
             modified_string = original_string
+
             if isinstance(modified_string, str):
                 for substring in substrings_to_replace:
                     modified_string = (
@@ -93,11 +94,12 @@ def replace_substrings(
                 print(
                     f"Warning: {modified_string} is not a string. No replacements performed."
                 )
+
             modified_list.append(modified_string)
     else:
         raise ValueError("Input data must be a string or a list of strings.")
 
-    # Return only string if input data was just a string, list of strings otherwise.
+    # Return only string if input data was just a string, list of strings otherwise
     return modified_list[0] if len(modified_list) == 1 else modified_list
 
 
@@ -143,7 +145,7 @@ def dict_to_file(dict_to_write, column_names, file_name):
     Parameters:
     - dict_to_write (dict): Dictionary to be written to the file.
     - column_names (list): List of all column names (strings, includes first column for dict_to_write keys).
-    - file_name (str or Path): The path of the output file.
+    - file_name (str or Path): Path of the output file.
     """
     file_path = Path(file_name)
     file_suffix = file_path.suffix.lower()
@@ -156,9 +158,9 @@ def dict_to_file(dict_to_write, column_names, file_name):
 
             for key, values in dict_to_write.items():
                 writer.writerow(get_row_values(key, values))
-
     elif file_suffix == ".xlsx":
         df = pd.DataFrame(columns=column_names)
+
         for key, values in dict_to_write.items():
             df = pd.concat(
                 [
@@ -184,7 +186,7 @@ def list_to_file(list_to_write, column_names, file_name):
     Parameters:
     - list_to_write (list): List of strings or tuples to be written to the file.
     - column_names (list): List of column names (strings).
-    - file_name (str or Path): The path of the output file.
+    - file_name (str or Path): Path of the output file.
     """
     # Convert string entries to single item tuples
     list_to_write = [
@@ -196,6 +198,7 @@ def list_to_file(list_to_write, column_names, file_name):
         print(
             f"Error: All tuples in the list must have {len(column_names)} entries (same as column_names)."
         )
+
         return
 
     file_path = Path(file_name)
@@ -209,7 +212,6 @@ def list_to_file(list_to_write, column_names, file_name):
 
             for entry in list_to_write:
                 writer.writerow(entry)
-
     elif file_suffix == ".xlsx":
         df = pd.DataFrame(list_to_write, columns=column_names)
         df.to_excel(file_path, index=False)
@@ -309,22 +311,43 @@ def lookup_info_in_dict(key, info_lookup):
     return "not found"
 
 
-def add_info_to_list(list_to_lookup, info_lookup):
+def add_info_to_list(list_to_lookup, info_dict):
     """
     Extend a list with information looked up from a dictionary.
 
     Args:
-        list_to_lookup (list): List of keys to look up in the dictionary.
+        list_to_lookup (list or list of tuples): List or list of tuples with keys to look up in first column.
         info_lookup (dict): Dictionary containing key-value pairs.
 
     Returns:
-        list: List of tuples (entry paired with either its info looked up or "not found").
+        list: List of tuples (original entries with info looked up added as the last entry).
     """
     info_list = []
+
     for entry in list_to_lookup:
-        info_list.append((entry, lookup_info_in_dict(entry, info_lookup)))
+        if isinstance(entry, tuple):
+            info_list.append(entry + (lookup_info_in_dict(entry[0], info_dict),))
+        else:
+            info_list.append((entry, lookup_info_in_dict(entry, info_dict)))
 
     return info_list
+
+
+def add_infos_to_list(list_to_lookup, *info_dicts):
+    """
+    Extend a list with information looked up from multiple dictionaries.
+
+    Args:
+        list_to_lookup (list or list of tuples): List or list of tuples with keys to look up in first column.
+        *info_dicts: Variable number of dictionaries containing key-value pairs.
+
+    Returns:
+        list: List of tuples (original entries with infos looked up added at end).
+    """
+    for info_dict in info_dicts:
+        list_to_lookup = add_info_to_list(list_to_lookup, info_dict)
+
+    return list_to_lookup
 
 
 def reduce_dict_to_single_info(info_lookup, info_name):
