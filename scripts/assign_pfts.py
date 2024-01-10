@@ -400,9 +400,9 @@ def get_pft_from_family_woodiness(spec, species_family_dict, species_woodiness_d
         print(f"Warning: Woodiness for '{spec}' not found in lookup table.")
         woodiness = "not found"
 
-        # Return "not found" as PFT if no info was found
-        if family == "not found":
-            return "not found"
+    # Return "not found" as PFT if no info was found
+    if family == "not found" and woodiness == "not found":
+        return "not found"
 
     # Assign PFT according to heuristics
     grass_families = ["Poaceae", "Cyperaceae", "Juncaceae"]
@@ -802,14 +802,14 @@ species_woodiness_lookup = read_species_info_dict(
 
 # Get example list, here from GCEF site
 folder = Path("speciesMappingExampleLists")
-# file_name_species_list = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species.xlsx"
-# species_list_renamed = read_species_list(
-#     file_name_species_list, species_column="Name", check_gbif=True
-# )
-file_name_species_list = (
-    folder / "102ae489-04e3-481d-97df-45905837dc1a_Species__GBIFList.xlsx"
+file_name_species_list = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species.xlsx"
+species_list_renamed = read_species_list(
+    file_name_species_list, species_column="Name", check_gbif=True
 )
-species_list_renamed = read_species_list(file_name_species_list, check_gbif=False)
+# file_name_species_list = (
+#     folder / "102ae489-04e3-481d-97df-45905837dc1a_Species__GBIFList.xlsx"
+# )
+# species_list_renamed = read_species_list(file_name_species_list, check_gbif=False)
 
 # Use first column of renamed list only for subsequent lookup of infos
 # (list can have original species names in additional column)
