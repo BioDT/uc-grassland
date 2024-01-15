@@ -1,7 +1,7 @@
 """
 Module Name: assign_pfts.py
 Author: Thomas Banitz, Franziska Taubert, BioDT
-Date: December 17, 2023
+Date: January 15, 2024
 Description: Assign PFTs to species with the following options:
              - based on TRY categorical traits table (with prepared PFT column in this table)
              - based on GBIF taxonomic backbone for family and https://github.com/traitecoevo/growthform
@@ -18,13 +18,56 @@ import csv
 from pygbif import species
 
 
+def combine_info_strings(info_name, info_1, info_2):
+    """
+    Combine infos for a species.
+
+    Parameters:
+    - info_name (str): Information name ('PFT' or 'Woodiness' or 'Family').
+    - info_1 (str): First info entry.
+    - info_2 (str): Second info entry.
+
+    Returns:
+    - str: Combined info entry.
+    """
+    info_1_core = ut.replace_substrings(info_1, ["(", ")", "conflicting "], "")
+    info_2_core = ut.replace_substrings(info_2, ["(", ")", "conflicting "], "")
+
+    # Allow combination without conflict of infos that can be woody
+    woody_infos = [
+        "woody",
+        "tree",
+        "shrub",
+        "shrub/tree",
+        "legume?",
+        "legume?/tree",
+        "legume?/shrub",
+        "legume?/shrub/tree",
+    ]
+
+    # Return one info, if it already contains the other info
+    if info_1_core in info_2_core:
+        return info_2
+    elif info_2_core in info_1_core:
+        return info_1
+    else:
+        info_both = sorted((info_1_core, info_2_core))
+
+        # Combine without conflict, if both infos are woody (PFT or Woodiness)
+        if info_1_core in woody_infos and info_2_core in woody_infos:
+            return f"({info_both[0]}/{info_both[1]})"
+        # Combine as conflicting otherwise
+        else:
+            return f"conflicting ({info_both[0]} vs. {info_both[1]})"
+
+
 def resolve_species_infos(spec, info_name, info_1, info_2, warning_duplicates=True):
     """
     Resolve conflicting infos for a species.
 
     Parameters:
     - spec (str): Species for which infos are being resolved.
-    - info_name (str): Information name ('PFT' or 'Woodiness').
+    - info_name (str): Information name ('PFT' or 'Woodiness' or 'Family').
     - info_1 (str): First info entry.
     - info_2 (str): Second info entry.
     - warning_duplicates (bool): Throw warnings for resolving duplicate entries (default is True).
@@ -42,7 +85,7 @@ def resolve_species_infos(spec, info_name, info_1, info_2, warning_duplicates=Tr
 
         if warning_duplicates:
             print(f"{info_name} is equal. Keeping the {info_name} '{info_resolved}'.")
-    # Check if infos start with "not assigned", keep other one
+    # Check if infos start with "not ", keep other one
     else:
         if info_1.startswith("not ") and not info_2.startswith("not "):
             info_resolved = info_2
@@ -50,11 +93,18 @@ def resolve_species_infos(spec, info_name, info_1, info_2, warning_duplicates=Tr
             info_resolved = info_1
         elif info_1.startswith("not ") and info_2.startswith("not "):
             info_resolved = "not assigned"
-        # Raise an error for two different assigned infos
+        elif f"({info_1}?)" == info_2:
+            info_resolved = info_1
+        elif f"({info_2}?)" == info_1:
+            info_resolved = info_2
         else:
-            print(f"ERROR: Different assigned {info_name} found for species {spec}!")
-            info_resolved = "conflicting"
+            info_resolved = combine_info_strings(info_name, info_1, info_2)
 
+            # Raise an error for two conflicting assigned infos
+            if info_resolved.startswith("conflicting "):
+                print(
+                    f"ERROR: Different assigned {info_name} found for species {spec}!"
+                )
         if warning_duplicates:
             print(
                 f"{info_name} differs: '{info_1}' vs. '{info_2}'. Keeping the {info_name} '{info_resolved}'."
@@ -70,7 +120,7 @@ def resolve_species_info_dicts(
     Resolve conflicting info entries for all species from two dictionaries.
 
     Parameters:
-    - info_name (str): Information name ('PFT' or 'Woodiness').
+    - info_name (str): Information name ('PFT' or 'Woodiness' of 'Family').
     - info_dict_1 (dict): First dictionary mapping species to information entries.
     - info_dict_2 (dict): Second dictionary mapping species to information entries.
     - ask_user_input (bool): Ask user for manual input of unclear infos (default is False).
@@ -122,14 +172,71 @@ def get_valid_infos(info_name):
     """
     if info_name == "PFT":
         # Set valid grassland PFT entries
-        return ["grass", "forb", "legume"]
+        return [
+            "grass",
+            "forb",
+            "legume",
+            "(tree)",
+            "(shrub)",
+            "(shrub/tree)",
+            "(fern)",
+            "(moss)",
+            "(lichen)",
+            "(legume?)",
+        ]
     elif info_name == "Woodiness":
         # Set valid Woodiness entries
-        return ["woody", "herbaceous", "variable"]
+        return ["woody", "herbaceous", "variable", "(fern)", "(lichen)", "(moss)"]
+    elif info_name == "Family":
+        return ["any"]
     else:
         raise ValueError(
             f"ERROR: Unsupported species information type. Supported types are 'PFT' and 'Woodiness'."
         )
+
+
+def replace_info_strings(info, info_name):
+    """
+    Revise information entries based on the specified information type for consistency.
+
+    Args:
+        info (str): Original information entry.
+        info_name (str): Type of species information ('PFT' or 'Woodiness').
+
+    Returns:
+        str: Revised information entry.
+    """
+    if info_name == "PFT":
+        info = ut.replace_substrings(info, "not assigned ()", "not assigned")
+        info = ut.replace_substrings(info, "not assigned (", "(")
+        info = ut.replace_substrings(
+            info, "(herb/shrub)", "conflicting (forb vs. shrub)"
+        )
+        info = ut.replace_substrings(
+            info, "(herb/shrub/tree)", "conflicting (forb vs. shrub/tree)"
+        )
+    elif info_name == "Woodiness":
+        info = ut.replace_substrings(
+            info,
+            ["conflicting", "herb/shrub", "herb/shrub/tree"],
+            "conflicting (herbaceous vs. woody)",
+            at_end=True,
+        )
+        info = ut.replace_substrings(
+            info, ["W", "shrub", "shrub/tree", "tree"], "woody", at_end=True
+        )
+        info = ut.replace_substrings(
+            info, ["H", "herb", "graminoid"], "herbaceous", at_end=True
+        )
+        info = ut.replace_substrings(info, "NA", "not assigned", at_end=True)
+        info = ut.replace_substrings(info, "fern", "(fern)", at_end=True)
+        info = ut.replace_substrings(info, "lichen", "(lichen)", at_end=True)
+        info = ut.replace_substrings(info, "moss", "(moss)", at_end=True)
+
+    if not info:
+        info = "not assigned"
+
+    return info
 
 
 def read_species_info_dict(
@@ -173,14 +280,14 @@ def read_species_info_dict(
         for line_number, line in enumerate(file, start=header_lines + 1):
             columns = line.strip().split("\t")
             spec, info = (columns[species_column], columns[info_column])
+            info = replace_info_strings(info, info_name)
 
-            if info_name == "Woodiness":
-                info = ut.replace_substrings(info, "W", "woody")
-                info = ut.replace_substrings(info, "H", "herbaceous")
-                info = ut.replace_substrings(info, "NA", "not assigned")
-
-            # Warning if info is not valid or starts with "not assigned"
-            if info not in valid_infos and not info.startswith("not assigned"):
+            # Warning if info is not valid and not "not assigned"
+            if (
+                not (valid_infos == ["any"] and info != "")
+                and info not in valid_infos
+                and not info.startswith("not assigned")
+            ):
                 print(
                     f"Warning: Invalid {info_name} found on line {line_number} for {spec}: '{info}'."
                 )
@@ -204,7 +311,9 @@ def read_species_info_dict(
 
     # Save created dictionary to new file
     if save_new_file:
-        file_name = ut.add_string_to_file_name(file_name, "__UserDictionary")
+        file_name = ut.add_string_to_file_name(
+            file_name, f"__{info_name}__UserDictionary"
+        )
         ut.dict_to_file(species_info_dict, ["Species", info_name], file_name)
 
     # Return resulting dictionary
@@ -258,9 +367,11 @@ def get_gbif_species(spec, accepted_ranks=["GENUS"]):
         else:
             if spec_gbif_dict["rank"] in accepted_ranks:
                 # GBIF result in accepted ranks, keep this result
+                spec_match = f"{spec_match} species"
                 print(
                     f"'{spec}' replaced with {spec_gbif_dict['rank']} '{spec_match}'."
                 )
+
             else:
                 # GBIF result above accepted ranks, check for suggestions
                 spec_gbif_suggest = species.name_suggest(q=spec, rank="species")
@@ -335,6 +446,13 @@ def get_gbif_dict(species_info_dict, file_name="", info_name="PFT"):
 
     for spec, info in species_info_dict.items():
         spec_match = get_gbif_species(spec, accepted_ranks=["GENUS", "FAMILY"])
+
+        if (
+            spec_match != spec
+            and spec_match.endswith(" species")
+            and not "grass" in info  # Keep all infos with "grass", also conflicts
+        ):
+            info = "not assigned"
 
         # Check if (replaced) species name is already in lookup table
         if spec_match in species_info_dict_gbif:
@@ -414,6 +532,8 @@ def get_pft_from_family_woodiness(spec, species_family_dict, species_woodiness_d
             return "legume"
         else:
             return "forb"
+    elif woodiness == "woody":
+        return "(woody)"
     else:
         return "not assigned"
 
@@ -776,29 +896,63 @@ def get_species_pft_from_family_woodiness(
 
 # Get PFT dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
 folder = Path("speciesMappingLookupTables")
-# file_name = folder / "TRY_Categorical_Traits__Grassmind_PFTs.txt"
-file_name = folder / "TRY_Categorical_Traits__Grassmind_PFTs__GBIFDictionary.txt"
-species_pft_lookup = read_species_info_dict(
-    file_name, info_name="PFT", save_new_file=True
+info_name = "PFT"
+file_name = folder / "TRY_Categorical_Traits.txt"
+species_pft_try_lookup = read_species_info_dict(
+    file_name, info_name, info_column=5, save_new_file=True
+)
+# file_name = folder / "TRY_Categorical_Traits__PFT__GBIFDictionary.txt"
+# species_pft_try_lookup = read_species_info_dict(
+#     file_name, info_name, info_column=1, save_new_file=False
+# )
+# Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
+file_name = ut.add_string_to_file_name(file_name, f"__{info_name}__GBIFDictionary")
+species_pft_try_lookup = get_gbif_dict(species_pft_try_lookup, file_name, info_name)
+
+# Get Family dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
+info_name = "Family"
+# file_name = folder / "TRY_Categorical_Traits.txt"
+# species_family_try_lookup = read_species_info_dict(
+#     file_name, info_name, info_column=3, save_new_file=True
+# )
+file_name = folder / "TRY_Categorical_Traits__Family__GBIFDictionary.txt"
+species_family_try_lookup = read_species_info_dict(
+    file_name, info_name, info_column=1, save_new_file=False
 )
 # # Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
-# file_name = ut.add_string_to_file_name(file_name, "__GBIFDictionary")
-# species_pft_lookup = get_gbif_dict(species_pft_lookup, file_name, info_name="PFT")
+# file_name = ut.add_string_to_file_name(file_name, f"__{info_name}__GBIFDictionary")
+# species_family_try_lookup = get_gbif_dict(
+#     species_family_try_lookup, file_name, info_name
+# )
 
 # Get Woodiness dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
-# file_name = folder / "traitecoevo__growth_form.txt"
-# species_woodiness_lookup = read_species_info_dict(
-#     file_name, info_name="Woodiness", info_column=2, save_new_file=True
-# )
-file_name = folder / "traitecoevo__growth_form__GBIFDictionary.txt"
-species_woodiness_lookup = read_species_info_dict(
-    file_name, info_name="Woodiness", info_column=1, save_new_file=True
+info_name = "Woodiness"
+file_name = folder / "TRY_Categorical_Traits.txt"
+species_woodiness_try_lookup = read_species_info_dict(
+    file_name, info_name, info_column=4, save_new_file=True
 )
-# # Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
-# file_name = ut.add_string_to_file_name(file_name, "__GBIFDictionary")
-# species_woodiness_lookup = get_gbif_dict(
-#     species_woodiness_lookup, file_name, info_name="Woodiness"
+# Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
+file_name = ut.add_string_to_file_name(file_name, f"__{info_name}__GBIFDictionary")
+species_woodiness_try_lookup = get_gbif_dict(
+    species_woodiness_try_lookup, file_name, info_name
+)
+
+# Get Woodiness dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
+file_name = folder / "traitecoevo__growth_form.txt"
+info_name = "Woodiness"
+species_woodiness_lookup = read_species_info_dict(
+    file_name, info_name, info_column=2, save_new_file=True
+)
+# file_name = folder / "traitecoevo__growth_form__Woodiness__GBIFDictionary.txt"
+# info_name = "Woodiness"
+# species_woodiness_zanne_lookup = read_species_info_dict(
+#     file_name, info_name, info_column=1, save_new_file=False
 # )
+# Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
+file_name = ut.add_string_to_file_name(file_name, f"__{info_name}__GBIFDictionary")
+species_woodiness_lookup = get_gbif_dict(
+    species_woodiness_lookup, file_name, info_name="Woodiness"
+)
 
 # Get example list, here from GCEF site
 folder = Path("speciesMappingExampleLists")
@@ -815,52 +969,143 @@ species_list_renamed = read_species_list(
 # (list can have original species names in additional column)
 species_list = [entry[0] for entry in species_list_renamed]
 
-# Find PFT (optional user modifications) based on prepared TRY lookup table and write to file
-file_name = ut.add_string_to_file_name(file_name_species_list, "__PFT_TRY")
-species_pft_try = get_species_info(
+# Find Family (optional user modifications) based on TRY and write to file
+file_name = ut.add_string_to_file_name(file_name_species_list, "__FamilyTRY")
+species_family_try = get_species_info(
     species_list,
-    species_pft_lookup,
-    "PFT",
+    species_family_try_lookup,
+    "Family",
     file_name,
 )
 
-# Find GBIF Family and write to file
+# Find Family based on GBIF and write to file
 file_name = ut.add_string_to_file_name(file_name_species_list, "__FamilyGBIF")
-species_family = get_species_family(species_list, file_name)
+species_family_gbif = get_species_family(species_list, file_name)
 
-# Find Woodiness (optional user modifications) and write to file
-file_name = ut.add_string_to_file_name(file_name_species_list, "__WoodinessZanne")
-species_woodiness = get_species_info(
+# Combine and resolve Family from both sources (TRY & GBIF, optional user modifications)
+file_name = ut.add_string_to_file_name(file_name_species_list, "__FamilyCombined")
+species_family_combined = resolve_species_info_dicts(
+    "Family",
+    species_family_try,
+    species_family_gbif,
+)
+ut.dict_to_file(species_family_combined, ["Species", "Family Combined"], file_name)
+
+# Find Woodiness (optional user modifications) based on TRY and write to file
+file_name = ut.add_string_to_file_name(file_name_species_list, "__WoodinessTRY")
+species_woodiness_try = get_species_info(
     species_list,
-    species_woodiness_lookup,
+    species_woodiness_try_lookup,
     "Woodiness",
     file_name,
 )
 
-# Find PFT (optional user modifications) based on Family and Woodiness
-file_name = ut.add_string_to_file_name(file_name_species_list, "__PFTFamilyWoodiness")
-species_pft_family_woodiness = get_species_pft_from_family_woodiness(
+# Find Woodiness (optional user modifications) based on Zanne and write to file
+file_name = ut.add_string_to_file_name(file_name_species_list, "__WoodinessZanne")
+species_woodiness_zanne = get_species_info(
     species_list,
-    species_family,
-    species_woodiness,
+    species_woodiness_zanne_lookup,
+    "Woodiness",
     file_name,
 )
 
-# Combine and resolve PFT from both sources (TRY & FamilyWoodiness, optional user modifications)
+# Combine and resolve Woodiness from both sources (TRY & Zanne, optional user modifications)
+file_name = ut.add_string_to_file_name(file_name_species_list, "__WoodinessCombined")
+species_woodiness_combined = resolve_species_info_dicts(
+    "Woodiness",
+    species_woodiness_try,
+    species_woodiness_zanne,
+)
+ut.dict_to_file(
+    species_woodiness_combined, ["Species", "Woodiness Combined"], file_name
+)
+
+# Find PFT (optional user modifications) based on prepared TRY lookup table and write to file
+file_name = ut.add_string_to_file_name(file_name_species_list, "__PFT_TRY")
+species_pft_try = get_species_info(
+    species_list,
+    species_pft_try_lookup,
+    "PFT",
+    file_name,
+)
+
+# Find PFT (optional user modifications) based on TRY Family and Woodiness
+file_name = ut.add_string_to_file_name(
+    file_name_species_list, "__PFTFamilyWoodinessTRY"
+)
+species_pft_family_woodiness_try = get_species_pft_from_family_woodiness(
+    species_list,
+    species_family_try,
+    species_woodiness_try,
+    file_name,
+)
+
+# Find PFT (optional user modifications) based on GBIF Family and TRY Woodiness
+file_name = ut.add_string_to_file_name(
+    file_name_species_list, "__PFTFamilyWoodinessGBIF_TRY"
+)
+species_pft_family_woodiness_gbif_try = get_species_pft_from_family_woodiness(
+    species_list,
+    species_family_gbif,
+    species_woodiness_try,
+    file_name,
+)
+
+# Find PFT (optional user modifications) based on GBIF Family and Zanne Woodiness
+file_name = ut.add_string_to_file_name(
+    file_name_species_list, "__PFTFamilyWoodinessGBIF_Zanne"
+)
+species_pft_family_woodiness_gbif_zanne = get_species_pft_from_family_woodiness(
+    species_list,
+    species_family_gbif,
+    species_woodiness_zanne,
+    file_name,
+)
+
+# Find PFT (optional user modifications) based on GBIF Family and Combined Woodiness
+file_name = ut.add_string_to_file_name(
+    file_name_species_list, "__PFTFamilyWoodinessGBIF_Combined"
+)
+species_pft_family_woodiness_gbif_combined = get_species_pft_from_family_woodiness(
+    species_list,
+    species_family_gbif,
+    species_woodiness_combined,
+    file_name,
+)
+
+# Combine and resolve PFT from all sources (optional user modifications)
 file_name = ut.add_string_to_file_name(file_name_species_list, "__PFTCombined")
 species_pft_combined = resolve_species_info_dicts(
     "PFT",
     species_pft_try,
-    species_pft_family_woodiness,
+    species_pft_family_woodiness_try,
 )
+species_pft_combined = resolve_species_info_dicts(
+    "PFT",
+    species_pft_combined,
+    species_pft_family_woodiness_gbif_try,
+)
+species_pft_combined = resolve_species_info_dicts(
+    "PFT",
+    species_pft_combined,
+    species_pft_family_woodiness_gbif_zanne,
+)
+
 
 # Combine all infos to one list, and write to file
 all_species_infos = ut.add_infos_to_list(
     species_list_renamed,
+    species_family_try,
+    species_family_gbif,
+    species_family_combined,
+    species_woodiness_try,
+    species_woodiness_zanne,
+    species_woodiness_combined,
     species_pft_try,
-    species_family,
-    species_woodiness,
-    species_pft_family_woodiness,
+    species_pft_family_woodiness_try,
+    species_pft_family_woodiness_gbif_try,
+    species_pft_family_woodiness_gbif_zanne,
+    species_pft_family_woodiness_gbif_combined,
     species_pft_combined,
 )
 file_name = ut.add_string_to_file_name(file_name_species_list, "__combined_infos")
@@ -869,10 +1114,17 @@ ut.list_to_file(
     [
         "Species",
         "Species Original",
-        "PFT TRY",
+        "Family TRY",
         "Family GBIF",
+        "Family Combined",
+        "Woodiness TRY",
         "Woodiness Zanne",
-        "PFT Family_Woodiness",
+        "Woodiness Combined",
+        "PFT TRY",
+        "PFT Family_Woodiness TRY",
+        "PFT Family_Woodiness GBIF_TRY",
+        "PFT Family_Woodiness GBIF_Zanne",
+        "PFT Family_Woodiness GBIF_Combined",
         "PFT Combined",
     ],
     file_name,
