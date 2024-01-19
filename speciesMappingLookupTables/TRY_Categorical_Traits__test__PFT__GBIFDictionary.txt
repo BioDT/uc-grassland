@@ -1,0 +1,2 @@
+Species	PFT	Original names
+Hedyotis pedunculata	(tree)	['Cinnamomum japonicum']
