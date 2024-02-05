@@ -103,7 +103,7 @@ def resolve_species_infos(spec, info_name, info_1, info_2, warning_duplicates=Tr
             # Raise an error for two conflicting assigned infos
             if info_resolved.startswith("conflicting "):
                 print(
-                    f"ERROR: Different assigned {info_name} found for species {spec}!"
+                    f"CONFLICT: Different assigned {info_name} found for species {spec}!"
                 )
         if warning_duplicates:
             print(
@@ -900,7 +900,6 @@ def get_species_pft_from_family_woodiness(
 folder = Path("speciesMappingLookupTables")
 info_name = "PFT"
 # file_name = folder / "TRY_Categorical_Traits.txt"
-# file_name = folder / "TRY_Categorical_Traits__test.txt"
 # species_pft_try_lookup = read_species_info_dict(
 #     file_name, info_name, info_column=5, save_new_file=True
 # )
@@ -914,20 +913,19 @@ species_pft_try_lookup = read_species_info_dict(
 
 # Get Family dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
 info_name = "Family"
-file_name = folder / "TRY_Categorical_Traits.txt"
-# file_name = folder / "TRY_Categorical_Traits__test.txt"
-species_family_try_lookup = read_species_info_dict(
-    file_name, info_name, info_column=3, save_new_file=True
-)
-# file_name = folder / "TRY_Categorical_Traits__Family__GBIFDictionary.txt"
+# file_name = folder / "TRY_Categorical_Traits.txt"
 # species_family_try_lookup = read_species_info_dict(
-#     file_name, info_name, info_column=1, save_new_file=False
+#     file_name, info_name, info_column=3, save_new_file=True
 # )
-# Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
-file_name = ut.add_string_to_file_name(file_name, f"__{info_name}__GBIFDictionary")
-species_family_try_lookup = get_gbif_dict(
-    species_family_try_lookup, file_name, info_name
+file_name = folder / "TRY_Categorical_Traits__Family__GBIFDictionary.txt"
+species_family_try_lookup = read_species_info_dict(
+    file_name, info_name, info_column=1, save_new_file=False
 )
+# # Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
+# file_name = ut.add_string_to_file_name(file_name, f"__{info_name}__GBIFDictionary")
+# species_family_try_lookup = get_gbif_dict(
+#     species_family_try_lookup, file_name, info_name
+# )
 
 # Get Woodiness dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
 info_name = "Woodiness"
@@ -965,14 +963,14 @@ species_woodiness_zanne_lookup = read_species_info_dict(
 
 # Get example list, here from GCEF site
 folder = Path("speciesMappingExampleLists")
-# file_name_species_list = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species.xlsx"
-# species_list_renamed = read_species_list(
-#     file_name_species_list, species_column="Name", check_gbif=True
-# )
-file_name_species_list = (
-    folder / "102ae489-04e3-481d-97df-45905837dc1a_Species__GBIFList.xlsx"
+file_name_species_list = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species.xlsx"
+species_list_renamed = read_species_list(
+    file_name_species_list, species_column="Name", check_gbif=True
 )
-species_list_renamed = read_species_list(file_name_species_list, check_gbif=False)
+# file_name_species_list = (
+#     folder / "102ae489-04e3-481d-97df-45905837dc1a_Species__GBIFList.xlsx"
+# )
+# species_list_renamed = read_species_list(file_name_species_list, check_gbif=False)
 
 # Use first column of renamed list only for subsequent lookup of infos
 # (list can have original species names in additional column)
