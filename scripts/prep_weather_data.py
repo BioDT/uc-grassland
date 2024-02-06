@@ -60,7 +60,7 @@ def main():
     parser.add_argument(
         "--data_sets",
         nargs="*",
-        default=["reanalysis-era5-land", "reanalysis-era5-single-levels"],
+        default=["reanalysis-era5-land"],  # , "reanalysis-era5-single-levels"
         help="List of data sets",
     )
     parser.add_argument("--years", nargs="*", type=int, help="List of years")
