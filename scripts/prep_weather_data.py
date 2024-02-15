@@ -1,7 +1,7 @@
 """
 Module Name: prep_weather_data.py
 Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
-Date: November 8, 2023
+Date: November, 2023
 Description: Download weather data and prepare as needed for GRASSMIND input. 
 """
 
@@ -27,15 +27,15 @@ def prep_weather_data(
         deims_id (str or None): DEIMS.iD, or 'None' for default value.
     """
     if years is None:
-        years = list(range(2013, 2014))  # list(range(..., ...))
+        years = list(range(2013, 2020))  # list(range(..., ...))
 
     if months is None:
-        months = list(range(1, 2))  # list(range(1, 13))
+        months = list(range(1, 13))  # list(range(1, 13))
 
     if coordinates is None:
         if deims_id is None:
             deims_id = "102ae489-04e3-481d-97df-45905837dc1a"  # GCEF site
-            deims_id = "51d0598a-e9e1-4252-8850-60fc8f329aab"  # test Veronika
+            # deims_id = "51d0598a-e9e1-4252-8850-60fc8f329aab"  # test Veronika
             # deims_id = "474916b5-8734-407f-9179-109083c031d8"  # Doode Bemde site, Belgium
 
     # Final resolution as needed for GRASSMIND.
@@ -60,7 +60,7 @@ def main():
     parser.add_argument(
         "--data_sets",
         nargs="*",
-        default=["reanalysis-era5-land"],  # , "reanalysis-era5-single-levels"
+        default=["reanalysis-era5-land"],
         help="List of data sets",
     )
     parser.add_argument("--years", nargs="*", type=int, help="List of years")

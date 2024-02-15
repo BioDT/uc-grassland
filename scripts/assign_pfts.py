@@ -1,7 +1,7 @@
 """
 Module Name: assign_pfts.py
 Author: Thomas Banitz, Franziska Taubert, BioDT
-Date: January 15, 2024
+Date: January, 2024
 Description: Assign PFTs to species with the following options:
              - based on TRY categorical traits table (with prepared PFT column in this table)
              - based on GBIF taxonomic backbone for family and https://github.com/traitecoevo/growthform
