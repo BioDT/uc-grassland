@@ -374,3 +374,23 @@ def reduce_dict_to_single_info(info_lookup, info_name):
                 )
 
     return info_lookup
+
+
+def get_package_root():
+    # Get the file path of the current module
+    module_path = Path(__file__).resolve()
+
+    # Navigate up from the module directory until the package root is found
+    for parent in module_path.parents:
+        if (parent / "requirements.txt").is_file():
+            return parent
+
+    raise FileNotFoundError("Could not find package root.")
+
+
+def get_deims_ids_from_xls(elter_xls_file, header_row):
+    # Load the Excel file into a DataFrame
+    df = pd.read_excel(elter_xls_file, header=header_row)
+
+    # Extract the column containing the list of DEIMS.iDs and return as list of dicts
+    return [{"deims_id": deims_id} for deims_id in df["DEIMS.ID"].tolist()]
