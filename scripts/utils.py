@@ -1,7 +1,7 @@
 """
 Module Name: utils.py
 Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
-Date: January 10, 2024
+Date: February, 2024
 Description: Utility functions for uc-grassland building block. 
 """
 
@@ -184,7 +184,7 @@ def list_to_file(list_to_write, column_names, file_name):
     Write a list of tuples to a text file (tab-separated) or an Excel file.
 
     Parameters:
-    - list_to_write (list): List of strings or tuples to be written to the file.
+    - list_to_write (list): List of strings or tuples or dictionaries to be written to the file.
     - column_names (list): List of column names (strings).
     - file_name (str or Path): Path of the output file.
     """
@@ -193,8 +193,14 @@ def list_to_file(list_to_write, column_names, file_name):
         (entry,) if isinstance(entry, str) else entry for entry in list_to_write
     ]
 
+    # Check if list_to_write contains dictionaries
+    if isinstance(list_to_write[0], dict):
+        # Convert dictionaries to lists of values based on column_names
+        list_to_write = [
+            [entry.get(col, "") for col in column_names] for entry in list_to_write
+        ]
     # Check if all tuples in the list have the same length as the column_names list
-    if not all(len(entry) == len(column_names) for entry in list_to_write):
+    elif not all(len(entry) == len(column_names) for entry in list_to_write):
         print(
             f"Error: All tuples in the list must have {len(column_names)} entries (same as column_names)."
         )
@@ -229,7 +235,7 @@ def add_to_dict(
     """
     Add values from a dictionary to an existing dictionary under a specified key.
 
-    Args:
+    Parameters:
         dict_prev (dict): Existing dictionary.
         dict_to_add (dict): Dictionary of new values to add.
         value_name_prev (str): Name for the existing values in the updated dictionary (default is 'info1').
@@ -264,7 +270,7 @@ def add_to_list(list_prev, list_to_add):
     """
     Combine values from two lists of tuples based on the equality of the first column.
 
-    Args:
+    Parameters:
         list_prev (list): Existing list of tuples.
         list_to_add (list): List of tuples with new values to add.
 
@@ -298,7 +304,7 @@ def lookup_info_in_dict(key, info_lookup):
     """
     Look up info for a given key in a dictionary.
 
-    Args:
+    Parameters:
         key: Key to look up.
         info_lookup (dict): Dictionary containing key-value pairs.
 
@@ -315,7 +321,7 @@ def add_info_to_list(list_to_lookup, info_dict):
     """
     Extend a list with information looked up from a dictionary.
 
-    Args:
+    Parameters:
         list_to_lookup (list or list of tuples): List or list of tuples with keys to look up in first column.
         info_lookup (dict): Dictionary containing key-value pairs.
 
@@ -337,7 +343,7 @@ def add_infos_to_list(list_to_lookup, *info_dicts):
     """
     Extend a list with information looked up from multiple dictionaries.
 
-    Args:
+    Parameters:
         list_to_lookup (list or list of tuples): List or list of tuples with keys to look up in first column.
         *info_dicts: Variable number of dictionaries containing key-value pairs.
 
@@ -354,7 +360,7 @@ def reduce_dict_to_single_info(info_lookup, info_name):
     """
     Reduce a dictionary of dictionaries to a single information specified by the given info_name.
 
-    Args:
+    Parameters:
         info_lookup (dict): Dictionary where values can be dictionaries.
         info_name (str): Name of the information to extract from the nested dictionaries.
 
@@ -377,6 +383,12 @@ def reduce_dict_to_single_info(info_lookup, info_name):
 
 
 def get_package_root():
+    """
+    Get the root directory of the package containing the current module.
+
+    Returns:
+    - Path: The path to the package root directory.
+    """
     # Get the file path of the current module
     module_path = Path(__file__).resolve()
 
@@ -388,9 +400,43 @@ def get_package_root():
     raise FileNotFoundError("Could not find package root.")
 
 
-def get_deims_ids_from_xls(elter_xls_file, header_row):
+def get_deims_ids_from_xls(xls_file, header_row):
+    """
+    Extract DEIMS IDs from an Excel file and return as a list of dictionaries.
+
+    Parameters:
+    - xls_file (Path): Path to the Excel file.
+    - header_row (int): Row number containing the column names.
+
+    Returns:
+    - list: List of dictionaries containing DEIMS IDs.
+    """
+    if not xls_file.exists():
+        raise FileNotFoundError(f"File '{xls_file}' not found.")
+
     # Load the Excel file into a DataFrame
-    df = pd.read_excel(elter_xls_file, header=header_row)
+    df = pd.read_excel(xls_file, header=header_row)
 
     # Extract the column containing the list of DEIMS.iDs and return as list of dicts
     return [{"deims_id": deims_id} for deims_id in df["DEIMS.ID"].tolist()]
+
+
+def get_unique_keys(list_of_dicts):
+    """
+    Get the unique keys from a list of dictionaries.
+
+    Parameters:
+    - list_of_dicts (list): List of dictionaries.
+
+    Returns:
+    - list: List of unique keys.
+    """
+    unique_keys = []
+
+    # Iterate over each dictionary in the list
+    for d in list_of_dicts:
+        for key in d.keys():
+            if key not in unique_keys:
+                unique_keys.append(key)
+
+    return unique_keys

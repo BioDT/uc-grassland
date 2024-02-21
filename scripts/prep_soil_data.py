@@ -16,7 +16,7 @@ def prep_soil_data(
     """
     Prepare soil data to be used as GRASSMIND input.
 
-    Args:
+    Parameters:
         coordinates (dict): Coordinates dictionary with 'lat' and 'lon', or 'None' using DEIMS.iD.
         deims_id (str or None): DEIMS.iD, or 'None' for default value.
     """

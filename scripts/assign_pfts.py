@@ -161,7 +161,7 @@ def get_valid_infos(info_name):
     """
     Get valid information entries based on the specified information type.
 
-    Args:
+    Parameters:
         info_name (str): Type of species information ('PFT' or 'Woodiness').
 
     Returns:
@@ -199,7 +199,7 @@ def replace_info_strings(info, info_name):
     """
     Revise information entries based on the specified information type for consistency.
 
-    Args:
+    Parameters:
         info (str): Original information entry.
         info_name (str): Type of species information ('PFT' or 'Woodiness').
 

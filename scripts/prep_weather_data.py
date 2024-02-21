@@ -19,7 +19,7 @@ def prep_weather_data(
     """
     Prepare weather data to be used as GRASSMIND input.
 
-    Args:
+    Parameters:
         data_sets (list): List of data set names from which to download.
         years (list or None): List of years to process, or 'None' for default value.
         months (list or None): List of months to process, or 'None' for default value.

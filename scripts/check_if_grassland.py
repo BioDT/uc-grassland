@@ -31,8 +31,6 @@ https://gdz.bkg.bund.de/index.php/default/digitale-geodaten/digitale-landschafts
 
 from copernicus import utils as ut_cop
 import numpy as np
-
-# import os
 import pandas as pd
 from pathlib import Path
 import pyproj
@@ -49,7 +47,7 @@ def get_map_specs():
         dict of dict: Each key maps to a dictionary containing "tif_file" and "leg_ext" keys for file information.
     """
     # Different maps and respective categories files
-    # Default folder is 'land_cover_map_tif' subfolder of the project root.
+    # Default folder is 'landCoverMaps' subfolder of the project root.
     # Otherwise use full path to TIF file here!
     map_specs = {
         "GER_Preidl": {
@@ -69,7 +67,7 @@ def get_map_and_legend(map_key):
     """
     Check if TIF file and categories file are avaible, read categories from file.
 
-    Args:
+    Parameters:
         map_key (str): Identifier of the map to be used.
 
     Returns:
@@ -106,7 +104,7 @@ def reproject_coordinates(lat, lon, target_crs):
     """
     Reproject latitude and longitude coordinates to a target CRS.
 
-    Args:
+    Parameters:
         lat (float): Latitude.
         lon (float): Longitude.
         target_crs (str): Target Coordinate Reference System in WKT format.
@@ -131,7 +129,7 @@ def create_category_mapping(leg_file):
     """
     Create a mapping of category indices to category names from legend file (XML or XLSX or ...).
 
-    Args:
+    Parameters:
         leg_file (str): The path to the leg file containing category names (in specific format).
 
     Returns:
@@ -170,180 +168,171 @@ def create_category_mapping(leg_file):
     return category_mapping
 
 
-def extract_raster_values(tif_file, coordinates):
+def extract_raster_value(tif_file, location):
     """
     Extract values from raster file at specified coordinates.
 
-    Args:
+    Parameters:
         tif_file (str): Path to TIF file.
         category_mapping (dict): Mapping of category indices to category names.
-        coordinates (list of dict): List of dictionaries with "lat" and "lon" keys.
+        location (dict): Dictionary with 'lat' and 'lon' keys.
 
     Returns:
         list: A list of extracted values.
     """
-    extracted_values = []
-
     with rasterio.open(tif_file) as src:
         # Get the target CRS (as str in WKT format) from the TIF file
         target_crs = src.crs.to_wkt()
         # (GER_Preidl, EUR_Pflugmacher use Lambert Azimuthal Equal Area in meters)
 
-        for coord in coordinates:
-            # Reproject the coordinates to the target CRS
-            east, north = reproject_coordinates(coord["lat"], coord["lon"], target_crs)
+        # Reproject the coordinates to the target CRS
+        east, north = reproject_coordinates(
+            location["lat"], location["lon"], target_crs
+        )
 
-            # Extract the value at the specified coordinates
-            value = next(src.sample([(east, north)]))
-            extracted_values.append(value[0])
+        # Extract the value at the specified coordinates
+        value = next(src.sample([(east, north)]))
 
-    return extracted_values
-
-
-def get_categories(tif_file, category_mapping, coordinates):
-
-    extracted_values = extract_raster_values(tif_file, coordinates)
-
-    # Get categories of extracted values
-    extracted_categories = np.array(
-        [category_mapping.get(value, "Unknown Category") for value in extracted_values]
-    )
-
-    return extracted_categories
+    return value[0]
 
 
-# def check_desired_categories(
-#     extracted_values, category_mapping, coordinates, target_categories
-# ):
-def check_desired_categories(extracted_categories, target_categories, coordinates):
+def get_category(tif_file, category_mapping, location):
     """
-    Check if the category of extracted values at specified coordinates matches target categories.
+    Get the category based on the raster value at the specified location.
 
-    Args:
-        extracted_values (list or numpy array): List of extracted values as integers.
-        category_mapping (dict): Mapping of category indices to category names.
-        coordinates (list of dict): List of dictionaries with "lat" and "lon" keys.
-        target_categories (list of str): List of target categories to check for.
+    Parameters:
+    - tif_file (Path): Path to the raster file.
+    - category_mapping (dict): Mapping of raster values to categories.
+    - location (dict): Dictionary with 'lat' and 'lon' keys for extracting raster value.
 
     Returns:
-        numpy array of bool: Array indicating whether any of the target categories are matched.
+    - str: Category corresponding to the raster value at the specified location,
+           or "Unknown Category" if the value is not found in the mapping.
     """
-    # # Get categories of extracted values
-    # extracted_categories = np.array(
-    #     [category_mapping.get(value, "Unknown Category") for value in extracted_values]
-    # )
+    return category_mapping.get(
+        extract_raster_value(tif_file, location), "Unknown Category"
+    )
 
+
+def check_desired_categories(category, target_categories, location):
+    """
+    Check if the given category is one of the target categories.
+
+    Parameters:
+    - category (str): Category to check.
+    - target_categories (list): List of target categories to compare against.
+    - location (dict): Dictionary with 'lat' and 'lon' keys.
+
+    Returns:
+    - bool: True if the category is in the target categories, False otherwise.
+    """
     # Check if extracted categories are in any of the target categories
-    is_target_categories = np.isin(extracted_categories, target_categories)
+    is_target_categories = category in target_categories
 
     # Print check results
-    for index, match in enumerate(is_target_categories):
-        coord = coordinates[index]
-        category = extracted_categories[index]
-
-        if match:
-            print(
-                f"Confirmed: Lat. {coord['lat']}, Lon. {coord['lon']} is classified as '{category}'."
-            )
-        else:
-            print(
-                f"Warning: Lat. {coord['lat']}, Lon. {coord['lon']} is classified as '{category}', not in the target categories!"
-            )
+    if is_target_categories:
+        print(
+            f"Confirmed: Lat. {location['lat']}, Lon. {location['lon']}"
+            f"is classified as '{category}'."
+        )
+    else:
+        print(
+            f"Warning: Lat. {location['lat']}, Lon. {location['lon']}"
+            f"is classified as '{category}', not in the target categories!"
+        )
 
     return is_target_categories
 
 
-# def check_if_grassland(tif_file, category_mapping, coordinates):
-def check_if_grassland(extracted_values, category_mapping):
+def check_if_grassland(category, category_mapping, location):
     """
-    Extract categories at specified coordinates and check if grassland according to mapping.
+    Check if a category represents grassland based on the given category mapping.
 
-    Args:
-        tif_file (str): Path to TIF file.
-        category_mapping (dict): Mapping of category indices to category names.
-        coordinates (list of dict): List of dictionaries with "lat" and "lon" keys.
+    Parameters:
+    - category (str): Category to check.
+    - category_mapping (dict): Mapping of raster values to categories.
+    - location (dict): Dictionary with 'lat' and 'lon' keys.
 
     Returns:
-        numpy array of bool: Array indicating whether any of the grassland categories are matched.
+    - bool: True if the category represents grassland, False otherwise.
     """
-    # # Get values at coordinates
-    # extracted_values = extract_raster_values(tif_file, coordinates)
-
     # Set accepted categories and check
-    target_categories = [
+    grass_categories = [
         "Grassland",
         "grassland",
         "grass",
-    ]  # should "Legumes" also be in here? probably not
-    # is_target_categories = check_desired_categories(
-    #     extracted_values, category_mapping, coordinates, target_categories
-    # )
+    ]  # "Legumes" not included here
 
-    is_target_categories = check_desired_categories(
-        extracted_categories, target_categories, coordinates
-    )
+    is_grassland = check_desired_categories(category, grass_categories, location)
 
-    return is_target_categories
+    return is_grassland
 
 
-def check_coordinates(locations, map_key):
+def check_locations_for_grassland(locations, map_key, file_name=None):
+    """
+    Check if given locations correspond to grassland areas based on the provided land cover map.
+
+    Parameters:
+    - locations (list): List of location dictionaries containing coordinates ('lat', 'lon') or DEIMS.iD.
+    - map_key (str): Key to identify the land cover map and associated legend files.
+    - file_name (str or Path): Optional. Path to save the check results (default file will be created otherwise).
+
+    Returns:
+    - None
+    """
     print("Starting grassland check...")
+
+    # TIF and legend file need to be in the project root's subfolder "landCoverMaps"
     tif_file, category_mapping = get_map_and_legend(map_key)
+    grassland_check = []
 
     for location in locations:
         if ("lat" in location) and ("lon" in location):
-            location["category"] = get_categories(tif_file, category_mapping, location)
-            location["is_grass"] = check_if_grassland(
-                tif_file, category_mapping, [location]
-            )[0]
+            site_check = location
         elif "deims_id" in location:
-            location = ut_cop.get_deims_coordinates(location["deims_id"])
-            location["category"] = get_categories(tif_file, category_mapping, location)
-            location["is_grass"] = check_if_grassland(
-                tif_file, category_mapping, [location]
-            )[0]
+            site_check = ut_cop.get_deims_coordinates(location["deims_id"])
         else:
             raise ValueError(
                 "No location defined. Please provide coordinates ('lat', 'lon') or DEIMS.iD!"
             )
 
+        # Check for grassland if coordinates present
+        if ("lat" in site_check) and ("lon" in site_check):
+            site_check["category"] = get_category(
+                tif_file, category_mapping, site_check
+            )
+            site_check["is_grass"] = check_if_grassland(
+                site_check["category"], category_mapping, site_check
+            )
+
+        grassland_check.append(site_check)
+
+    # Save results to file
+    if file_name is None:
+        file_name = (
+            ut.get_package_root()
+            / "grasslandSites"
+            / ("grasslandCheck_" + map_key + ".txt")
+        )
+    column_names = ut.get_unique_keys(grassland_check)
+    ut.list_to_file(grassland_check, column_names, file_name)
+
     # Final confirmation statement.
     print("Grassland check completed.")
 
 
-# EXAMPLE USE
-
-
-# Initial confirmation statement.
-# print("Starting grassland check...")
-
-# Test use (TIF and legend file need to be in the project root's subfolder "landCoverMapsTif")
-# map_key = "GER_Preidl"
-map_key = "EUR_Pflugmacher"  # "EUR_..."
-# tif_file, category_mapping = get_map_and_legend(map_key)
+# ### EXAMPLE USE
+map_key = "EUR_Pflugmacher"  # options: "EUR_Pflugmacher", "GER_Preidl", can be extended
 
 # Example to get coordinates from DEIMS.iDs from XLS file
-elter_xls_file = (
-    ut.get_package_root()
-    / "elterCallGrasslandSites"
-    / "_elter_grassland_reply_CWohner_SVenier__extended_TBanitz.xlsx"
+file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
+file_name = file_name.parent / (
+    file_name.stem + "__grasslandCheck_" + map_key + ".xlsx"
 )
-locations = ut.get_deims_ids_from_xls(elter_xls_file, header_row=1)
-check_coordinates(locations, map_key)
+check_locations_for_grassland(locations, map_key, file_name)
 
-
-coordinates_checked = []
-
-# for deims_id in locations:
-#     coord = ut_cop.get_deims_coordinates(deims_id)
-
-#     if coord["found"]:
-#         coord["deims_id"] = deims_id
-#         coord["is_grass"] = check_if_grassland(tif_file, category_mapping, [coord])[0]
-#         coordinates_checked.append(coord)
-
-
-# Some example coordinates for checking wihtout DEIMS.iDs
+# Example coordinates for checking without DEIMS.iDs
 locations = [
     {"lat": 51.3919, "lon": 11.8787},  # GER, GCEF grassland site
     {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
@@ -358,10 +347,5 @@ locations = [
     {"lat": 30, "lon": 1},  # out of Europe
 ]
 
-
-check_coordinates(locations, map_key)
-
-# for coord in coordinates_checked:
-#     # Check locations for grassland if not already done (during DEIMS.iD search).
-#     if not "is_grass" in coord:
-#         coord["is_grass"] = check_if_grassland(tif_file, category_mapping, [coord])[0]
+# Default file name will be used as no file name is passed here
+check_locations_for_grassland(locations, map_key)
