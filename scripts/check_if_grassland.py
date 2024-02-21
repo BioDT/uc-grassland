@@ -5,7 +5,7 @@ Date: October, 2023
 Description: Functions for checking if coordinates are grassland according to given TIF land cover map.
 
 
-Land cover maps used: 
+Land cover maps and classifications used: 
 
 Preidl, Sebastian; Lange, Maximilian; Doktor, Daniel (2020):
 Land cover classification map of Germany's agricultural area based on Sentinel-2A data from 2016.
@@ -14,6 +14,10 @@ PANGAEA, https://doi.org/10.1594/PANGAEA.910837
 Pflugmacher, Dirk; Rabe, Andreas; Peters, Mathias; Hostert, Patrick (2018):
 Pan-European land cover map of 2015 based on Landsat and LUCAS data. 
 PANGAEA, https://doi.org/10.1594/PANGAEA.896282
+
+Eunis EEA habitat types (version 2012):
+https://eunis.eea.europa.eu/habitats-code-browser.jsp?expand=290,86,1743,2421,2891,525#level_525
+(Only for DEIMS Sites: Get all habitat types of a site, check if any of them is grassland.)
 
 # still to be included (multiple TIF files or API?):
 European Union's Copernicus Land Monitoring Service information (2020):
@@ -30,6 +34,7 @@ https://gdz.bkg.bund.de/index.php/default/digitale-geodaten/digitale-landschafts
 """
 
 from copernicus import utils as ut_cop
+import deims
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -214,6 +219,27 @@ def get_category(tif_file, category_mapping, location):
     )
 
 
+def get_deims_habitats(location, map_key):
+    if "deims_id" in location:
+        location_record = deims.getSiteById(location["deims_id"])
+        categories = []
+
+        if (
+            location_record["attributes"]["environmentalCharacteristics"][map_key]
+            is not None
+        ):
+            for item in location_record["attributes"]["environmentalCharacteristics"][
+                map_key
+            ]:
+                print(f"Habitat: {item["label"]}")
+                categories.append(item["label"])
+        else:
+            print(f"Habitat: None")
+            categories.append("None")
+
+        return categories
+
+
 def check_desired_categories(category, target_categories, location):
     """
     Check if the given category is one of the target categories.
@@ -244,26 +270,44 @@ def check_desired_categories(category, target_categories, location):
     return is_target_categories
 
 
-def check_if_grassland(category, category_mapping, location):
+def check_if_grassland(category, location, map_key=None):
     """
     Check if a category represents grassland based on the given category mapping.
 
     Parameters:
     - category (str): Category to check.
-    - category_mapping (dict): Mapping of raster values to categories.
     - location (dict): Dictionary with 'lat' and 'lon' keys.
+    - map_key (str): Optional key to identify the DEIMS record habitat key (default is None).
 
     Returns:
     - bool: True if the category represents grassland, False otherwise.
     """
-    # Set accepted categories and check
-    grass_categories = [
-        "Grassland",
-        "grassland",
-        "grass",
-    ]  # "Legumes" not included here
+    if map_key:
+        if map_key == "eunisHabitat":
+            grass_labels = ["E", "E1", "E2", "E3", "E4", "E5"]
+            # not included:
+            # E6 : Inland salt steppes  
+            # E7 : Sparsely wooded grasslands 
+            habitat_label = category.split("(")[-1].strip(")")
+            is_grassland = (habitat_label == grass_labels[0])
 
-    is_grassland = check_desired_categories(category, grass_categories, location)
+            if not is_grassland:
+                # Check if any element in the reference list is a prefix of part_in_brackets
+                for label in grass_labels[1:]:
+                    if habitat_label.startswith(label):
+                        is_grassland = True
+                        break
+    else:
+        # Set accepted categories, includes eunis EEA habitat types
+        grass_categories = [
+            "Grassland",
+            "grassland",
+            "grass",            
+        ]
+        # not inlcuded:
+        # "Legumes"
+
+        is_grassland = check_desired_categories(category, grass_categories, location)
 
     return is_grassland
 
@@ -281,31 +325,56 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
     - None
     """
     print("Starting grassland check...")
-
-    # TIF and legend file need to be in the project root's subfolder "landCoverMaps"
-    tif_file, category_mapping = get_map_and_legend(map_key)
+    deims_keys = ["eunisHabitat"]
     grassland_check = []
 
-    for location in locations:
-        if ("lat" in location) and ("lon" in location):
-            site_check = location
-        elif "deims_id" in location:
-            site_check = ut_cop.get_deims_coordinates(location["deims_id"])
-        else:
-            raise ValueError(
-                "No location defined. Please provide coordinates ('lat', 'lon') or DEIMS.iD!"
-            )
+    if map_key in deims_keys:
+        for location in locations:
+            if "deims_id" in location:
+                site_check = ut_cop.get_deims_coordinates(location["deims_id"])
+                all_categories = get_deims_habitats(site_check, map_key)
+                site_check["is_grass"] = False
 
-        # Check for grassland if coordinates present
-        if ("lat" in site_check) and ("lon" in site_check):
-            site_check["category"] = get_category(
-                tif_file, category_mapping, site_check
-            )
-            site_check["is_grass"] = check_if_grassland(
-                site_check["category"], category_mapping, site_check
-            )
+                for index, category in enumerate(all_categories):
+                    # Check only needed if grass not found yet
+                    site_check["is_grass"] = site_check["is_grass"] or check_if_grassland(category, site_check, map_key)
+                    site_check[("category" + "{:03d}".format(index + 1))] = category
 
-        grassland_check.append(site_check)
+                    # Print check results
+                if site_check["is_grass"]:
+                    print("Confirmed: Site contains habitats classified as grassland.")
+                else:
+                    print("Warning: Site contains no habitats classified as grassland!")
+            else:
+                raise ValueError(
+                    "No DEIMS.iD provided for requesting site information!"
+                )
+
+            grassland_check.append(site_check)
+    else:
+        # TIF and legend file need to be in the project root's subfolder "landCoverMaps"
+        tif_file, category_mapping = get_map_and_legend(map_key)
+
+        for location in locations:
+            if ("lat" in location) and ("lon" in location):
+                site_check = location
+            elif "deims_id" in location:
+                site_check = ut_cop.get_deims_coordinates(location["deims_id"])
+            else:
+                raise ValueError(
+                    "No location defined. Please provide coordinates ('lat', 'lon') or DEIMS.iD!"
+                )
+
+            # Check for grassland if coordinates present
+            if ("lat" in site_check) and ("lon" in site_check):
+                site_check["category"] = get_category(
+                    tif_file, category_mapping, site_check
+                )
+                site_check["is_grass"] = check_if_grassland(
+                    site_check["category"], site_check
+                )
+
+            grassland_check.append(site_check)
 
     # Save results to file
     if file_name is None:
@@ -322,14 +391,12 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
 
 
 # ### EXAMPLE USE
-map_key = "EUR_Pflugmacher"  # options: "EUR_Pflugmacher", "GER_Preidl", can be extended
+map_key = "eunisHabitat" # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", can be extended
 
 # Example to get coordinates from DEIMS.iDs from XLS file
 file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
 locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
-file_name = file_name.parent / (
-    file_name.stem + "__grasslandCheck_" + map_key + ".xlsx"
-)
+file_name = file_name.parent / (file_name.stem + "__grasslandCheck_" + map_key + ".xlsx")  # ".txt" or ".xlsx"
 check_locations_for_grassland(locations, map_key, file_name)
 
 # Example coordinates for checking without DEIMS.iDs
