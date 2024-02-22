@@ -35,11 +35,8 @@ https://gdz.bkg.bund.de/index.php/default/digitale-geodaten/digitale-landschafts
 
 from copernicus import utils as ut_cop
 import deims
-import numpy as np
 import pandas as pd
 from pathlib import Path
-import pyproj
-import rasterio
 import utils as ut
 import xml.etree.ElementTree as ET
 
@@ -105,31 +102,6 @@ def get_map_and_legend(map_key):
     return tif_file, category_mapping
 
 
-def reproject_coordinates(lat, lon, target_crs):
-    """
-    Reproject latitude and longitude coordinates to a target CRS.
-
-    Parameters:
-        lat (float): Latitude.
-        lon (float): Longitude.
-        target_crs (str): Target Coordinate Reference System in WKT format.
-
-    Returns:
-        tuple (float): Reprojected coordinates (easting, northing).
-    """
-    # Define the source CRS (EPSG:4326 - WGS 84, commonly used for lat/lon)
-    src_crs = pyproj.CRS("EPSG:4326")
-
-    # Create a transformer to convert from the source CRS to the target CRS
-    # (always_xy: use lon/lat for source CRS and east/north for target CRS)
-    transformer = pyproj.Transformer.from_crs(src_crs, target_crs, always_xy=True)
-
-    # Reproject the coordinates (order is lon, lat!)
-    east, north = transformer.transform(lon, lat)
-
-    return east, north
-
-
 def create_category_mapping(leg_file):
     """
     Create a mapping of category indices to category names from legend file (XML or XLSX or ...).
@@ -173,34 +145,6 @@ def create_category_mapping(leg_file):
     return category_mapping
 
 
-def extract_raster_value(tif_file, location):
-    """
-    Extract values from raster file at specified coordinates.
-
-    Parameters:
-        tif_file (str): Path to TIF file.
-        category_mapping (dict): Mapping of category indices to category names.
-        location (dict): Dictionary with 'lat' and 'lon' keys.
-
-    Returns:
-        list: A list of extracted values.
-    """
-    with rasterio.open(tif_file) as src:
-        # Get the target CRS (as str in WKT format) from the TIF file
-        target_crs = src.crs.to_wkt()
-        # (GER_Preidl, EUR_Pflugmacher use Lambert Azimuthal Equal Area in meters)
-
-        # Reproject the coordinates to the target CRS
-        east, north = reproject_coordinates(
-            location["lat"], location["lon"], target_crs
-        )
-
-        # Extract the value at the specified coordinates
-        value = next(src.sample([(east, north)]))
-
-    return value[0]
-
-
 def get_category(tif_file, category_mapping, location):
     """
     Get the category based on the raster value at the specified location.
@@ -215,7 +159,7 @@ def get_category(tif_file, category_mapping, location):
            or "Unknown Category" if the value is not found in the mapping.
     """
     return category_mapping.get(
-        extract_raster_value(tif_file, location), "Unknown Category"
+        ut.extract_raster_value(tif_file, location), "Unknown Category"
     )
 
 
