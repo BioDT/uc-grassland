@@ -27,10 +27,10 @@ def prep_weather_data(
         deims_id (str or None): DEIMS.iD, or 'None' for default value.
     """
     if years is None:
-        years = list(range(2013, 2023))  # list(range(..., ...))
+        years = list(range(2013, 2014))  # list(range(..., 2023))
 
     if months is None:
-        months = list(range(1, 13))  # list(range(1, 13))
+        months = list(range(1, 2))  # list(range(1, 13))
 
     if coordinates is None:
         if deims_id is None:

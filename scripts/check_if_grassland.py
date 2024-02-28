@@ -19,10 +19,11 @@ Eunis EEA habitat types (version 2012):
 https://eunis.eea.europa.eu/habitats-code-browser.jsp?expand=290,86,1743,2421,2891,525#level_525
 (Only for DEIMS Sites: Get all habitat types of a site, check if any of them is grassland.)
 
-# still to be included (multiple TIF files or API?):
 European Union's Copernicus Land Monitoring Service information (2020):
-High Resolution Layer (HRL) Grassland 2018 raster, Europe.
+High Resolution Layer (HRL) Grassland 2018 raster, Europe. 
 https://doi.org/10.2909/60639d5b-9164-4135-ae93-fb4132bb6d83
+REST API
+https://sdi.eea.europa.eu/catalogue/copernicus/eng/catalog.search#/metadata/60639d5b-9164-4135-ae93-fb4132bb6d83
 
 # further candidate maps:
 https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v100#citations
@@ -37,6 +38,7 @@ from copernicus import utils as ut_cop
 import deims
 import pandas as pd
 from pathlib import Path
+import requests
 import utils as ut
 import xml.etree.ElementTree as ET
 
@@ -145,7 +147,7 @@ def create_category_mapping(leg_file):
     return category_mapping
 
 
-def get_category(tif_file, category_mapping, location):
+def get_category_tif(tif_file, category_mapping, location):
     """
     Get the category based on the raster value at the specified location.
 
@@ -163,7 +165,17 @@ def get_category(tif_file, category_mapping, location):
     )
 
 
-def get_deims_habitats(location, map_key):
+def get_category_deims(location, map_key):
+    """
+    Get all categories based on habitat types (eunisHabitat) of DEIMS-Site.
+
+    Parameters:
+    - location (dict): Dictionary with 'lat' and 'lon' keys for extracting categories.
+    - map_key (str): 
+
+    Returns:
+    - str: Category as classified ('grassland' or 'non-grassland') if found.
+    """  
     if "deims_id" in location:
         location_record = deims.getSiteById(location["deims_id"])
         categories = []
@@ -182,6 +194,62 @@ def get_deims_habitats(location, map_key):
             categories.append("None")
 
         return categories
+    
+def get_category_hrl_grassland(location):
+    """
+    Get the category based on HRL Grassland raster at the specified location.
+
+    Parameters:
+    - location (dict): Dictionary with 'lat' and 'lon' keys for extracting raster value.
+
+    Returns:
+    - str: Category as classified if found (e.g. 'grassland', 'non-grassland'). 
+    """    
+    # Define URL and request
+    url = "https://image.discomap.eea.europa.eu/arcgis/rest/services/GioLandPublic/HRL_Grassland_2018/ImageServer"
+    geometry = {
+        "x": location["lon"],
+        "y": location["lat"],
+        "spatialReference": {"wkid": 4326},
+    }
+    params = {
+        "geometry": str(geometry),
+        "geometryType": "esriGeometryPoint",
+        "pixelSize": "0.1",
+        "f": "json"
+    }
+
+    # Send request
+    response = requests.get(f"{url}/identify", params=params)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        # Parse the JSON response
+        data = response.json()
+
+        # Check if 'value' key exists in the response
+        if "value" in data:
+            value = data["value"]
+            # Return classification based on value
+            if value == "0":
+                return "non-grassland"
+            if value == "1":
+                return "grassland"
+            if value == "254":
+                return "unclassifiable (no satellite image available, clouds, shadows or snow)"
+            if value == "255":
+                return "outside area"
+            
+            # Handle unknown values
+            print(f"Warning: Unknown value for specified location: {value}.")
+
+            return value
+        else:
+            print("Warning: No value for specified location.")
+    else:
+        print(f"Error: {response.status_code}")
+
+    return None
 
 
 def check_desired_categories(category, target_categories, location):
@@ -202,13 +270,13 @@ def check_desired_categories(category, target_categories, location):
     # Print check results
     if is_target_categories:
         print(
-            f"Confirmed: Lat. {location['lat']}, Lon. {location['lon']}"
+            f"Confirmed: Lat. {location['lat']}, Lon. {location['lon']}",
             f"is classified as '{category}'."
         )
     else:
         print(
-            f"Warning: Lat. {location['lat']}, Lon. {location['lon']}"
-            f"is classified as '{category}', not in the target categories!"
+            f"Not in target categories: Lat. {location['lat']}, Lon. {location['lon']}",
+            f"is classified as '{category}'."
         )
 
     return is_target_categories
@@ -270,13 +338,15 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
     """
     print("Starting grassland check...")
     deims_keys = ["eunisHabitat"]
+    tif_keys = ["EUR_Pflugmacher", "GER_Preidl"]
+
     grassland_check = []
 
     if map_key in deims_keys:
         for location in locations:
             if "deims_id" in location:
                 site_check = ut_cop.get_deims_coordinates(location["deims_id"])
-                all_categories = get_deims_habitats(site_check, map_key)
+                all_categories = get_category_deims(site_check, map_key)
                 site_check["is_grass"] = False
 
                 for index, category in enumerate(all_categories):
@@ -295,7 +365,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                 )
 
             grassland_check.append(site_check)
-    else:
+    elif map_key in tif_keys:
         # TIF and legend file need to be in the project root's subfolder "landCoverMaps"
         tif_file, category_mapping = get_map_and_legend(map_key)
 
@@ -311,7 +381,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
 
             # Check for grassland if coordinates present
             if ("lat" in site_check) and ("lon" in site_check):
-                site_check["category"] = get_category(
+                site_check["category"] = get_category_tif(
                     tif_file, category_mapping, site_check
                 )
                 site_check["is_grass"] = check_if_grassland(
@@ -319,6 +389,25 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                 )
 
             grassland_check.append(site_check)
+    else:
+        for location in locations:
+            if ("lat" in location) and ("lon" in location):
+                site_check = location
+            elif "deims_id" in location:
+                site_check = ut_cop.get_deims_coordinates(location["deims_id"])
+            else:
+                raise ValueError(
+                    "No location defined. Please provide coordinates ('lat', 'lon') or DEIMS.iD!"
+                )
+
+            # Check for grassland if coordinates present
+            if ("lat" in site_check) and ("lon" in site_check):
+                site_check["category"] = get_category_hrl_grassland(site_check)
+                site_check["is_grass"] = check_if_grassland(
+                    site_check["category"], site_check
+                )
+
+            grassland_check.append(site_check)    
 
     # Save results to file
     if file_name is None:
@@ -335,7 +424,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
 
 
 # ### EXAMPLE USE
-map_key = "EUR_Pflugmacher" # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", can be extended
+map_key = "HRL_Grassland" # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
 
 # Example to get coordinates from DEIMS.iDs from XLS file
 file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
@@ -345,7 +434,8 @@ check_locations_for_grassland(locations, map_key, file_name)
 
 # Example coordinates for checking without DEIMS.iDs
 locations = [
-    {"lat": 51.3919, "lon": 11.8787},  # GER, GCEF grassland site
+    {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+    {"lat": 51.3919, "lon": 11.8787},  # GER, GCEF grassland site, centroid, non-grassland in HRL!
     {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
     {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
     {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city

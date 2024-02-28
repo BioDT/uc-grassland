@@ -21,14 +21,17 @@ def prep_soil_data(
         deims_id (str or None): DEIMS.iD, or 'None' for default value.
     """
 
+    # # test Jena experiment
+    # coordinates = {"lat": 50.95132596412849, "lon": 11.621566774599533}
+
+    # # test GiFACE
+    # coordinates = {"lat": 50.53262187949219, "lon": 8.684426520889202}
+
     if coordinates is None:
         if deims_id is None:
             deims_id = "102ae489-04e3-481d-97df-45905837dc1a"  # GCEF site
 
-    dprc.data_processing(
-        coordinates,
-        deims_id,
-    )
+    dprc.data_processing(coordinates, deims_id)
 
 
 def main():
