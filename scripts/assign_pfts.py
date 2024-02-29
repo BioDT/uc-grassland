@@ -896,20 +896,21 @@ def get_species_pft_from_family_woodiness(
 ##########################################################################################################################
 # Example usage:
 
-# Get PFT dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
 folder = Path("speciesMappingLookupTables")
-info_name = "PFT"
-# file_name = folder / "TRY_Categorical_Traits.txt"
+
+# # Get PFT dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
+# info_name = "PFT"
+# # file_name = folder / "TRY_Categorical_Traits.txt"
+# # species_pft_try_lookup = read_species_info_dict(
+# #     file_name, info_name, info_column=5, save_new_file=True
+# # )
+# file_name = folder / "TRY_Categorical_Traits__PFT__GBIFDictionary.txt"
 # species_pft_try_lookup = read_species_info_dict(
-#     file_name, info_name, info_column=5, save_new_file=True
+#     file_name, info_name, info_column=1, save_new_file=False
 # )
-file_name = folder / "TRY_Categorical_Traits__PFT__GBIFDictionary.txt"
-species_pft_try_lookup = read_species_info_dict(
-    file_name, info_name, info_column=1, save_new_file=False
-)
-# # Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
-# file_name = ut.add_string_to_file_name(file_name, f"__{info_name}__GBIFDictionary")
-# species_pft_try_lookup = get_gbif_dict(species_pft_try_lookup, file_name, info_name)
+# # # Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
+# # file_name = ut.add_string_to_file_name(file_name, f"__{info_name}__GBIFDictionary")
+# # species_pft_try_lookup = get_gbif_dict(species_pft_try_lookup, file_name, info_name)
 
 # Get Family dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
 info_name = "Family"
@@ -1027,15 +1028,6 @@ ut.dict_to_file(
     species_woodiness_combined, ["Species", "Woodiness Combined"], file_name
 )
 
-# Find PFT (optional user modifications) based on prepared TRY lookup table and write to file
-file_name = ut.add_string_to_file_name(file_name_species_list, "__PFT_TRY")
-species_pft_try = get_species_info(
-    species_list,
-    species_pft_try_lookup,
-    "PFT",
-    file_name,
-)
-
 # Find PFT (optional user modifications) based on TRY Family and Woodiness
 file_name = ut.add_string_to_file_name(
     file_name_species_list, "__PFTFamilyWoodinessTRY"
@@ -1082,11 +1074,8 @@ species_pft_family_woodiness_gbif_combined = get_species_pft_from_family_woodine
 
 # Combine and resolve PFT from multiple sources (optional user modifications)
 file_name = ut.add_string_to_file_name(file_name_species_list, "__PFTCombined")
-species_pft_combined = resolve_species_info_dicts(
-    "PFT",
-    species_pft_try,
-    species_pft_family_woodiness_try,
-)
+species_pft_combined = species_pft_family_woodiness_try
+
 species_pft_combined = resolve_species_info_dicts(
     "PFT",
     species_pft_combined,
@@ -1108,7 +1097,6 @@ all_species_infos = ut.add_infos_to_list(
     species_woodiness_try,
     species_woodiness_zanne,
     species_woodiness_combined,
-    species_pft_try,
     species_pft_family_woodiness_try,
     species_pft_family_woodiness_gbif_try,
     species_pft_family_woodiness_gbif_zanne,
@@ -1127,7 +1115,6 @@ ut.list_to_file(
         "Woodiness TRY",
         "Woodiness Zanne",
         "Woodiness Combined",
-        "PFT TRY",
         "PFT Family_Woodiness TRY",
         "PFT Family_Woodiness GBIF_TRY",
         "PFT Family_Woodiness GBIF_Zanne",

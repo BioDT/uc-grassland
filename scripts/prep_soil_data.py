@@ -7,6 +7,7 @@ Description: Download soil data and prepare as needed for GRASSMIND input.
 
 import argparse
 from soilgrids import data_processing as dprc
+import utils as ut
 
 
 def prep_soil_data(
@@ -27,11 +28,27 @@ def prep_soil_data(
     # # test GiFACE
     # coordinates = {"lat": 50.53262187949219, "lon": 8.684426520889202}
 
-    if coordinates is None:
-        if deims_id is None:
-            deims_id = "102ae489-04e3-481d-97df-45905837dc1a"  # GCEF site
+    # # test GCEF small scale difference
+    # coordinates = {"lat": 51.390427, "lon": 11.876855}  # GER, GCEF grassland site
+    # coordinates = {"lat": 51.392331, "lon": 11.883838}  # GER, GCEF grassland site
+    # coordinates = {
+    #     "lat": 51.3919,
+    #     "lon": 11.8787,
+    # }  # GER, GCEF grassland site, centroid, non-grassland in HRL
 
-    dprc.data_processing(coordinates, deims_id)
+    # # call with single deims_id
+    # if coordinates is None:
+    #     if deims_id is None:
+    #         deims_id = "94c53dd1-acad-4ad8-a73b-62669ec7af2a"
+
+    # dprc.data_processing(coordinates, deims_id)
+
+    # # Example to get multiple coordinates from DEIMS.iDs from XLS file
+    file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+    locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
+
+    for location in locations:
+        dprc.data_processing(coordinates=None, deims_id=location["deims_id"])
 
 
 def main():
