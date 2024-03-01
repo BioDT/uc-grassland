@@ -426,11 +426,11 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
 # ### EXAMPLE USE
 map_key = "HRL_Grassland" # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
 
-# Example to get coordinates from DEIMS.iDs from XLS file
-file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
-file_name = file_name.parent / (file_name.stem + "__grasslandCheck_" + map_key + ".xlsx")  # ".txt" or ".xlsx"
-check_locations_for_grassland(locations, map_key, file_name)
+# # Example to get coordinates from DEIMS.iDs from XLS file
+# file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+# locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
+# file_name = file_name.parent / (file_name.stem + "__grasslandCheck_" + map_key + ".txt")  # ".txt" or ".xlsx"
+# check_locations_for_grassland(locations, map_key, file_name)
 
 # Example coordinates for checking without DEIMS.iDs
 locations = [
