@@ -1,6 +1,6 @@
 """
 Module Name: check_if_grassland.py
-Author: Thomas Banitz, Franziska Taubert, BioDT
+Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
 Date: October, 2023
 Description: Functions for checking if coordinates are grassland according to given TIF land cover map.
 
@@ -230,6 +230,7 @@ def get_category_hrl_grassland(location):
         # Check if 'value' key exists in the response
         if "value" in data:
             value = data["value"]
+
             # Return classification based on value
             if value == "0":
                 return "non-grassland"
@@ -270,12 +271,12 @@ def check_desired_categories(category, target_categories, location):
     # Print check results
     if is_target_categories:
         print(
-            f"Confirmed: Lat. {location['lat']}, Lon. {location['lon']}",
+            f"Confirmed: Lat. {location['lat']:.4f}, Lon. {location['lon']:.4f}",
             f"is classified as '{category}'."
         )
     else:
         print(
-            f"Not in target categories: Lat. {location['lat']}, Lon. {location['lon']}",
+            f"Not in target categories: Lat. {location['lat']:.4f}, Lon. {location['lon']:.4f}",
             f"is classified as '{category}'."
         )
 
@@ -339,7 +340,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
     print("Starting grassland check...")
     deims_keys = ["eunisHabitat"]
     tif_keys = ["EUR_Pflugmacher", "GER_Preidl"]
-
+    hrl_keys =["HRL_Grassland"]
     grassland_check = []
 
     if map_key in deims_keys:
@@ -354,14 +355,22 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                     site_check["is_grass"] = site_check["is_grass"] or check_if_grassland(category, site_check, map_key)
                     site_check[("category" + "{:03d}".format(index + 1))] = category
 
-                    # Print check results
+                # Print check results
                 if site_check["is_grass"]:
-                    print("Confirmed: Site contains habitats classified as grassland.")
+                    print(
+                        f"Confirmed: Site with centroid Lat.",
+                        f"{site_check['lat']:.4f}, Lon. {site_check['lon']:.4f}",
+                        f"contains habitat classified as grassland.",
+                    )
                 else:
-                    print("Warning: Site contains no habitats classified as grassland!")
+                     print(
+                        f"Not in target categories: Site with centroid Lat.",
+                        f"{site_check['lat']:.4f}, Lon. {site_check['lon']:.4f}",
+                        f"contains no habitat classified as grassland.",
+                    )
             else:
                 raise ValueError(
-                    "No DEIMS.iD provided for requesting site information!"
+                    f"DEIMS.iD needed with map key '{map_key}' for requesting site information!"
                 )
 
             grassland_check.append(site_check)
@@ -389,7 +398,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                 )
 
             grassland_check.append(site_check)
-    else:
+    elif map_key in hrl_keys:
         for location in locations:
             if ("lat" in location) and ("lon" in location):
                 site_check = location
@@ -408,6 +417,10 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                 )
 
             grassland_check.append(site_check)    
+    else:
+        raise ValueError(
+                    f"Map key '{map_key}' not found. Please provide valid map key!"
+                )
 
     # Save results to file
     if file_name is None:
@@ -424,13 +437,13 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
 
 
 # ### EXAMPLE USE
-map_key = "HRL_Grassland" # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
+map_key = "EUR_Pflugmacher"  # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
 
-# # Example to get coordinates from DEIMS.iDs from XLS file
-# file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-# locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
-# file_name = file_name.parent / (file_name.stem + "__grasslandCheck_" + map_key + ".txt")  # ".txt" or ".xlsx"
-# check_locations_for_grassland(locations, map_key, file_name)
+# Example to get coordinates from DEIMS.iDs from XLS file
+file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
+file_name = file_name.parent / (file_name.stem + "__grasslandCheck_" + map_key + ".txt")  # ".txt" or ".xlsx"
+check_locations_for_grassland(locations, map_key, file_name)
 
 # Example coordinates for checking without DEIMS.iDs
 locations = [

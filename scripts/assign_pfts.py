@@ -1,6 +1,6 @@
 """
 Module Name: assign_pfts.py
-Author: Thomas Banitz, Franziska Taubert, BioDT
+Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
 Date: January, 2024
 Description: Assign PFTs to species with the following options:
              - based on TRY categorical traits table (with prepared PFT column in this table)
