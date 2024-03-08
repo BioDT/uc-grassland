@@ -1,16 +1,18 @@
 """
 Module Name: utils.py
-Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
+Author: Thomas Banitz, Taimur Khan, Tuomas Rossi, Franziska Taubert, BioDT
 Date: February, 2024
 Description: Utility functions for uc-grassland building block. 
 """
 
 import csv
 from collections import Counter
+from dotenv import dotenv_values
 from pathlib import Path
 import pandas as pd
 import pyproj
 import rasterio
+import requests
 
 
 def add_string_to_file_name(file_name, string_to_add):
@@ -495,3 +497,34 @@ def extract_raster_value(tif_file, location):
         value = next(src.sample([(east, north)]))
 
     return value[0]
+
+
+def download_file_opendap(file_name, folder):
+    """
+    Download a file from OPeNDAP server, subfolder 'biodt-grassland-pdt'.
+    Using OPeNDAP credentials from .env file.
+
+    Args:
+        file_name (str): Name of the file to download.
+        folder (str): Folder where the file will be saved.
+
+    Returns:
+        None
+    """
+    print(f"Downloading file '{file_name}' from OPeNDAP server...")
+    dotenv_config = dotenv_values(".env")
+    url = "http://134.94.199.14/biodt-grassland-pdt/" + file_name
+    session = requests.Session()
+    session.auth = (dotenv_config["opendap_user"], dotenv_config["opendap_pw"])
+    response = session.get(url)
+
+    if response.status_code == 404:
+        print(
+            f"Error: Specified file '{file_name}' not found in 'biodt-grassland-pdt'!"
+        )
+        return
+
+    target_file = folder / file_name
+
+    with open(target_file, "wb") as file:
+        file.write(response.content)

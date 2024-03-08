@@ -1,6 +1,6 @@
 """
 Module Name: check_if_grassland.py
-Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
+Author: Thomas Banitz, Taimur Khan, Tuomas Rossi, Franziska Taubert, BioDT
 Date: October, 2023
 Description: Functions for checking if coordinates are grassland according to given TIF land cover map.
 
@@ -55,11 +55,11 @@ def get_map_specs():
     # Otherwise use full path to TIF file here!
     map_specs = {
         "GER_Preidl": {
-            "tif_file": "preidl-etal-RSE-2020_land-cover-classification-germany-2016.tif",
+            "tif_file_name": "preidl-etal-RSE-2020_land-cover-classification-germany-2016.tif",
             "leg_ext": ".tif.aux.xml",
         },
         "EUR_Pflugmacher": {
-            "tif_file": "europe_landcover_2015_RSE-Full3.tif",
+            "tif_file_name": "europe_landcover_2015_RSE-Full3.tif",
             "leg_ext": "_legend.xlsx",
         },
     }
@@ -80,26 +80,34 @@ def get_map_and_legend(map_key):
             - dict: Mapping of category indices to category names.
     """
     map_specs = get_map_specs()
-    tif_file = map_specs[map_key]["tif_file"]
+    tif_file_name = map_specs[map_key]["tif_file_name"]
+    tif_file = ut.get_package_root() / "landCoverMaps" / tif_file_name
 
-    # Add default path if TIF file not provided with full path
-    if not Path(tif_file).is_absolute():
-        tif_file = ut.get_package_root() / "landCoverMaps" / tif_file
-
-    # Get default categories file, using extension defined in 'map_specs'
+    if not tif_file.is_file():
+        # Get tif map file from opendap server
+        ut.download_file_opendap(tif_file_name, tif_file.parent)    
+    
     if tif_file.is_file():
-        leg_file = tif_file.parent / (tif_file.stem + map_specs[map_key]["leg_ext"])
+        print(f"Land cover map found. Using '{tif_file}'.")
+
+        # Get default categories file, using extension defined in 'map_specs'
+        leg_file_name = tif_file.stem + map_specs[map_key]["leg_ext"]
+        leg_file = tif_file.parent / leg_file_name
+
+        if not leg_file.is_file():
+            # Get categories file from opendap server
+            ut.download_file_opendap(leg_file_name, leg_file.parent)
 
         if leg_file.is_file():
-            # Get the categories
-            category_mapping = create_category_mapping(leg_file)
-            print(f"Map and categories found. Using '{tif_file}'.")
+            # Read categories from file
+            print(f"Categories found. Using '{leg_file}'.")
+            category_mapping = create_category_mapping(leg_file)            
         else:
             raise FileNotFoundError(
-                f"Land cover categories file '{leg_file}' not found!"
+                f"Categories file '{leg_file_name}' not found!"
             )
     else:
-        raise FileNotFoundError(f"Land cover map file '{tif_file}' not found!")
+        raise FileNotFoundError(f"Land cover map file '{tif_file_name}' not found!")
 
     return tif_file, category_mapping
 
@@ -195,6 +203,7 @@ def get_category_deims(location, map_key):
 
         return categories
     
+    
 def get_category_hrl_grassland(location):
     """
     Get the category based on HRL Grassland raster at the specified location.
@@ -207,6 +216,11 @@ def get_category_hrl_grassland(location):
     """    
     # Define URL and request
     url = "https://image.discomap.eea.europa.eu/arcgis/rest/services/GioLandPublic/HRL_Grassland_2018/ImageServer"
+
+    # # test for CORINE
+    # # params unclear
+    # url = "https://image.discomap.eea.europa.eu/arcgis/rest/services/Corine/CLC2018_WM/MapServer"
+    
     geometry = {
         "x": location["lon"],
         "y": location["lat"],
@@ -437,13 +451,13 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
 
 
 # ### EXAMPLE USE
-map_key = "EUR_Pflugmacher"  # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
+map_key = "GER_Preidl"  # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
 
-# Example to get coordinates from DEIMS.iDs from XLS file
-file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
-file_name = file_name.parent / (file_name.stem + "__grasslandCheck_" + map_key + ".txt")  # ".txt" or ".xlsx"
-check_locations_for_grassland(locations, map_key, file_name)
+# # Example to get coordinates from DEIMS.iDs from XLS file
+# file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+# locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
+# file_name = file_name.parent / (file_name.stem + "__grasslandCheck_" + map_key + ".txt")  # ".txt" or ".xlsx"
+# check_locations_for_grassland(locations, map_key, file_name)
 
 # Example coordinates for checking without DEIMS.iDs
 locations = [
