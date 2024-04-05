@@ -512,11 +512,15 @@ def download_file_opendap(file_name, folder):
         None
     """
     print(f"Downloading file '{file_name}' from OPeNDAP server...")
-    dotenv_config = dotenv_values(".env")
+
     url = "http://134.94.199.14/grasslands-pdt/" + file_name
-    session = requests.Session()
-    session.auth = (dotenv_config["opendap_user"], dotenv_config["opendap_pw"])
-    response = session.get(url)
+    response = requests.get(url)
+
+    # # Variant with authentication
+    # dotenv_config = dotenv_values(".env")
+    # session = requests.Session()
+    # session.auth = (dotenv_config["opendap_user"], dotenv_config["opendap_pw"])
+    # response = session.get(url)
 
     if response.status_code == 404:
         print(
