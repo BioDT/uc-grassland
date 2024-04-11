@@ -197,3 +197,7 @@ landCoverMaps
 
 # infos on grassland sites
 grasslandSites
+
+# LUMI simulation files
+slurm*.out
+# *.sh
