@@ -31,6 +31,7 @@ https://zenodo.org/records/7254221
 https://zenodo.org/records/7254221
 
 https://gdz.bkg.bund.de/index.php/default/digitale-geodaten/digitale-landschaftsmodelle/corine-land-cover-5-ha-stand-2018-clc5-2018.html
+https://land.copernicus.eu/en/products/corine-land-cover
 
 """
 

@@ -14,7 +14,8 @@ Species names can (and should) be adjusted by GBIF taxonomic backbone
 from pathlib import Path
 import utils as ut
 import pandas as pd
-import csv
+
+# import csv
 from pygbif import species
 
 
@@ -344,13 +345,30 @@ def get_gbif_species(spec, accepted_ranks=["GENUS"]):
             spec_match = spec_gbif_dict["species"]
 
             if spec_match != spec:
-                print(f"'{spec}' replaced with GBIF NAME '{spec_match}'.")
+                print(f"'{spec}' replaced with GBIF SPECIES '{spec_match}'.")
         else:
             # No 'species' entry, use 'canonicalName' entry (should not happen)
             spec_match = spec_gbif_dict["canonicalName"]
             print(f"Warning: '{spec}' not exactly identified by GBIF.")
             print(
                 f"SURPRISE: Result rank is SPECIES, but no species entry. Using CANONICALNAME '{spec_match}'."
+            )
+            if spec_match != spec:
+                print(f"'{spec}' replaced with GBIF CANONICALNAME '{spec_match}'.")
+    elif spec_gbif_dict["rank"] == "SUBSPECIES":
+        # seperated for testing, could be merged with "SPECIES" case later
+        if "species" in spec_gbif_dict:
+            # Use 'species' entry
+            spec_match = spec_gbif_dict["species"]
+
+            if spec_match != spec:
+                print(f"'{spec}' SUBSPECIES replaced with GBIF SPECIES '{spec_match}'.")
+        else:
+            # No 'species' entry, use 'canonicalName' entry (should not happen)
+            spec_match = spec_gbif_dict["canonicalName"]
+            print(f"Warning: '{spec}' not exactly identified by GBIF.")
+            print(
+                f"SURPRISE: Result rank is SUBSPECIES, but no species entry. Using CANONICALNAME '{spec_match}'."
             )
             if spec_match != spec:
                 print(f"'{spec}' replaced with GBIF CANONICALNAME '{spec_match}'.")
@@ -964,9 +982,13 @@ species_woodiness_zanne_lookup = read_species_info_dict(
 
 # Get example list, here from GCEF site
 folder = Path("speciesMappingExampleLists")
-file_name_species_list = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species.xlsx"
+# file_name_species_list = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species.xlsx"
+# species_list_renamed = read_species_list(
+#     file_name_species_list, species_column="Name", check_gbif=True
+# )
+file_name_species_list = folder / "AT_Schrankogel_reference.xlsx"
 species_list_renamed = read_species_list(
-    file_name_species_list, species_column="Name", check_gbif=True
+    file_name_species_list, species_column="NAME", check_gbif=True
 )
 # file_name_species_list = (
 #     folder / "102ae489-04e3-481d-97df-45905837dc1a_Species__GBIFList.xlsx"
