@@ -1124,7 +1124,7 @@ all_species_infos = ut.add_infos_to_list(
     species_pft_family_woodiness_gbif_combined,
     species_pft_combined,
 )
-file_name = ut.add_string_to_file_name(file_name_species_list, "__combined_infos")
+file_name = ut.add_string_to_file_name(file_name_species_list, "__PFT_combined_infos")
 ut.list_to_file(
     all_species_infos,
     [
