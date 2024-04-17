@@ -11,12 +11,10 @@ Description: Assign PFTs to species with the following options:
 Species names can (and should) be adjusted by GBIF taxonomic backbone  
 """
 
-from pathlib import Path
-import utils as ut
 import pandas as pd
-
-# import csv
+from pathlib import Path
 from pygbif import species
+import utils as ut
 
 
 def combine_info_strings(info_name, info_1, info_2):
@@ -266,6 +264,7 @@ def read_species_info_dict(
     - ValueError: If unsupported species info_name is used.
     """
     valid_infos = get_valid_infos(info_name)
+    print(f"Reading species-{info_name} lookup table from '.\{file_name}' ...")
     print(f"Reading species-{info_name} lookup table from '.\{file_name}' ...")
 
     # Open the file for reading
@@ -987,6 +986,7 @@ folder = Path("speciesMappingExampleLists")
 #     file_name_species_list, species_column="Name", check_gbif=True
 # )
 file_name_species_list = folder / "AT_Schrankogel_reference.xlsx"
+file_name_species_list = "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1/AT_Schrankogel_reference.xlsx"
 species_list_renamed = read_species_list(
     file_name_species_list, species_column="NAME", check_gbif=True
 )

@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from pathlib import Path
 
 # Project metadata
@@ -22,4 +22,5 @@ setup(
     url=url,
     license=license,
     install_requires=install_requires,
+    packages=find_packages(include=["uc-grassland"]),
 )

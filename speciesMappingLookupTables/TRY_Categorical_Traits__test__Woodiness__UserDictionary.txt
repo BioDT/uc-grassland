@@ -1,2 +1,0 @@
-Species	Woodiness
-Cinnamomum japonicum	woody

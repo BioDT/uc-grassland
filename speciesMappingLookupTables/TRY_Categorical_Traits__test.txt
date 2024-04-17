@@ -1,2 +1,0 @@
-AccSpeciesName	Genus	SpeciesEpithet	Family	PlantGrowthForm	Grassmind PFT
-Cinnamomum japonicum	Cinnamomum	japonicum	Lauraceae	tree	not assigned (tree)

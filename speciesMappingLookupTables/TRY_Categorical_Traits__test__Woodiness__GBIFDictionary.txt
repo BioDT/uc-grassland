@@ -1,2 +1,0 @@
-Species	Woodiness	Original names
-Hedyotis pedunculata	woody	['Cinnamomum japonicum']

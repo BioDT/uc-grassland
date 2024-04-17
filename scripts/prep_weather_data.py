@@ -27,14 +27,18 @@ def prep_weather_data(
         deims_id (str or None): DEIMS.iD, or 'None' for default value.
     """
     if years is None:
-        years = list(range(2013, 2024))  # list(range(..., 2023))
+        years = list(range(2007, 2011))  # list(range(..., 2023))
 
     if months is None:
         months = list(range(1, 13))  # list(range(1, 13))
 
+    # test location Samuel
+    coordinates = {"lat": 53.331387, "lon": 8.096045}
+
     if coordinates is None:
         if deims_id is None:
             deims_id = "102ae489-04e3-481d-97df-45905837dc1a"  # GCEF site
+            deims_id = "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1"  # Schrankogel, AT
             # deims_id = "51d0598a-e9e1-4252-8850-60fc8f329aab"  # test Veronika
             # deims_id = "474916b5-8734-407f-9179-109083c031d8"  # Doode Bemde site, Belgium
 
