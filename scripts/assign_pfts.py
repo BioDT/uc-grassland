@@ -634,9 +634,44 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
             return []
 
         species_list = [line[column_index] for line in species_data[header_lines:]]
+    elif file_extension == ".csv":
+        # Read from CSV file
+        try:
+            df = pd.read_csv(
+                file_name,
+                header=header_lines - 1,
+                encoding="ISO-8859-1",
+                delimiter=";",
+            )
+        except Exception as e:
+            print(f"ERROR reading CSV file: {e}")
+
+            return []
+
+        # Determine column index
+        if isinstance(species_column, str):
+            try:
+                column_index = df.columns.get_loc(species_column)
+            except KeyError:
+                print(f"ERROR: Column '{species_column}' not found in the CSV file.")
+
+                return []
+        elif isinstance(species_column, int):
+            column_index = species_column
+        else:
+            print(
+                "ERROR: Invalid column identifier. Please provide a column name (str) or column number (int)."
+            )
+
+            return []
+
+        # Extract species names from the specified column, convert to string and replace 'nan' by empty string
+        species_list = df.iloc[:, column_index].tolist()
+        species_list = [str(spec) for spec in species_list]
+        species_list = ut.replace_substrings(species_list, "nan", "", at_end=True)
     else:
         print(
-            f"ERROR: Unsupported file format. Supported formats are 'xlsx' and 'txt'."
+            f"ERROR: Unsupported file format. Supported formats are 'xlsx', 'txt', and 'csv'."
         )
 
         return []
@@ -984,7 +1019,7 @@ folder = Path("speciesMappingExampleLists")
 # species_list_renamed = read_species_list(
 #     file_name_species_list, species_column="Name", check_gbif=True
 # )
-file_name_species_list = folder / "AT_Schrankogel_reference.xlsx"
+file_name_species_list = folder / "AT_Schrankogel_reference.csv"
 # would also work for different folder location: file_name_species_list = Path("c:/.../AT_Schrankogel_reference.xlsx")
 species_list_renamed = read_species_list(
     file_name_species_list, species_column="NAME", check_gbif=True

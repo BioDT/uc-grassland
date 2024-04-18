@@ -144,19 +144,23 @@ def get_row_values(key, values):
 
 def dict_to_file(dict_to_write, column_names, file_name):
     """
-    Write a dictionary to a text file (tab-separated) or an Excel file.
+    Write a dictionary to a text file (tab-separated) or csv file (;-separated) or an Excel file.
 
     Parameters:
     - dict_to_write (dict): Dictionary to be written to the file.
     - column_names (list): List of all column names (strings, includes first column for dict_to_write keys).
-    - file_name (str or Path): Path of the output file.
+    - file_name (str or Path): Path of the output file (suffix determines file type).
     """
     file_path = Path(file_name)
     file_suffix = file_path.suffix.lower()
 
-    if file_suffix == ".txt":
+    if file_suffix in [".txt", ".csv"]:
         with open(file_path, "w", newline="", encoding="utf-8") as file:
-            writer = csv.writer(file, delimiter="\t")
+            writer = (
+                csv.writer(file, delimiter="\t")
+                if file_suffix == ".txt"
+                else csv.writer(file, delimiter=";")
+            )
             header = column_names
             writer.writerow(header)  # Header row
 
@@ -177,7 +181,7 @@ def dict_to_file(dict_to_write, column_names, file_name):
         df.to_excel(file_path, index=False)
     else:
         print(
-            f"Error: Unsupported file format. Supported formats are '.txt' and '.xlsx'."
+            f"Error: Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
         )
 
     print(f"Dictionary written to file '{file_name}'.")
@@ -185,12 +189,12 @@ def dict_to_file(dict_to_write, column_names, file_name):
 
 def list_to_file(list_to_write, column_names, file_name):
     """
-    Write a list of tuples to a text file (tab-separated) or an Excel file.
+    Write a list of tuples to a text file (tab-separated) or csv file (;-separated) or an Excel file.
 
     Parameters:
     - list_to_write (list): List of strings or tuples or dictionaries to be written to the file.
     - column_names (list): List of column names (strings).
-    - file_name (str or Path): Path of the output file.
+    - file_name (str or Path): Path of the output file (suffix determines file type).
     """
     # Convert string entries to single item tuples
     list_to_write = [
@@ -214,9 +218,13 @@ def list_to_file(list_to_write, column_names, file_name):
     file_path = Path(file_name)
     file_suffix = file_path.suffix.lower()
 
-    if file_suffix == ".txt":
+    if file_suffix in [".txt", ".csv"]:
         with open(file_path, "w", newline="", encoding="utf-8") as file:
-            writer = csv.writer(file, delimiter="\t")
+            writer = (
+                csv.writer(file, delimiter="\t")
+                if file_suffix == ".txt"
+                else csv.writer(file, delimiter=";")
+            )
             header = column_names
             writer.writerow(header)  # Header row
 
@@ -227,7 +235,7 @@ def list_to_file(list_to_write, column_names, file_name):
         df.to_excel(file_path, index=False)
     else:
         print(
-            f"Error: Unsupported file format. Supported formats are '.txt' and '.xlsx'."
+            f"Error: Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
         )
 
     print(f"List written to file '{file_name}'.")
