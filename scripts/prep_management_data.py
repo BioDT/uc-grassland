@@ -111,7 +111,21 @@ def get_management_map_file(map_key, property, year, applicability=False):
 
 def get_GER_Lange_data(coordinates, map_properties, years):
     """
-    Read management data for the given coordinates from GER_Lange map and return as array.
+    Read management data for the given coordinates from GER_Lange map for the respective year and return as array.
+        Lange, Maximilian; Feilhauer, Hannes; Kühn, Ingolf; Doktor, Daniel (2022):
+        Mapping land-use intensity of grasslands in Germany with machine learning and Sentinel-2 time series,
+        Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2022.112888
+
+        Only works for locations classified as grassland according to German ATKIS digital landscape model 2015.
+
+        Properties:
+            Mowing: number of moving events.
+            Fertilisation: information aggregated into fertilised or not fertilised.
+            Grazing: classification bases on grazing intensity (G), given as livestock units (depending on species and age) per ha and day
+                (Class 0: G=0, Class 1: 0 < G <= 0.33, Class 2: 0.33 < G <=0.88, Class 3: G > 0.88).
+            LUI calculation based on Mowing, Fertilisation and Grazing (cf. Lange et al. 2022).
+
+            Each property's model has a separate area of applicability for each year.
 
     Parameters:
         coordinates (tuple): Coordinates ('lat', 'lon') to extract management data.
@@ -119,7 +133,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
         years (list): List of years to process.
 
     Returns:
-        numpy.ndarray: 2D array containing property data for given years (nan if no data or outside area of applicability).
+        numpy.ndarray: 2D array containing property data for given years (nan if no grassland or outside area of applicability).
     """
     map_key = "GER_Lange"
     print(f"Reading management data from '{map_key}' map...")
@@ -160,8 +174,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
             if within_aoa == -1:
                 if warn_no_grassland:
                     print(
-                        f"Warning: Location not classified as grassland in '{map_key}' map"
-                        "(according to German ATKIS digital landscape model 2015)."
+                        f"Warning: Location not classified as grassland in '{map_key}' map."
                     )
                     warn_no_grassland = False
 
