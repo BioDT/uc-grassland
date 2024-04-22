@@ -20,11 +20,11 @@ def add_string_to_file_name(file_name, string_to_add):
     Add a string before the suffix of a file name.
 
     Parameters:
-    - file_name (Path): Path of the file.
-    - string_to_add (str): String to add before the suffix.
+        file_name (Path): Path of the file.
+        string_to_add (str): String to add before the suffix.
 
     Returns:
-    - new_file_name (Path): New file path with the added string.
+        new_file_name (Path): New file path with the added string.
     """
     # Convert the WindowsPath object to a stringdo_warning
     file_str = str(file_name)
@@ -52,14 +52,14 @@ def replace_substrings(
     Replace specified substrings with another string in a single string or a list of strings.
 
     Parameters:
-    - input_data (str or list): String or list of strings.
-    - substrings_to_replace (str or list): Substring or list of substrings to be replaced.
-    - replacement_string (str): New string to replace the specified substring(s).
-    - at_end (bool): Replace the substring(s) only if appearing at the end of each string (default is False).
-    - warning_no_string (bool): Throw warning for input data list elements that are no string (default is False).
+        input_data (str or list): String or list of strings.
+        substrings_to_replace (str or list): Substring or list of substrings to be replaced.
+        replacement_string (str): New string to replace the specified substring(s).
+        at_end (bool): Replace the substring(s) only if appearing at the end of each string (default is False).
+        warning_no_string (bool): Throw warning for input data list elements that are no string (default is False).
 
     Returns:
-    - str or list: If input_data is a string, the modified string; if input_data is a list, a new list with the specified substrings replaced in each element.
+        str or list: If input_data is a string, the modified string; if input_data is a list, a new list with the specified substrings replaced in each element.
     """
 
     # Nested functions for either replacing substring at the end or everywhere
@@ -112,10 +112,10 @@ def count_duplicates(lst):
     Count occurrences of duplicate items in a list.
 
     Parameters:
-    - lst (list): List to analyze.
+        lst (list): List to analyze.
 
     Returns:
-    - dict: Dictionary where (sorted) keys are duplicate items and values are their counts.
+        dict: Dictionary where (sorted) keys are duplicate items and values are their counts.
     """
     counter = Counter(lst)
     duplicates = {item: count for item, count in sorted(counter.items()) if count > 1}
@@ -128,11 +128,11 @@ def get_row_values(key, values):
     Get row values based on the type of values.
 
     Parameters:
-    - key (str): Key from the dictionary.
-    - values (str or dict): Values associated with the key.
+        key (str): Key from the dictionary.
+        values (str or dict): Values associated with the key.
 
     Returns:
-    - list: Row values to be written to the file.
+        list: Row values to be written to the file.
     """
     if isinstance(values, dict):
         row_values = [key] + list(values.values())
@@ -147,9 +147,9 @@ def dict_to_file(dict_to_write, column_names, file_name):
     Write a dictionary to a text file (tab-separated) or csv file (;-separated) or an Excel file.
 
     Parameters:
-    - dict_to_write (dict): Dictionary to be written to the file.
-    - column_names (list): List of all column names (strings, includes first column for dict_to_write keys).
-    - file_name (str or Path): Path of the output file (suffix determines file type).
+        dict_to_write (dict): Dictionary to be written to the file.
+        column_names (list): List of all column names (strings, includes first column for dict_to_write keys).
+        file_name (str or Path): Path of the output file (suffix determines file type).
     """
     file_path = Path(file_name)
     file_suffix = file_path.suffix.lower()
@@ -192,9 +192,9 @@ def list_to_file(list_to_write, column_names, file_name):
     Write a list of tuples to a text file (tab-separated) or csv file (;-separated) or an Excel file.
 
     Parameters:
-    - list_to_write (list): List of strings or tuples or dictionaries to be written to the file.
-    - column_names (list): List of column names (strings).
-    - file_name (str or Path): Path of the output file (suffix determines file type).
+        list_to_write (list): List of strings or tuples or dictionaries to be written to the file.
+        column_names (list): List of column names (strings).
+        file_name (str or Path): Path of the output file (suffix determines file type).
     """
     # Convert string entries to single item tuples
     list_to_write = [
@@ -399,7 +399,7 @@ def get_package_root():
     Get the root directory of the package containing the current module.
 
     Returns:
-    - Path: The path to the package root directory.
+        Path: The path to the package root directory.
     """
     # Get the file path of the current module
     module_path = Path(__file__).resolve()
@@ -412,22 +412,30 @@ def get_package_root():
     raise FileNotFoundError("Could not find package root.")
 
 
-def get_deims_ids_from_xls(xls_file, header_row):
+def get_deims_ids_from_xls(xls_file, header_row, country=None):
     """
     Extract DEIMS IDs from an Excel file and return as a list of dictionaries.
 
     Parameters:
-    - xls_file (Path): Path to the Excel file.
-    - header_row (int): Row number containing the column names.
+        xls_file (Path): Path to the Excel file.
+        header_row (int): Row number containing the column names.
+        country (str): Optional code to return only one country (e.g. "AT", "DE", ..., default is None).
 
     Returns:
-    - list: List of dictionaries containing DEIMS IDs.
+        list: List of dictionaries containing DEIMS IDs.
     """
     if not xls_file.exists():
         raise FileNotFoundError(f"File '{xls_file}' not found.")
 
     # Load the Excel file into a DataFrame
     df = pd.read_excel(xls_file, header=header_row)
+
+    # Filter by country code
+    if country:
+        df = df[df["Country"] == country]
+
+        if df.empty:
+            print(f"Warning: No entries found for country code '{country}'.")
 
     # Extract the column containing the list of DEIMS.iDs and return as list of dicts
     return [{"deims_id": deims_id} for deims_id in df["DEIMS.ID"].tolist()]
@@ -438,10 +446,10 @@ def get_unique_keys(list_of_dicts):
     Get the unique keys from a list of dictionaries.
 
     Parameters:
-    - list_of_dicts (list): List of dictionaries.
+        list_of_dicts (list): List of dictionaries.
 
     Returns:
-    - list: List of unique keys.
+        list: List of unique keys.
     """
     unique_keys = []
 

@@ -52,6 +52,9 @@ def prep_soil_data(
 
 
 def main():
+    """
+    Runs the script with default arguments for calling the script.
+    """
     parser = argparse.ArgumentParser(
         description="Set default arguments for calling the script."
     )
@@ -72,5 +75,6 @@ def main():
     )
 
 
+# Execute main function when the script is run directly
 if __name__ == "__main__":
     main()

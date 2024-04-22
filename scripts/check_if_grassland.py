@@ -26,6 +26,12 @@ REST API
 https://sdi.eea.europa.eu/catalogue/copernicus/eng/catalog.search#/metadata/60639d5b-9164-4135-ae93-fb4132bb6d83
 
 # further candidate maps:
+German ATKIS digital landscape model 2015
+Bundesamt für Kartographie und Geodäsie, 2015. 
+Digitales Basis-Landschaftsmodell(AAA-Modellierung). 
+GeoBasis-DE. Geodaten der deutschen Landesvermessung.
+(used in land use map by Lange et al. 2022)
+
 https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v100#citations
 https://zenodo.org/records/7254221
 https://zenodo.org/records/7254221
@@ -35,6 +41,7 @@ https://land.copernicus.eu/en/products/corine-land-cover
 
 """
 
+import argparse
 from copernicus import utils as ut_cop
 import deims
 import pandas as pd
@@ -77,8 +84,8 @@ def get_map_and_legend(map_key):
 
     Returns:
         tuple: A tuple containing the following values:
-            - str: Full path of TIF file.
-            - dict: Mapping of category indices to category names.
+            str: Full path of TIF file.
+            dict: Mapping of category indices to category names.
     """
     map_specs = get_map_specs()
     tif_file_name = map_specs[map_key]["tif_file_name"]
@@ -159,13 +166,13 @@ def get_category_tif(tif_file, category_mapping, location):
     Get the category based on the raster value at the specified location.
 
     Parameters:
-    - tif_file (Path): Path to the raster file.
-    - category_mapping (dict): Mapping of raster values to categories.
-    - location (dict): Dictionary with 'lat' and 'lon' keys for extracting raster value.
+        tif_file (Path): Path to the raster file.
+        category_mapping (dict): Mapping of raster values to categories.
+        location (dict): Dictionary with 'lat' and 'lon' keys for extracting raster value.
 
     Returns:
-    - str: Category corresponding to the raster value at the specified location,
-           or "Unknown Category" if the value is not found in the mapping.
+        str: Category corresponding to the raster value at the specified location,
+             or "Unknown Category" if the value is not found in the mapping.
     """
     return category_mapping.get(
         ut.extract_raster_value(tif_file, location), "Unknown Category"
@@ -177,11 +184,11 @@ def get_category_deims(location, map_key):
     Get all categories based on habitat types (eunisHabitat) of DEIMS-Site.
 
     Parameters:
-    - location (dict): Dictionary with 'lat' and 'lon' keys for extracting categories.
-    - map_key (str):
+        location (dict): Dictionary with 'lat' and 'lon' keys for extracting categories.
+        map_key (str):
 
     Returns:
-    - str: Category as classified ('grassland' or 'non-grassland') if found.
+        str: Category as classified ('grassland' or 'non-grassland') if found.
     """
     if "deims_id" in location:
         location_record = deims.getSiteById(location["deims_id"])
@@ -208,10 +215,10 @@ def get_category_hrl_grassland(location):
     Get the category based on HRL Grassland raster at the specified location.
 
     Parameters:
-    - location (dict): Dictionary with 'lat' and 'lon' keys for extracting raster value.
+        location (dict): Dictionary with 'lat' and 'lon' keys for extracting raster value.
 
     Returns:
-    - str: Category as classified if found (e.g. 'grassland', 'non-grassland').
+        str: Category as classified if found (e.g. 'grassland', 'non-grassland').
     """
     # Define URL and request
     url = "https://image.discomap.eea.europa.eu/arcgis/rest/services/GioLandPublic/HRL_Grassland_2018/ImageServer"
@@ -271,12 +278,12 @@ def check_desired_categories(category, target_categories, location):
     Check if the given category is one of the target categories.
 
     Parameters:
-    - category (str): Category to check.
-    - target_categories (list): List of target categories to compare against.
-    - location (dict): Dictionary with 'lat' and 'lon' keys.
+        category (str): Category to check.
+        target_categories (list): List of target categories to compare against.
+        location (dict): Dictionary with 'lat' and 'lon' keys.
 
     Returns:
-    - bool: True if the category is in the target categories, False otherwise.
+        bool: True if the category is in the target categories, False otherwise.
     """
     # Check if extracted categories are in any of the target categories
     is_target_categories = category in target_categories
@@ -301,12 +308,12 @@ def check_if_grassland(category, location, map_key=None):
     Check if a category represents grassland based on the given category mapping.
 
     Parameters:
-    - category (str): Category to check.
-    - location (dict): Dictionary with 'lat' and 'lon' keys.
-    - map_key (str): Optional key to identify the DEIMS record habitat key (default is None).
+        category (str): Category to check.
+        location (dict): Dictionary with 'lat' and 'lon' keys.
+        map_key (str): Optional key to identify the DEIMS record habitat key (default is None).
 
     Returns:
-    - bool: True if the category represents grassland, False otherwise.
+        bool: True if the category represents grassland, False otherwise.
     """
     if map_key:
         if map_key == "eunisHabitat":
@@ -343,12 +350,12 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
     Check if given locations correspond to grassland areas based on the provided land cover map.
 
     Parameters:
-    - locations (list): List of location dictionaries containing coordinates ('lat', 'lon') or DEIMS.iD.
-    - map_key (str): Key to identify the land cover map and associated legend files.
-    - file_name (str or Path): Optional. Path to save the check results (default file will be created otherwise).
+        locations (list): List of location dictionaries containing coordinates ('lat', 'lon') or DEIMS.iD.
+        map_key (str): Key to identify the land cover map and associated legend files.
+        file_name (str or Path): Optional. Path to save the check results (default file will be created otherwise).
 
     Returns:
-    - None
+        None
     """
     print("Starting grassland check...")
     deims_keys = ["eunisHabitat"]
@@ -451,35 +458,90 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
     print("Grassland check completed.")
 
 
-# ### EXAMPLE USE
-map_key = "EUR_Pflugmacher"  # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
+def parse_locations(locations_str):
+    """
+    Parses the input string containing location information.
 
-# # Example to get coordinates from DEIMS.iDs from XLS file
-# file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-# locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
-# file_name = file_name.parent / (
-#     file_name.stem + "__grasslandCheck_" + map_key + ".txt"
-# )  # ".txt" or ".xlsx"
-# check_locations_for_grassland(locations, map_key, file_name)
+    Parameters:
+        locations_str (str): String containing location information.
 
-# Example coordinates for checking without DEIMS.iDs
-locations = [
-    {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
-    {
-        "lat": 51.3919,
-        "lon": 11.8787,
-    },  # GER, GCEF grassland site, centroid, non-grassland in HRL!
-    {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
-    {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
-    {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city
-    {"lat": 51.7123725, "lon": 12.5833917},  # GER, forest outside of city
-    {"lat": 46.8710811, "lon": 11.0244728},  # AT, should be grassland
-    {"lat": 64.2304403, "lon": 27.6856269},  # FIN, near LUMI site
-    {"lat": 64.2318989, "lon": 27.6952722},  # FIN, LUMI site
-    {"lat": 49.8366436, "lon": 18.1540575},  # CZ, near IT4I Ostrava
-    {"lat": 43.173, "lon": 8.467},  # Mediterranean Sea
-    {"lat": 30, "lon": 1},  # out of Europe
-]
+    Returns:
+        list: List of dictionaries, each containing either coordinates ('lat', 'lon') or DEIMS IDs ('deims_id').
+    """
+    locations = []
 
-# Default file name will be used as no file name is passed here
-check_locations_for_grassland(locations, map_key)
+    for item in locations_str.split(";"):
+        if "lat" in item and "lon" in item:
+            coordinates = item.split(",")
+            locations.append(
+                {"lat": float(coordinates[0]), "lon": float(coordinates[1])}
+            )
+        elif "deims_id" in item:
+            locations.append({"deims_id": item.split(":")[1]})
+        else:
+            raise ValueError("Invalid location format.")
+
+    return locations
+
+
+def main():
+    """
+    Runs the script with default arguments for calling the script.
+    """
+    parser = argparse.ArgumentParser(
+        description="Set default arguments for calling the script."
+    )
+
+    # Define command-line arguments
+    parser.add_argument(
+        "--locations",
+        type=parse_locations,
+        help="List of location dictionaries containing coordinates ('lat', 'lon') or DEIMS IDs ('deims_id')",
+    )
+    parser.add_argument(
+        "--map_key",
+        type=str,
+        default="EUR_Pflugmacher",
+        choices=["eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland"],
+        help="Options: 'eunisHabitat', 'EUR_Pflugmacher', 'GER_Preidl', 'HRL_Grassland'. (Can be extended.)",
+    )
+    args = parser.parse_args()
+
+    # Example to change map key
+    args.map_key = "HRL_Grassland"  # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
+
+    # Example coordinates
+    if args.locations is None:
+        # # Example to get coordinates from DEIMS.iDs from XLS file
+        # file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        # args.locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
+        # file_name = file_name.parent / (
+        #     file_name.stem + "__grasslandCheck_" + args.map_key + ".txt"
+        # )  # ".txt" or ".xlsx"
+
+        # Example coordinates for checking without DEIMS.iDs
+        args.locations = [
+            {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+            {
+                "lat": 51.3919,
+                "lon": 11.8787,
+            },  # GER, GCEF grassland site, centroid, non-grassland in HRL!
+            {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
+            {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
+            {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city
+            {"lat": 51.7123725, "lon": 12.5833917},  # GER, forest outside of city
+            {"lat": 46.8710811, "lon": 11.0244728},  # AT, should be grassland
+            {"lat": 64.2304403, "lon": 27.6856269},  # FIN, near LUMI site
+            {"lat": 64.2318989, "lon": 27.6952722},  # FIN, LUMI site
+            {"lat": 49.8366436, "lon": 18.1540575},  # CZ, near IT4I Ostrava
+            {"lat": 43.173, "lon": 8.467},  # Mediterranean Sea
+            {"lat": 30, "lon": 1},  # out of Europe
+        ]
+
+    # Default file name will be used as no file name is passed here
+    check_locations_for_grassland(args.locations, args.map_key)
+
+
+# Execute main function when the script is run directly
+if __name__ == "__main__":
+    main()

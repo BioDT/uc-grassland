@@ -195,6 +195,12 @@ soilDataPrepared
 # land cover maps
 landCoverMaps
 
+# land use maps
+landUseMaps
+
+# processed management data
+managementDataPrepared
+
 # infos on grassland sites
 grasslandSites
 
