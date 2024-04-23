@@ -448,7 +448,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
     if file_name is None:
         file_name = (
             ut.get_package_root()
-            / "grasslandSites"
+            / "landCoverCheckResults"
             / ("grasslandCheck_" + map_key + ".txt")
         )
     column_names = ut.get_unique_keys(grassland_check)
@@ -505,6 +505,12 @@ def main():
         choices=["eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland"],
         help="Options: 'eunisHabitat', 'EUR_Pflugmacher', 'GER_Preidl', 'HRL_Grassland'. (Can be extended.)",
     )
+    parser.add_argument(
+        "--file_name",
+        type=str,
+        default=None,
+        help="File name to save grassland check results (default file will be created if not specified).",
+    )
     args = parser.parse_args()
 
     # Example to change map key
@@ -514,9 +520,17 @@ def main():
     if args.locations is None:
         # # Example to get coordinates from DEIMS.iDs from XLS file
         # file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-        # args.locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
-        # file_name = file_name.parent / (
-        #     file_name.stem + "__grasslandCheck_" + args.map_key + ".txt"
+        # country_code = "DE"
+        # args.locations = ut.get_deims_ids_from_xls(
+        #     file_name, header_row=1, country=country_code
+        # )
+        # args.file_name = file_name.parent / (
+        #     file_name.stem
+        #     + "_"
+        #     + country_code
+        #     + "__grasslandCheck_"
+        #     + args.map_key
+        #     + ".txt"
         # )  # ".txt" or ".xlsx"
 
         # Example coordinates for checking without DEIMS.iDs
@@ -539,7 +553,7 @@ def main():
         ]
 
     # Default file name will be used as no file name is passed here
-    check_locations_for_grassland(args.locations, args.map_key)
+    check_locations_for_grassland(args.locations, args.map_key, args.file_name)
 
 
 # Execute main function when the script is run directly

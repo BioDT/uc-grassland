@@ -203,6 +203,7 @@ managementDataPrepared
 
 # infos on grassland sites
 grasslandSites
+landCoverCheckResults
 
 # LUMI simulation files
 slurm*.out

@@ -154,6 +154,9 @@ def dict_to_file(dict_to_write, column_names, file_name):
     file_path = Path(file_name)
     file_suffix = file_path.suffix.lower()
 
+    # Create data directory if missing
+    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
+
     if file_suffix in [".txt", ".csv"]:
         with open(file_path, "w", newline="", encoding="utf-8") as file:
             writer = (
@@ -217,6 +220,9 @@ def list_to_file(list_to_write, column_names, file_name):
 
     file_path = Path(file_name)
     file_suffix = file_path.suffix.lower()
+
+    # Create data directory if missing
+    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
     if file_suffix in [".txt", ".csv"]:
         with open(file_path, "w", newline="", encoding="utf-8") as file:
@@ -412,14 +418,14 @@ def get_package_root():
     raise FileNotFoundError("Could not find package root.")
 
 
-def get_deims_ids_from_xls(xls_file, header_row, country=None):
+def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
     """
     Extract DEIMS IDs from an Excel file and return as a list of dictionaries.
 
     Parameters:
         xls_file (Path): Path to the Excel file.
         header_row (int): Row number containing the column names.
-        country (str): Optional code to return only one country (e.g. "AT", "DE", ..., default is None).
+        country (str): Optional code to return only one country (e.g. "AT", "DE", ..., default is "ALL").
 
     Returns:
         list: List of dictionaries containing DEIMS IDs.
@@ -431,7 +437,7 @@ def get_deims_ids_from_xls(xls_file, header_row, country=None):
     df = pd.read_excel(xls_file, header=header_row)
 
     # Filter by country code
-    if country:
+    if not country == "ALL":
         df = df[df["Country"] == country]
 
         if df.empty:
@@ -517,8 +523,7 @@ def extract_raster_value(tif_file, location):
 
 def download_file_opendap(file_name, folder):
     """
-    Download a file from OPeNDAP server, subfolder 'biodt-grassland-pdt'.
-    Using OPeNDAP credentials from .env file.
+    Download a file from OPeNDAP server 'grasslands-pdt'.
 
     Args:
         file_name (str): Name of the file to download.
@@ -532,7 +537,7 @@ def download_file_opendap(file_name, folder):
     url = "http://134.94.199.14/grasslands-pdt/" + file_name
     response = requests.get(url)
 
-    # # Variant with authentication
+    # # Variant with authentication using OPeNDAP credentials from .env file.
     # dotenv_config = dotenv_values(".env")
     # session = requests.Session()
     # session.auth = (dotenv_config["opendap_user"], dotenv_config["opendap_pw"])
