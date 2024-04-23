@@ -89,11 +89,12 @@ def get_map_and_legend(map_key):
     """
     map_specs = get_map_specs()
     tif_file_name = map_specs[map_key]["tif_file_name"]
-    tif_file = ut.get_package_root() / "landCoverMaps" / tif_file_name
+    tif_file_subfolder = "landCoverMaps"
+    tif_file = ut.get_package_root() / tif_file_subfolder / tif_file_name
 
     if not tif_file.is_file():
         # Get tif map file from opendap server
-        ut.download_file_opendap(tif_file_name, tif_file.parent)
+        ut.download_file_opendap(tif_file_name, tif_file_subfolder, tif_file.parent)
 
     if tif_file.is_file():
         print(f"Land cover map found. Using '{tif_file}'.")
@@ -104,7 +105,7 @@ def get_map_and_legend(map_key):
 
         if not leg_file.is_file():
             # Get categories file from opendap server
-            ut.download_file_opendap(leg_file_name, leg_file.parent)
+            ut.download_file_opendap(leg_file_name, tif_file_subfolder, leg_file.parent)
 
         if leg_file.is_file():
             # Read categories from file
@@ -514,7 +515,7 @@ def main():
     args = parser.parse_args()
 
     # Example to change map key
-    args.map_key = "HRL_Grassland"  # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
+    args.map_key = "GER_Preidl"  # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
 
     # Example coordinates
     if args.locations is None:

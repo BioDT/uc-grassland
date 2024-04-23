@@ -521,20 +521,21 @@ def extract_raster_value(tif_file, location):
     return value[0]
 
 
-def download_file_opendap(file_name, folder):
+def download_file_opendap(file_name, source_folder, target_folder):
     """
     Download a file from OPeNDAP server 'grasslands-pdt'.
 
     Args:
         file_name (str): Name of the file to download.
-        folder (str): Folder where the file will be saved.
+        source_folder (str): Folder where the file is expected on OPeNDAP server.
+        target_folder (str): Folder where the file will be saved.
 
     Returns:
         None
     """
     print(f"Downloading file '{file_name}' from OPeNDAP server...")
 
-    url = "http://134.94.199.14/grasslands-pdt/" + file_name
+    url = "http://134.94.199.14/grasslands-pdt/" + source_folder + "/" + file_name
     response = requests.get(url)
 
     # # Variant with authentication using OPeNDAP credentials from .env file.
@@ -545,11 +546,11 @@ def download_file_opendap(file_name, folder):
 
     if response.status_code == 404:
         print(
-            f"Error: Specified file '{file_name}' not found in 'biodt-grassland-pdt'!"
+            f"Error: Specified file '{file_name}' not found in 'grasslands-pdt/{source_folder}'!"
         )
         return
 
-    target_file = folder / file_name
+    target_file = target_folder / file_name
 
     with open(target_file, "wb") as file:
         file.write(response.content)
