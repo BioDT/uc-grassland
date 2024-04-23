@@ -9,4 +9,4 @@
 #SBATCH --time=00:30:00
 
 source .venv/bin/activate
-python scripts/check_if_grassland.py 
+python scripts/check_if_grassland.py --map_key="GER_Preidl"    # "HRL_Grassland"

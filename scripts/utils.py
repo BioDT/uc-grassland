@@ -550,7 +550,9 @@ def download_file_opendap(file_name, source_folder, target_folder):
         )
         return
 
-    target_file = target_folder / file_name
+    # Specify target file, create directory if missing, save target file
+    target_file = target_folder / file_name    
+    Path(target_file).parent.mkdir(parents=True, exist_ok=True)
 
     with open(target_file, "wb") as file:
         file.write(response.content)

@@ -514,8 +514,8 @@ def main():
     )
     args = parser.parse_args()
 
-    # Example to change map key
-    args.map_key = "GER_Preidl"  # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
+   #  # Example to change map key
+   #  args.map_key = "GER_Preidl"  # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
 
     # Example coordinates
     if args.locations is None:
