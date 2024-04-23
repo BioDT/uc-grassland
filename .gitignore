@@ -201,8 +201,9 @@ landUseMaps
 # processed management data
 managementDataPrepared
 
-# infos on grassland sites
+# infos on grassland sites - test change
 grasslandSites
+
 
 # LUMI simulation files
 slurm*.out
