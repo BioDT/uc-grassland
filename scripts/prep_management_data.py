@@ -86,7 +86,9 @@ def management_data_to_txt_file(
     print(f"Text file with management data from '{map_key}' map prepared.")
 
 
-def get_management_map_file(map_key, property, year, applicability=False):
+def get_management_map_file(
+    map_key, property, year, applicability=False, map_local=False
+):
     """
     Generate file path for a Management map based on the provided map key, property name and year.
 
@@ -94,19 +96,89 @@ def get_management_map_file(map_key, property, year, applicability=False):
         map_key (str): Key to identify the land use map.
         property (str): Name of the management property (e.g. "mowing" or "fertilisation").
         depth (str): Year.
-        applicability (bool): Get area-of-applicability-map (defaul is False).
+        applicability (bool): Get area-of-applicability-map (default is False).
+        map_local (bool): Read map from local file (default is False).
 
     Returns:
         pathlib.Path: File path to the land use map.
     """
-    if map_key == "GER_Lange":
-        file_name = (
-            "S2_Germany_" + str(year) + "_AOA_" + property + ".tif"
-            if applicability
-            else "S2_Germany_" + str(year) + "_" + property + ".tif"
-        )
 
-    return ut.get_package_root() / "landUseMaps" / map_key / file_name
+    if map_key == "GER_Lange":
+        if map_local:
+            # Return local map file
+            file_name = (
+                "S2_Germany_" + str(year) + "_AOA_" + property + ".tif"
+                if applicability
+                else "S2_Germany_" + str(year) + "_" + property + ".tif"
+            )
+
+            return ut.get_package_root() / "landUseMaps" / map_key / file_name
+        else:
+            # Return map file url
+            if year == 2017:
+                if applicability:
+                    if property == "mowing":
+                        file_name = "98d7c7ab-0a8f-4c2f-a78f-6c1739ee9354"
+                    elif property == "fertilisation":
+                        file_name = "7a4b70a9-95b3-4a06-ae8b-082184144494"
+                    elif property == "grazing":
+                        file_name = "e83a9d4a-ea55-44dd-b3fb-2ee7cb046e92"
+                    elif property == "LUI":
+                        file_name = "4e7ab052-bd47-4ccf-9560-57ceb080945a"
+                    else:
+                        print(
+                            f"Warning: Property '{property}' not found in '{map_key}' map!"
+                        )
+                        return
+                else:
+                    if property == "mowing":
+                        file_name = "14a1d2b6-11c8-4e31-ac19-45a7b805428d"
+                    elif property == "fertilisation":
+                        file_name = "deaca5bf-8999-4ccf-beac-ab47210051f6"
+                    elif property == "grazing":
+                        file_name = "611798da-e43d-4de6-9ff5-d5fb562fbf46"
+                    elif property == "LUI":
+                        file_name = "54995bd6-2811-4198-ba55-675386510260"
+                    else:
+                        print(
+                            f"Warning: Property '{property}' not found in '{map_key}' map!"
+                        )
+                        return
+            elif year == 2018:
+                if applicability:
+                    if property == "mowing":
+                        file_name = "d871429a-b2a6-4592-b3e5-4650462a9ac3"
+                    elif property == "fertilisation":
+                        file_name = "3b24279c-e9ab-468d-86b8-fe1fadc121bf"
+                    elif property == "grazing":
+                        file_name = "69701524-ed47-4e4b-9ef2-e355f5103d76"
+                    elif property == "LUI":
+                        file_name = "0efe31de-1275-4cab-b470-af1ce9f28363"
+                    else:
+                        print(
+                            f"Warning: Property '{property}' not found in '{map_key}' map!"
+                        )
+                        return
+                else:
+                    if property == "mowing":
+                        file_name = "0eb6a466-417b-4b30-b5f8-070c3f2c99c3"
+                    elif property == "fertilisation":
+                        file_name = "aa81ef4f-4ed4-489a-9d52-04d1fd3a357a"
+                    elif property == "grazing":
+                        file_name = "2bc29d3f-08d1-4508-a0ca-c83517216f69"
+                    elif property == "LUI":
+                        file_name = "28b419a6-c282-42fa-a23a-72676a288171"
+                    else:
+                        print(
+                            f"Warning: Property '{property}' not found in '{map_key}' map!"
+                        )
+                        return
+
+            return (
+                "https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/"
+                + file_name
+                + "/file_downloaded"
+            )
 
 
 def get_GER_Lange_data(coordinates, map_properties, years):
@@ -161,13 +233,13 @@ def get_GER_Lange_data(coordinates, map_properties, years):
         for p_index, property in enumerate(map_properties, start=1):
             # Extract property value
             tif_file = get_management_map_file(
-                map_key, property, year, applicability=False
+                map_key, property, year, applicability=False, map_local=False
             )
             property_value = ut.extract_raster_value(tif_file, coordinates)
 
             # Extract and check AOA value
             tif_file = get_management_map_file(
-                map_key, property, year, applicability=True
+                map_key, property, year, applicability=True, map_local=False
             )
             within_aoa = ut.extract_raster_value(tif_file, coordinates)
 
@@ -201,6 +273,14 @@ def get_GER_Lange_data(coordinates, map_properties, years):
     return property_data
 
 
+def get_GER_Schwieder_data(coordinates, years):
+
+    url = "https://zenodo.org/records/10609590/files/GLU_GER_2017_SUM_DOY_COG.tif"
+    property_value = ut.extract_raster_value(url, coordinates)
+
+    return property_value
+
+
 def data_processing(map_key, years, coordinates, deims_id):
     """
     Read management data from land use map. Write to .txt files.
@@ -227,8 +307,9 @@ def data_processing(map_key, years, coordinates, deims_id):
             "LUI",
         ]  #  , "fertilisation", "grazing", "LUI"
         management_data = get_GER_Lange_data(coordinates, map_properties, years)
-    # elif map_key == "GER_Schwieder":
-    #     # TODO...
+    elif map_key == "GER_Schwieder":
+        map_properties = ["mowing"]
+        management_data = get_GER_Schwieder_data(coordinates, years)
     else:
         raise ValueError(
             f"Map key '{map_key}' not found. Please provide valid map key!"
@@ -311,9 +392,9 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="GER_Lange",
-        choices=["GER_Preidl", "GER_Schwieder"],
-        help="Options: 'GER_Preidl', 'GER_Schwieder'. (Can be extended.)",
+        default="GER_Lange",  # "GER_Schwieder",
+        choices=["GER_Lange", "GER_Schwieder"],
+        help="Options: 'GER_Lange', 'GER_Schwieder'. (Can be extended.)",
     )
 
     args = parser.parse_args()

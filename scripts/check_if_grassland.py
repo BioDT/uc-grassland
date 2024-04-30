@@ -51,70 +51,101 @@ import utils as ut
 import xml.etree.ElementTree as ET
 
 
-def get_map_specs():
+def get_map_specs(map_key):
     """
-    Set up file names and legend file extensions for different maps.
+    Set up map file names and specifications based on provided map key.
+
+    Args:
+        map_key (str): Identifier of the map to be used.
 
     Returns:
-        dict of dict: Each key maps to a dictionary containing "tif_file" and "leg_ext" keys for file information.
+        dict: Dictionary containing the following keys:
+            'file_stem': Stem of the file names.
+            'map_ext': File extension for the map.
+            'leg_ext': File extension for the legend (may extend the stem).
+            'url_root': Root URL for accessing the files.
+            'subfolder': Subfolder containing the files.
     """
-    # Different maps and respective categories files
-    # Default folder is 'landCoverMaps' subfolder of the project root.
-    # Otherwise use full path to TIF file here!
-    map_specs = {
-        "GER_Preidl": {
-            "tif_file_name": "preidl-etal-RSE-2020_land-cover-classification-germany-2016.tif",
+    if map_key == "GER_Preidl":
+        map_specs = {
+            "file_stem": "preidl-etal-RSE-2020_land-cover-classification-germany-2016",
+            "map_ext": ".tif",
             "leg_ext": ".tif.aux.xml",
-        },
-        "EUR_Pflugmacher": {
-            "tif_file_name": "europe_landcover_2015_RSE-Full3.tif",
+            "url_root": "http://134.94.199.14/grasslands-pdt/",
+            "subfolder": "landCoverMaps",
+        }
+    elif map_key == "EUR_Pflugmacher":
+        map_specs = {
+            "file_stem": "europe_landcover_2015_RSE-Full3",
+            "map_ext": ".tif",
             "leg_ext": "_legend.xlsx",
-        },
-    }
+            "url_root": "http://134.94.199.14/grasslands-pdt/",
+            "subfolder": "landCoverMaps",
+        }
+    else:
+        print(f"Warning: Land cover map for key '{map_key}' not found!")
+
+        return None
 
     return map_specs
 
 
-def get_map_and_legend(map_key):
+def get_map_and_legend(map_key, map_local=False):
     """
     Check if TIF file and categories file are avaible, read categories from file.
 
     Parameters:
         map_key (str): Identifier of the map to be used.
+        map_local (bool): Look for map as local file (default is False).
 
     Returns:
-        tuple: A tuple containing the following values:
-            str: Full path of TIF file.
+        tuple: Tuple containing the following values:
+            str: Full path or url of TIF file.
             dict: Mapping of category indices to category names.
     """
-    map_specs = get_map_specs()
-    tif_file_name = map_specs[map_key]["tif_file_name"]
-    tif_file_subfolder = "landCoverMaps"
-    tif_file = ut.get_package_root() / tif_file_subfolder / tif_file_name
+    map_specs = get_map_specs(map_key)
 
-    if not tif_file.is_file():
-        # Get tif map file from opendap server
-        ut.download_file_opendap(tif_file_name, tif_file_subfolder, tif_file.parent)
+    # Get map
+    tif_file_name = map_specs["file_stem"] + map_specs["map_ext"]
 
-    if tif_file.is_file():
-        print(f"Land cover map found. Using '{tif_file}'.")
+    if map_local:
+        # Get map from local file
+        tif_file = ut.get_package_root() / map_specs["subfolder"] / tif_file_name
 
-        # Get default categories file, using extension defined in 'map_specs'
-        leg_file_name = tif_file.stem + map_specs[map_key]["leg_ext"]
-        leg_file = tif_file.parent / leg_file_name
+        if not tif_file.is_file():
+            # Get tif map file from opendap server
+            ut.download_file_opendap(
+                tif_file_name, map_specs["subfolder"], tif_file.parent
+            )
 
-        if not leg_file.is_file():
-            # Get categories file from opendap server
-            ut.download_file_opendap(leg_file_name, tif_file_subfolder, leg_file.parent)
-
-        if leg_file.is_file():
-            # Read categories from file
-            print(f"Categories found. Using '{leg_file}'.")
-            category_mapping = create_category_mapping(leg_file)
+        if tif_file.is_file():
+            print(f"Land cover map found. Using '{tif_file}'.")
         else:
-            raise FileNotFoundError(f"Categories file '{leg_file_name}' not found!")
+            raise FileNotFoundError(f"Land cover map file '{tif_file}' not found!")
     else:
-        raise FileNotFoundError(f"Land cover map file '{tif_file_name}' not found!")
+        # Get map directly from url, no download
+        tif_file = map_specs["url_root"] + map_specs["subfolder"] + "/" + tif_file_name
+
+        if ut.check_url(tif_file)[0]:
+            print(f"Land cover map found. Using '{tif_file}'.")
+        else:
+            raise FileNotFoundError(f"Land cover map file '{tif_file}' not found!")
+
+    # Get categories
+    # Local file option only, files are very small and can be downloaded if not exisiting
+    leg_file_name = map_specs["file_stem"] + map_specs["leg_ext"]
+    leg_file = ut.get_package_root() / map_specs["subfolder"] / leg_file_name
+
+    if not leg_file.is_file():
+        # Get categories file from opendap server
+        ut.download_file_opendap(leg_file_name, map_specs["subfolder"], leg_file.parent)
+
+    if leg_file.is_file():
+        # Read categories from file
+        print(f"Categories found. Using '{leg_file}'.")
+        category_mapping = create_category_mapping(leg_file)
+    else:
+        raise FileNotFoundError(f"Categories file '{leg_file}' not found!")
 
     return tif_file, category_mapping
 
@@ -186,7 +217,7 @@ def get_category_deims(location, map_key):
 
     Parameters:
         location (dict): Dictionary with 'lat' and 'lon' keys for extracting categories.
-        map_key (str):
+        map_key (str): Identifier of the map to be used.
 
     Returns:
         str: Category as classified ('grassland' or 'non-grassland') if found.
@@ -352,7 +383,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
 
     Parameters:
         locations (list): List of location dictionaries containing coordinates ('lat', 'lon') or DEIMS.iD.
-        map_key (str): Key to identify the land cover map and associated legend files.
+        map_key (str): Identifier of the map to be used.
         file_name (str or Path): Optional. Path to save the check results (default file will be created otherwise).
 
     Returns:
@@ -398,8 +429,8 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
 
             grassland_check.append(site_check)
     elif map_key in tif_keys:
-        # TIF and legend file need to be in the project root's subfolder "landCoverMaps"
-        tif_file, category_mapping = get_map_and_legend(map_key)
+        # Get TIF map and categories from legend file (local file or download from server)
+        tif_file, category_mapping = get_map_and_legend(map_key, map_local=False)
 
         for location in locations:
             if ("lat" in location) and ("lon" in location):
@@ -502,7 +533,7 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="EUR_Pflugmacher",
+        default="GER_Preidl",
         choices=["eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland"],
         help="Options: 'eunisHabitat', 'EUR_Pflugmacher', 'GER_Preidl', 'HRL_Grassland'. (Can be extended.)",
     )
@@ -513,9 +544,6 @@ def main():
         help="File name to save grassland check results (default file will be created if not specified).",
     )
     args = parser.parse_args()
-
-   #  # Example to change map key
-   #  args.map_key = "GER_Preidl"  # options: "eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland", can be extended
 
     # Example coordinates
     if args.locations is None:

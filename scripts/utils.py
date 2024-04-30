@@ -493,17 +493,26 @@ def reproject_coordinates(lat, lon, target_crs):
     return east, north
 
 
+def extract_raster_band_value(tif_file, location, band_number):
+    with rasterio.open(tif_file) as src:
+        # Read data from the specified band
+        band_data = src.read(band_number)
+
+    return band_data
+    # TODO: develop or integrate with extract_raster_value
+
+
 def extract_raster_value(tif_file, location):
     """
     Extract values from raster file at specified coordinates.
 
     Parameters:
-        tif_file (str): Path to TIF file.
+        tif_file (str): TIF file path or url.
         category_mapping (dict): Mapping of category indices to category names.
         location (dict): Dictionary with 'lat' and 'lon' keys.
 
     Returns:
-        list: A list of extracted values.
+        any: Extracted value.
     """
     with rasterio.open(tif_file) as src:
         # Get the target CRS (as str in WKT format) from the TIF file
@@ -519,6 +528,29 @@ def extract_raster_value(tif_file, location):
         value = next(src.sample([(east, north)]))
 
     return value[0]
+
+
+def check_url(url):
+    """
+    Check if a file exists at the specified URL and retrieve its content type.
+
+    Parameters:
+        url (str): URL to check.
+
+    Returns:
+        exists (bool): True if the file exists, False otherwise.
+        content_type (str or None): File content type if it exists, None otherwise.
+    """
+    try:
+        response = requests.head(url)
+        if response.status_code == 200:
+            content_type = response.headers.get("content-type")
+
+            return True, content_type
+        else:
+            return False, None
+    except requests.ConnectionError:
+        return False, None
 
 
 def download_file_opendap(file_name, source_folder, target_folder):
@@ -551,7 +583,7 @@ def download_file_opendap(file_name, source_folder, target_folder):
         return
 
     # Specify target file, create directory if missing, save target file
-    target_file = target_folder / file_name    
+    target_file = target_folder / file_name
     Path(target_file).parent.mkdir(parents=True, exist_ok=True)
 
     with open(target_file, "wb") as file:
