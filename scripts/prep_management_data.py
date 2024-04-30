@@ -87,22 +87,21 @@ def management_data_to_txt_file(
 
 
 def get_management_map_file(
-    map_key, property, year, applicability=False, map_local=False
+    map_key, year, property="mowing", applicability=False, map_local=False
 ):
     """
-    Generate file path for a Management map based on the provided map key, property name and year.
+    Generate file path or URL for a Management map based on the provided map key, property name and year.
 
     Parameters:
         map_key (str): Key to identify the land use map.
-        property (str): Name of the management property (e.g. "mowing" or "fertilisation").
         depth (str): Year.
+        property (str): Name of the management property (default is "mowing").
         applicability (bool): Get area-of-applicability-map (default is False).
         map_local (bool): Read map from local file (default is False).
 
     Returns:
         pathlib.Path: File path to the land use map.
     """
-
     if map_key == "GER_Lange":
         if map_local:
             # Return local map file
@@ -114,7 +113,7 @@ def get_management_map_file(
 
             return ut.get_package_root() / "landUseMaps" / map_key / file_name
         else:
-            # Return map file url
+            # Return map file URL
             if year == 2017:
                 if applicability:
                     if property == "mowing":
@@ -129,7 +128,8 @@ def get_management_map_file(
                         print(
                             f"Warning: Property '{property}' not found in '{map_key}' map!"
                         )
-                        return
+
+                        return None
                 else:
                     if property == "mowing":
                         file_name = "14a1d2b6-11c8-4e31-ac19-45a7b805428d"
@@ -143,7 +143,8 @@ def get_management_map_file(
                         print(
                             f"Warning: Property '{property}' not found in '{map_key}' map!"
                         )
-                        return
+
+                        return None
             elif year == 2018:
                 if applicability:
                     if property == "mowing":
@@ -158,7 +159,8 @@ def get_management_map_file(
                         print(
                             f"Warning: Property '{property}' not found in '{map_key}' map!"
                         )
-                        return
+
+                        return None
                 else:
                     if property == "mowing":
                         file_name = "0eb6a466-417b-4b30-b5f8-070c3f2c99c3"
@@ -172,13 +174,32 @@ def get_management_map_file(
                         print(
                             f"Warning: Property '{property}' not found in '{map_key}' map!"
                         )
-                        return
+
+                        return None
+            else:
+                print(f"Warning: '{map_key}' {property} map not available for {year}!")
+
+                return None
 
             return (
                 "https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/"
                 + file_name
                 + "/file_downloaded"
             )
+    elif map_key == "GER_Schwieder":
+        if year in [2017, 2018, 2019, 2020, 2021]:
+            file_name = "GLU_GER_" + str(year) + "_SUM_DOY_COG.tif"
+
+            if map_local:
+                # Return local map file
+                return ut.get_package_root() / "landUseMaps" / map_key / file_name
+            else:
+                # Return map file URL
+                return "https://zenodo.org/records/10609590/files/" + file_name
+        else:
+            print(f"Warning: '{map_key}' {property} map not available for {year}!")
+
+            return None
 
 
 def get_GER_Lange_data(coordinates, map_properties, years):
@@ -209,7 +230,6 @@ def get_GER_Lange_data(coordinates, map_properties, years):
     """
     map_key = "GER_Lange"
     print(f"Reading management data from '{map_key}' map...")
-    ## TODO: add functionality for testing file availability, download from opendap..
 
     # Initialize property_data array with nans
     property_data = np.full(
@@ -221,10 +241,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
         dtype=float,
     )
 
-    # Initialize non-grassland warning
-    warn_no_grassland = True
-
-    # Extract values from tif maps for each property and depth
+    # Extract values from tif maps for each year and each property
     for y_index, year in enumerate(years):
         # Add year to the management data
         property_data[y_index, 0] = year
@@ -232,53 +249,87 @@ def get_GER_Lange_data(coordinates, map_properties, years):
         # Add management properties from tif maps
         for p_index, property in enumerate(map_properties, start=1):
             # Extract property value
-            tif_file = get_management_map_file(
-                map_key, property, year, applicability=False, map_local=False
+            map_file = ut.check_url(
+                get_management_map_file(map_key, year, property, applicability=False)
             )
-            property_value = ut.extract_raster_value(tif_file, coordinates)
 
-            # Extract and check AOA value
-            tif_file = get_management_map_file(
-                map_key, property, year, applicability=True, map_local=False
-            )
-            within_aoa = ut.extract_raster_value(tif_file, coordinates)
+            if map_file:
+                print(
+                    f"{property[0].upper() + property[1:]} map for {year} found. Using '{map_file}'."
+                )
 
-            if within_aoa == -1:
-                if warn_no_grassland:
+                # Extract and check AOA value
+                aoa_file = ut.check_url(
+                    get_management_map_file(map_key, year, property, applicability=True)
+                )
+
+                if aoa_file:
                     print(
-                        f"Warning: Location not classified as grassland in '{map_key}' map."
+                        f"{property[0].upper() + property[1:]} map AOA for {year} found. Using '{aoa_file}'."
                     )
-                    warn_no_grassland = False
+                    within_aoa = ut.extract_raster_value(aoa_file, coordinates)
 
-                # Only for checking.
-                if not property_value == -1:
-                    print(
-                        f"Surprise: within_aoa = {within_aoa}, but property value = {property_value}."
-                    )
-            else:
-                if within_aoa:
-                    print(
-                        f"{year}, {property} : {property_value}. Within area of applicability."
-                    )
-                    property_data[y_index, p_index] = property_value
-                else:
-                    print(
-                        f"{year}, {property} : {property_value}. Not used, outside area of applicability!"
-                    )
+                    if within_aoa == -1:
+                        print(
+                            f"Warning: Location not classified as grassland in '{map_key}' map for {year}."
+                        )
 
-                if within_aoa not in [0, 1]:
-                    # Only for checking.
-                    print(f"Surprise: within_aoa = {within_aoa}")
+                        break
+                    else:
+                        property_value = ut.extract_raster_value(map_file, coordinates)
 
+                        if within_aoa:
+                            print(
+                                f"{year}, {property} : {property_value}. Within area of applicability."
+                            )
+                            property_data[y_index, p_index] = property_value
+                        else:
+                            print(
+                                f"{year}, {property} : {property_value}. Not used, outside area of applicability!"
+                            )
     return property_data
 
 
-def get_GER_Schwieder_data(coordinates, years):
+def get_GER_Schwieder_data(coordinates, map_properties, years):
+    map_key = "GER_Schwieder"
+    map_bands = len(map_properties)
+    property = map_properties[0]
+    print(f"Reading management data from '{map_key}' map...")
 
-    url = "https://zenodo.org/records/10609590/files/GLU_GER_2017_SUM_DOY_COG.tif"
-    property_value = ut.extract_raster_value(url, coordinates)
+    # TODO: check and correctly use data from the mowing maps
+    #       maybe integrate with get_GER_Lange_data ...
+    #       document and cite sources..
 
-    return property_value
+    # Initialize property_data array with nans
+    property_data = np.full(
+        (
+            len(years),
+            map_bands + 1,
+        ),
+        np.nan,
+        dtype=object,
+    )
+
+    # Extract values from tif maps for each property and depth
+    for y_index, year in enumerate(years):
+        # Add year to the management data
+        property_data[y_index, 0] = year
+        map_file = ut.check_url(get_management_map_file(map_key, year))
+
+        if map_file:
+            print(
+                f"{property[0].upper() + property[1:]} map for {year} found. Using '{map_file}'."
+            )
+
+            # Add management properties from tif maps
+            for band_index in range(1, map_bands + 1):
+                # Extract property value
+                band_value = ut.extract_raster_value(
+                    map_file, coordinates, band_number=band_index
+                )
+                property_data[y_index, band_index] = band_value
+
+    return property_data
 
 
 def data_processing(map_key, years, coordinates, deims_id):
@@ -308,8 +359,16 @@ def data_processing(map_key, years, coordinates, deims_id):
         ]  #  , "fertilisation", "grazing", "LUI"
         management_data = get_GER_Lange_data(coordinates, map_properties, years)
     elif map_key == "GER_Schwieder":
-        map_properties = ["mowing"]
-        management_data = get_GER_Schwieder_data(coordinates, years)
+        map_properties = [
+            "mowing",
+            "date_1",
+            "date_2",
+            "date_3",
+            "date_4",
+            "date_5",
+            "date_6",
+        ]
+        management_data = get_GER_Schwieder_data(coordinates, map_properties, years)
     else:
         raise ValueError(
             f"Map key '{map_key}' not found. Please provide valid map key!"
@@ -340,7 +399,7 @@ def prep_management_data(
     """
 
     if years is None:
-        years = list(range(2017, 2019))  # list(range(2017, 2019))
+        years = list(range(2016, 2019))  # list(range(2017, 2019))
 
     # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
     file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
@@ -392,7 +451,7 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="GER_Lange",  # "GER_Schwieder",
+        default="GER_Schwieder",
         choices=["GER_Lange", "GER_Schwieder"],
         help="Options: 'GER_Lange', 'GER_Schwieder'. (Can be extended.)",
     )

@@ -126,7 +126,7 @@ def get_map_and_legend(map_key, map_local=False):
         # Get map directly from url, no download
         tif_file = map_specs["url_root"] + map_specs["subfolder"] + "/" + tif_file_name
 
-        if ut.check_url(tif_file)[0]:
+        if ut.check_url(tif_file):
             print(f"Land cover map found. Using '{tif_file}'.")
         else:
             raise FileNotFoundError(f"Land cover map file '{tif_file}' not found!")

@@ -493,23 +493,14 @@ def reproject_coordinates(lat, lon, target_crs):
     return east, north
 
 
-def extract_raster_band_value(tif_file, location, band_number):
-    with rasterio.open(tif_file) as src:
-        # Read data from the specified band
-        band_data = src.read(band_number)
-
-    return band_data
-    # TODO: develop or integrate with extract_raster_value
-
-
-def extract_raster_value(tif_file, location):
+def extract_raster_value(tif_file, location, band_number=1):
     """
-    Extract values from raster file at specified coordinates.
+    Extract value from raster file at specified coordinates.
 
     Parameters:
-        tif_file (str): TIF file path or url.
-        category_mapping (dict): Mapping of category indices to category names.
+        tif_file (str): TIF file path or URL.
         location (dict): Dictionary with 'lat' and 'lon' keys.
+        band_number (int): Band number for which the value shall be extracted (default is 1).
 
     Returns:
         any: Extracted value.
@@ -517,7 +508,6 @@ def extract_raster_value(tif_file, location):
     with rasterio.open(tif_file) as src:
         # Get the target CRS (as str in WKT format) from the TIF file
         target_crs = src.crs.to_wkt()
-        # (GER_Preidl, EUR_Pflugmacher use Lambert Azimuthal Equal Area in meters)
 
         # Reproject the coordinates to the target CRS
         east, north = reproject_coordinates(
@@ -525,7 +515,7 @@ def extract_raster_value(tif_file, location):
         )
 
         # Extract the value at the specified coordinates
-        value = next(src.sample([(east, north)]))
+        value = next(src.sample([(east, north)], indexes=band_number))
 
     return value[0]
 
@@ -538,19 +528,21 @@ def check_url(url):
         url (str): URL to check.
 
     Returns:
-        exists (bool): True if the file exists, False otherwise.
-        content_type (str or None): File content type if it exists, None otherwise.
+        str: URL if existing (original or redirected), None otherwise.
     """
-    try:
-        response = requests.head(url)
-        if response.status_code == 200:
-            content_type = response.headers.get("content-type")
+    if url:
+        try:
+            response = requests.head(url, allow_redirects=True)  # Allow redirection
 
-            return True, content_type
-        else:
-            return False, None
-    except requests.ConnectionError:
-        return False, None
+            if response.status_code == 200:
+                return response.url
+                # could be returned: content_type = response.headers.get("content-type")
+            else:
+                return None
+        except requests.ConnectionError:
+            return None
+    else:
+        return None
 
 
 def download_file_opendap(file_name, source_folder, target_folder):
@@ -580,7 +572,8 @@ def download_file_opendap(file_name, source_folder, target_folder):
         print(
             f"Error: Specified file '{file_name}' not found in 'grasslands-pdt/{source_folder}'!"
         )
-        return
+
+        return None
 
     # Specify target file, create directory if missing, save target file
     target_file = target_folder / file_name
