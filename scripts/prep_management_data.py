@@ -12,13 +12,14 @@ from pathlib import Path
 import utils as ut
 
 
-def construct_management_data_file_name(folder, location, file_suffix):
+def construct_management_data_file_name(folder, location, map_key, file_suffix):
     """
     Construct data file name.
 
     Parameters:
         folder (str or Path): Folder where the data file will be stored.
         location (str or dict): Location information ('DEIMS.iD' or {'lat': float, 'lon': float}).
+        map_key (str): Key for the map containing the management data.
         file_suffix (str): File suffix (e.g. '.txt').
 
     Returns:
@@ -32,15 +33,15 @@ def construct_management_data_file_name(folder, location, file_suffix):
     elif ("lat" in location) and (
         "lon" in location
     ):  # location as dictionary with lat, lon
-        formatted_lat = f"lat{location['lat']:.2f}".replace(".", "-")
-        formatted_lon = f"lon{location['lon']:.2f}".replace(".", "-")
+        formatted_lat = f"lat{location['lat']:.6f}".replace(".", "-")
+        formatted_lon = f"lon{location['lon']:.6f}".replace(".", "-")
         file_start = f"{formatted_lat}_{formatted_lon}"
     elif isinstance(location, str):  # location as string (DEIMS.iD)
         file_start = location
     else:
         raise ValueError("Unsupported location format.")
 
-    file_name = folder / f"{file_start}_Management{file_suffix}"
+    file_name = folder / f"{file_start}_Management_{map_key}{file_suffix}"
 
     return file_name
 
@@ -65,7 +66,7 @@ def management_data_to_txt_file(
     """
     # Create data file name and data directory if missing
     file_name = construct_management_data_file_name(
-        "managementDataPrepared", location, ".txt"
+        "managementDataPrepared", location, map_key, ".txt"
     )
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
@@ -94,7 +95,7 @@ def get_management_map_file(
 
     Parameters:
         map_key (str): Key to identify the land use map.
-        depth (str): Year.
+        year (str): Year.
         property (str): Name of the management property (default is "mowing").
         applicability (bool): Get area-of-applicability-map (default is False).
         map_local (bool): Read map from local file (default is False).
@@ -273,32 +274,53 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                         print(
                             f"Warning: Location not classified as grassland in '{map_key}' map for {year}."
                         )
-
                         break
-                    else:
-                        property_value = ut.extract_raster_value(map_file, coordinates)
 
-                        if within_aoa:
-                            print(
-                                f"{year}, {property} : {property_value}. Within area of applicability."
-                            )
-                            property_data[y_index, p_index] = property_value
-                        else:
-                            print(
-                                f"{year}, {property} : {property_value}. Not used, outside area of applicability!"
-                            )
+                    property_value = ut.extract_raster_value(map_file, coordinates)
+
+                    if within_aoa:
+                        print(
+                            f"{year}, {property} : {property_value}. Within area of applicability."
+                        )
+                        property_data[y_index, p_index] = property_value
+                    else:
+                        print(
+                            f"{year}, {property} : {property_value}. Not used, outside area of applicability!"
+                        )
     return property_data
 
 
 def get_GER_Schwieder_data(coordinates, map_properties, years):
+    """
+    Read mowing data for the given coordinates from GER_Schwieder map for the respective year and return as array.
+        Schwieder, Marcel; Wesemeyer, Maximilian; Frantz, David; Pfoch, Kira; Erasmi, Stefan; Pickert, Jürgen;
+        Nendel, Claas; Hostert, Patrick (2022):
+        Mapping grassland mowing events across Germany based on combined Sentinel-2 and Landsat 8 time series,
+        Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2021.112795
+
+        Only works for locations classified as (permanent) grassland in 2017, 2018 and 2019 according to
+        Blickensdörfer et al. (2021), https://zenodo.org/records/5153047.
+
+        Properties:
+            Mowing: number of moving events (max. 6) and their dates (day of year).
+
+    Parameters:
+        coordinates (tuple): Coordinates ('lat', 'lon') to extract management data.
+        map_properties (list): List of properties to extract.
+        years (list): List of years to process.
+
+    Returns:
+        numpy.ndarray: 2D array containing property data for given years (nan if no grassland or no further mowing event).
+    """
     map_key = "GER_Schwieder"
+    print(f"Reading management data from '{map_key}' map...")
     map_bands = len(map_properties)
     property = map_properties[0]
-    print(f"Reading management data from '{map_key}' map...")
 
-    # TODO: check and correctly use data from the mowing maps
-    #       maybe integrate with get_GER_Lange_data ...
-    #       document and cite sources..
+    if not property == "mowing":
+        raise ValueError(
+            f"First property to read from '{map_key}' map must be 'mowing'!"
+        )
 
     # Initialize property_data array with nans
     property_data = np.full(
@@ -309,8 +331,9 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
         np.nan,
         dtype=object,
     )
+    warn_no_grassland = True
 
-    # Extract values from tif maps for each property and depth
+    # Extract values from tif maps for each year and each property
     for y_index, year in enumerate(years):
         # Add year to the management data
         property_data[y_index, 0] = year
@@ -321,14 +344,35 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
                 f"{property[0].upper() + property[1:]} map for {year} found. Using '{map_file}'."
             )
 
-            # Add management properties from tif maps
-            for band_index in range(1, map_bands + 1):
-                # Extract property value
+            # Read mowing events (band 1)
+            band_index = 1
+            band_value = ut.extract_raster_value(
+                map_file, coordinates, band_number=band_index
+            )
+
+            if band_value == -9999:
+                if warn_no_grassland:
+                    print(
+                        f"Warning: Location not classified as grassland in '{map_key}' map!"
+                    )
+                    warn_no_grassland = False
+                break
+
+            property_data[y_index, band_index] = band_value
+            print(f"{year}, {property} : {band_value} event(s).")
+
+            # Add mowing dates if available (bands 2 to end)
+            for band_index in range(2, map_bands + 1):
                 band_value = ut.extract_raster_value(
                     map_file, coordinates, band_number=band_index
                 )
-                property_data[y_index, band_index] = band_value
 
+                if not band_value == 0:
+                    property_data[y_index, band_index] = band_value
+                    band_date = ut.day_of_year_to_date(year, int(band_value))
+                    print(
+                        f"{property[0].upper() + property[1:]} event {band_index-1}: {band_date.strftime('%Y-%m-%d')}."
+                    )
     return property_data
 
 
@@ -349,6 +393,8 @@ def data_processing(map_key, years, coordinates, deims_id):
             raise ValueError(
                 "No location defined. Please provide coordinates or DEIMS.iD!"
             )
+    else:
+        print(f"Latitude: {coordinates['lat']}, Longitude: {coordinates['lon']}")
 
     if map_key == "GER_Lange":
         map_properties = [
@@ -399,7 +445,7 @@ def prep_management_data(
     """
 
     if years is None:
-        years = list(range(2016, 2019))  # list(range(2017, 2019))
+        years = list(range(2017, 2022))  # list(range(2017, 2019))
 
     # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
     file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
@@ -408,27 +454,27 @@ def prep_management_data(
     for location in locations:
         data_processing(map_key, years, coordinates=None, deims_id=location["deims_id"])
 
-    # # Example coordinates for checking without DEIMS.iDs
-    # locations = [
-    #     {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
-    #     {
-    #         "lat": 51.3919,
-    #         "lon": 11.8787,
-    #     },  # GER, GCEF grassland site, centroid, non-grassland in HRL!
-    #     {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
-    #     {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
-    #     {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city
-    #     {"lat": 51.7123725, "lon": 12.5833917},  # GER, forest outside of city
-    #     {"lat": 46.8710811, "lon": 11.0244728},  # AT, should be grassland
-    #     {"lat": 64.2304403, "lon": 27.6856269},  # FIN, near LUMI site
-    #     {"lat": 64.2318989, "lon": 27.6952722},  # FIN, LUMI site
-    #     {"lat": 49.8366436, "lon": 18.1540575},  # CZ, near IT4I Ostrava
-    #     {"lat": 43.173, "lon": 8.467},  # Mediterranean Sea
-    #     {"lat": 30, "lon": 1},  # out of Europe
-    # ]
-    #
-    # for location in locations:
-    #     data_processing(map_key, years, coordinates=location, deims_id=None)
+    # Example coordinates for checking without DEIMS.iDs
+    locations = [
+        {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+        {
+            "lat": 51.3919,
+            "lon": 11.8787,
+        },  # GER, GCEF grassland site, centroid, non-grassland in HRL!
+        {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
+        {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
+        {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city
+        {"lat": 51.7123725, "lon": 12.5833917},  # GER, forest outside of city
+        {"lat": 46.8710811, "lon": 11.0244728},  # AT, should be grassland
+        {"lat": 64.2304403, "lon": 27.6856269},  # FIN, near LUMI site
+        {"lat": 64.2318989, "lon": 27.6952722},  # FIN, LUMI site
+        {"lat": 49.8366436, "lon": 18.1540575},  # CZ, near IT4I Ostrava
+        {"lat": 43.173, "lon": 8.467},  # Mediterranean Sea
+        {"lat": 30, "lon": 1},  # out of Europe
+    ]
+
+    for location in locations:
+        data_processing(map_key, years, coordinates=location, deims_id=None)
 
 
 def main():

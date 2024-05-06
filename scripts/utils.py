@@ -7,12 +7,14 @@ Description: Utility functions for uc-grassland building block.
 
 import csv
 from collections import Counter
-from dotenv import dotenv_values
+from datetime import datetime, timedelta
 from pathlib import Path
 import pandas as pd
 import pyproj
 import rasterio
 import requests
+
+# from dotenv import dotenv_values
 
 
 def add_string_to_file_name(file_name, string_to_add):
@@ -581,3 +583,17 @@ def download_file_opendap(file_name, source_folder, target_folder):
 
     with open(target_file, "wb") as file:
         file.write(response.content)
+
+
+def day_of_year_to_date(year, day_of_year):
+    """
+    Convert a day of a year to corresponding date.
+
+    Args:
+        year (int): Year.
+        day_of_year (int): Day of the year (count from 1 for January 1st).
+
+    Returns:
+        datetime: Corresponding date.
+    """
+    return datetime(year, 1, 1) + timedelta(days=day_of_year - 1)

@@ -32,6 +32,9 @@ Digitales Basis-Landschaftsmodell(AAA-Modellierung).
 GeoBasis-DE. Geodaten der deutschen Landesvermessung.
 (used in land use map by Lange et al. 2022)
 
+Blickensdörfer et al. (2021), https://zenodo.org/records/5153047.
+(used in land use map by Schwieder et al. 2022)
+
 https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v100#citations
 https://zenodo.org/records/7254221
 https://zenodo.org/records/7254221
@@ -63,15 +66,15 @@ def get_map_specs(map_key):
             'file_stem': Stem of the file names.
             'map_ext': File extension for the map.
             'leg_ext': File extension for the legend (may extend the stem).
-            'url_root': Root URL for accessing the files.
-            'subfolder': Subfolder containing the files.
+            'url_folder': URL to folder containing the files.
+            'subfolder': Subfolder name for local files or files on opendap server.
     """
     if map_key == "GER_Preidl":
         map_specs = {
             "file_stem": "preidl-etal-RSE-2020_land-cover-classification-germany-2016",
             "map_ext": ".tif",
             "leg_ext": ".tif.aux.xml",
-            "url_root": "http://134.94.199.14/grasslands-pdt/",
+            "url_folder": "http://134.94.199.14/grasslands-pdt/landCoverMaps/",
             "subfolder": "landCoverMaps",
         }
     elif map_key == "EUR_Pflugmacher":
@@ -79,7 +82,7 @@ def get_map_specs(map_key):
             "file_stem": "europe_landcover_2015_RSE-Full3",
             "map_ext": ".tif",
             "leg_ext": "_legend.xlsx",
-            "url_root": "http://134.94.199.14/grasslands-pdt/",
+            "url_folder": "https://hs.pangaea.de/Maps/EuropeLandcover/",  # http://134.94.199.14/grasslands-pdt/landCoverMaps/
             "subfolder": "landCoverMaps",
         }
     else:
@@ -103,9 +106,9 @@ def get_map_and_legend(map_key, map_local=False):
             str: Full path or url of TIF file.
             dict: Mapping of category indices to category names.
     """
-    map_specs = get_map_specs(map_key)
 
-    # Get map
+    # Get map specifications and map file name
+    map_specs = get_map_specs(map_key)
     tif_file_name = map_specs["file_stem"] + map_specs["map_ext"]
 
     if map_local:
@@ -124,7 +127,7 @@ def get_map_and_legend(map_key, map_local=False):
             raise FileNotFoundError(f"Land cover map file '{tif_file}' not found!")
     else:
         # Get map directly from url, no download
-        tif_file = map_specs["url_root"] + map_specs["subfolder"] + "/" + tif_file_name
+        tif_file = map_specs["url_folder"] + tif_file_name
 
         if ut.check_url(tif_file):
             print(f"Land cover map found. Using '{tif_file}'.")
@@ -323,12 +326,12 @@ def check_desired_categories(category, target_categories, location):
     # Print check results
     if is_target_categories:
         print(
-            f"Confirmed: Lat. {location['lat']:.4f}, Lon. {location['lon']:.4f}",
+            f"Confirmed: Lat. {location['lat']:.6f}, Lon. {location['lon']:.6f}",
             f"is classified as '{category}'.",
         )
     else:
         print(
-            f"Not in target categories: Lat. {location['lat']:.4f}, Lon. {location['lon']:.4f}",
+            f"Not in target categories: Lat. {location['lat']:.6f}, Lon. {location['lon']:.6f}",
             f"is classified as '{category}'.",
         )
 
@@ -533,7 +536,7 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="GER_Preidl",
+        default="EUR_Pflugmacher",
         choices=["eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland"],
         help="Options: 'eunisHabitat', 'EUR_Pflugmacher', 'GER_Preidl', 'HRL_Grassland'. (Can be extended.)",
     )
