@@ -7,14 +7,6 @@ Description: Functions for checking if coordinates are grassland according to gi
 
 Land cover maps and classifications used: 
 
-Preidl, Sebastian; Lange, Maximilian; Doktor, Daniel (2020):
-Land cover classification map of Germany's agricultural area based on Sentinel-2A data from 2016.
-PANGAEA, https://doi.org/10.1594/PANGAEA.910837
-
-Pflugmacher, Dirk; Rabe, Andreas; Peters, Mathias; Hostert, Patrick (2018):
-Pan-European land cover map of 2015 based on Landsat and LUCAS data. 
-PANGAEA, https://doi.org/10.1594/PANGAEA.896282
-
 Eunis EEA habitat types (version 2012):
 https://eunis.eea.europa.eu/habitats-code-browser.jsp?expand=290,86,1743,2421,2891,525#level_525
 (Only for DEIMS Sites: Get all habitat types of a site, check if any of them is grassland.)
@@ -25,16 +17,26 @@ https://doi.org/10.2909/60639d5b-9164-4135-ae93-fb4132bb6d83
 REST API
 https://sdi.eea.europa.eu/catalogue/copernicus/eng/catalog.search#/metadata/60639d5b-9164-4135-ae93-fb4132bb6d83
 
-# further candidate maps:
+Pflugmacher, Dirk; Rabe, Andreas; Peters, Mathias; Hostert, Patrick (2018):
+Pan-European land cover map of 2015 based on Landsat and LUCAS data. 
+PANGAEA, https://doi.org/10.1594/PANGAEA.896282
+
+Preidl, Sebastian; Lange, Maximilian; Doktor, Daniel (2020):
+Land cover classification map of Germany's agricultural area based on Sentinel-2A data from 2016.
+PANGAEA, https://doi.org/10.1594/PANGAEA.910837
+
+Schwieder, Marcel; Tetteh, Gideon Okpoti; Blickensdörfer, Lukas; Gocht, Alexander; Erasmi, Stefan (2024):
+Agricultural land use (raster): National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and Landsat data (2017 to 2021)
+Zenodo, https://zenodo.org/records/10640528
+
 German ATKIS digital landscape model 2015
 Bundesamt für Kartographie und Geodäsie, 2015. 
-Digitales Basis-Landschaftsmodell(AAA-Modellierung). 
+Digitales Basis-Landschaftsmodell (AAA-Modellierung). 
 GeoBasis-DE. Geodaten der deutschen Landesvermessung.
-(used in land use map by Lange et al. 2022)
+(derived via land use maps by Lange et al. (2022), https://data.mendeley.com/datasets/m9rrv26dvf/1)
 
-Blickensdörfer et al. (2021), https://zenodo.org/records/5153047.
-(used in land use map by Schwieder et al. 2022)
 
+# further candidate maps:
 https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v100#citations
 https://zenodo.org/records/7254221
 https://zenodo.org/records/7254221
@@ -85,6 +87,40 @@ def get_map_specs(map_key):
             "url_folder": "https://hs.pangaea.de/Maps/EuropeLandcover/",  # http://134.94.199.14/grasslands-pdt/landCoverMaps/
             "subfolder": "landCoverMaps",
         }
+    elif map_key.startswith("GER_Schwieder_"):
+        map_year = map_key.split("_")[-1]  # get year from map key
+
+        if map_year in ["2017", "2018", "2019", "2020", "2021"]:
+            map_specs = {
+                "file_stem": "CTM_GER_",
+                "map_ext": map_year + "_rst_v202_COG.tif",
+                "leg_ext": "LegendEN_rst_v202.xlsx",
+                "url_folder": "https://zenodo.org/records/10640528/files/",
+                "subfolder": "landCoverMaps",
+            }
+        else:
+            print(f"Warning: Land cover map for key '{map_key}' not found!")
+
+            return None
+    elif map_key.startswith("GER_Lange_"):
+        map_year = map_key.split("_")[-1]  # get year from map key
+
+        if map_year in ["2017", "2018"]:
+            map_specs = {
+                "file_stem": "",  # "map_ext": ".tif",
+                "leg_ext": "GER_Lange_Legend.xlsx",
+                "url_folder": "https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/",
+                "subfolder": "landCoverMaps",
+            }
+            map_specs["map_ext"] = (
+                "98d7c7ab-0a8f-4c2f-a78f-6c1739ee9354/file_downloaded"
+                if map_year == 2017
+                else "d871429a-b2a6-4592-b3e5-4650462a9ac3/file_downloaded"
+            )
+        else:
+            print(f"Warning: Land cover map for key '{map_key}' not found!")
+
+            return None
     else:
         print(f"Warning: Land cover map for key '{map_key}' not found!")
 
@@ -173,10 +209,8 @@ def create_category_mapping(leg_file):
             category_mapping = {row[0]: row[1] for row in df.values}
             # # Alternative using the row names 'code' and 'class_names'
             # category_mapping = (df[["code", "class_name"]].set_index("code")["class_name"].to_dict())
-
         except Exception as e:
             print(f"Error reading XLSX file: {str(e)}")
-
     elif leg_file.suffix == ".xml":
         try:
             tree = ET.parse(leg_file)
@@ -189,7 +223,6 @@ def create_category_mapping(leg_file):
                 for index, category in enumerate(category_names):
                     category_name = category.text
                     category_mapping[index] = category_name
-
         except Exception as e:
             print(f"Error reading XML file: {str(e)}")
 
@@ -350,28 +383,24 @@ def check_if_grassland(category, location, map_key=None):
     Returns:
         bool: True if the category represents grassland, False otherwise.
     """
-    if map_key:
-        if map_key == "eunisHabitat":
-            grass_labels = ["E", "E1", "E2", "E3", "E4", "E5"]
-            # not included:
-            # E6 : Inland salt steppes
-            # E7 : Sparsely wooded grasslands
-            habitat_label = category.split("(")[-1].strip(")")
-            is_grassland = habitat_label == grass_labels[0]
+    if map_key == "eunisHabitat":
+        # Set accepted eunis EEA habitat types
+        grass_labels = ["E", "E1", "E2", "E3", "E4", "E5"]
+        # not included:
+        # E6 : Inland salt steppes
+        # E7 : Sparsely wooded grasslands
+        habitat_label = category.split("(")[-1].strip(")")
+        is_grassland = habitat_label == grass_labels[0]
 
-            if not is_grassland:
-                # Check if any element in the reference list is a prefix of part_in_brackets
-                for label in grass_labels[1:]:
-                    if habitat_label.startswith(label):
-                        is_grassland = True
-                        break
+        if not is_grassland:
+            # Check if any element in the reference list is a prefix of part_in_brackets
+            for label in grass_labels[1:]:
+                if habitat_label.startswith(label):
+                    is_grassland = True
+                    break
     else:
-        # Set accepted categories, includes eunis EEA habitat types
-        grass_categories = [
-            "Grassland",
-            "grassland",
-            "grass",
-        ]
+        # Set accepted categories
+        grass_categories = ["Grassland", "grassland", "grass", "Permanent grassland"]
         # not inlcuded:
         # "Legumes"
 
@@ -394,7 +423,17 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
     """
     print("Starting grassland check...")
     deims_keys = ["eunisHabitat"]
-    tif_keys = ["EUR_Pflugmacher", "GER_Preidl"]
+    tif_keys = [
+        "EUR_Pflugmacher",
+        "GER_Preidl",
+        "GER_Schwieder_2017",
+        "GER_Schwieder_2018",
+        "GER_Schwieder_2019",
+        "GER_Schwieder_2020",
+        "GER_Schwieder_2021",
+        "GER_Lange_2017",
+        "GER_Lange_2018",
+    ]
     hrl_keys = ["HRL_Grassland"]
     grassland_check = []
 
@@ -536,9 +575,32 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="EUR_Pflugmacher",
-        choices=["eunisHabitat", "EUR_Pflugmacher", "GER_Preidl", "HRL_Grassland"],
-        help="Options: 'eunisHabitat', 'EUR_Pflugmacher', 'GER_Preidl', 'HRL_Grassland'. (Can be extended.)",
+        default="GER_Lange_2018",
+        choices=[
+            "eunisHabitat",
+            "HRL_Grassland",
+            "EUR_Pflugmacher",
+            "GER_Preidl",
+            "GER_Schwieder_2017",
+            "GER_Schwieder_2018",
+            "GER_Schwieder_2019",
+            "GER_Schwieder_2020",
+            "GER_Schwieder_2021",
+            "GER_Lange_2017",
+            "GER_Lange_2018",
+        ],
+        help="""Options: 
+        'eunisHabitat', 
+        'HRL_Grassland', 
+        'EUR_Pflugmacher', 
+        'GER_Preidl', 
+        'GER_Schwieder_2017', 
+        'GER_Schwieder_2018', 
+        'GER_Schwieder_2019', 
+        'GER_Schwieder_2020', 
+        'GER_Schwieder_2021',
+        'GER_Lange_2017',
+        'GER_Lange_2018'.""",
     )
     parser.add_argument(
         "--file_name",
@@ -550,39 +612,39 @@ def main():
 
     # Example coordinates
     if args.locations is None:
-        # # Example to get coordinates from DEIMS.iDs from XLS file
-        # file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-        # country_code = "DE"
-        # args.locations = ut.get_deims_ids_from_xls(
-        #     file_name, header_row=1, country=country_code
-        # )
-        # args.file_name = file_name.parent / (
-        #     file_name.stem
-        #     + "_"
-        #     + country_code
-        #     + "__grasslandCheck_"
-        #     + args.map_key
-        #     + ".txt"
-        # )  # ".txt" or ".xlsx"
+        # Example to get coordinates from DEIMS.iDs from XLS file
+        file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        country_code = "DE"
+        args.locations = ut.get_deims_ids_from_xls(
+            file_name, header_row=1, country=country_code
+        )
+        args.file_name = file_name.parent / (
+            file_name.stem
+            + "_"
+            + country_code
+            + "__grasslandCheck_"
+            + args.map_key
+            + ".txt"
+        )  # ".txt" or ".xlsx"
 
-        # Example coordinates for checking without DEIMS.iDs
-        args.locations = [
-            {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
-            {
-                "lat": 51.3919,
-                "lon": 11.8787,
-            },  # GER, GCEF grassland site, centroid, non-grassland in HRL!
-            {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
-            {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
-            {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city
-            {"lat": 51.7123725, "lon": 12.5833917},  # GER, forest outside of city
-            {"lat": 46.8710811, "lon": 11.0244728},  # AT, should be grassland
-            {"lat": 64.2304403, "lon": 27.6856269},  # FIN, near LUMI site
-            {"lat": 64.2318989, "lon": 27.6952722},  # FIN, LUMI site
-            {"lat": 49.8366436, "lon": 18.1540575},  # CZ, near IT4I Ostrava
-            {"lat": 43.173, "lon": 8.467},  # Mediterranean Sea
-            {"lat": 30, "lon": 1},  # out of Europe
-        ]
+        # # Example coordinates for checking without DEIMS.iDs
+        # args.locations = [
+        #     {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+        #     {
+        #         "lat": 51.3919,
+        #         "lon": 11.8787,
+        #     },  # GER, GCEF grassland site, centroid, non-grassland in HRL!
+        #     {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
+        #     {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
+        #     {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city
+        #     {"lat": 51.7123725, "lon": 12.5833917},  # GER, forest outside of city
+        #     {"lat": 46.8710811, "lon": 11.0244728},  # AT, should be grassland
+        #     {"lat": 64.2304403, "lon": 27.6856269},  # FIN, near LUMI site
+        #     {"lat": 64.2318989, "lon": 27.6952722},  # FIN, LUMI site
+        #     {"lat": 49.8366436, "lon": 18.1540575},  # CZ, near IT4I Ostrava
+        #     {"lat": 43.173, "lon": 8.467},  # Mediterranean Sea
+        #     {"lat": 30, "lon": 1},  # out of Europe
+        # ]
 
     # Default file name will be used as no file name is passed here
     check_locations_for_grassland(args.locations, args.map_key, args.file_name)

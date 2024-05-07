@@ -241,6 +241,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
         np.nan,
         dtype=float,
     )
+    warn_no_grassland = True
 
     # Extract values from tif maps for each year and each property
     for y_index, year in enumerate(years):
@@ -271,9 +272,11 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                     within_aoa = ut.extract_raster_value(aoa_file, coordinates)
 
                     if within_aoa == -1:
-                        print(
-                            f"Warning: Location not classified as grassland in '{map_key}' map for {year}."
-                        )
+                        if warn_no_grassland:
+                            print(
+                                f"Warning: Location not classified as grassland in '{map_key}' map."
+                            )
+                            warn_no_grassland = False
                         break
 
                     property_value = ut.extract_raster_value(map_file, coordinates)
@@ -445,7 +448,7 @@ def prep_management_data(
     """
 
     if years is None:
-        years = list(range(2017, 2022))  # list(range(2017, 2019))
+        years = list(range(2017, 2019))  # list(range(2017, 2019))
 
     # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
     file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
@@ -497,7 +500,7 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="GER_Schwieder",
+        default="GER_Lange",
         choices=["GER_Lange", "GER_Schwieder"],
         help="Options: 'GER_Lange', 'GER_Schwieder'. (Can be extended.)",
     )
