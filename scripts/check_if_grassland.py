@@ -8,7 +8,7 @@ Description: Functions for checking if coordinates are grassland according to gi
 Land cover maps and classifications used: 
 
 Eunis EEA habitat types (version 2012):
-https://eunis.eea.europa.eu/habitats-code-browser.jsp?expand=290,86,1743,2421,2891,525#level_525
+https://eunis.eea.europa.eu/habitats-code-browser.jsp
 (Only for DEIMS Sites: Get all habitat types of a site, check if any of them is grassland.)
 
 European Union's Copernicus Land Monitoring Service information (2020):
@@ -400,7 +400,15 @@ def check_if_grassland(category, location, map_key=None):
                     break
     else:
         # Set accepted categories
-        grass_categories = ["Grassland", "grassland", "grass", "Permanent grassland"]
+        grass_categories = [
+            "Grassland",
+            "grassland",
+            "grass",
+            "Permanent grassland",
+            "Cultivated grassland",
+            "Fallow land",
+            "Bare land",
+        ]
         # not inlcuded:
         # "Legumes"
 
@@ -575,7 +583,7 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="GER_Lange_2018",
+        default="GER_Schwieder_2021",
         choices=[
             "eunisHabitat",
             "HRL_Grassland",
@@ -614,7 +622,7 @@ def main():
     if args.locations is None:
         # Example to get coordinates from DEIMS.iDs from XLS file
         file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-        country_code = "DE"
+        country_code = "DE"  # "DE" "AT"
         args.locations = ut.get_deims_ids_from_xls(
             file_name, header_row=1, country=country_code
         )

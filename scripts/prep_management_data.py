@@ -3,22 +3,50 @@ Module Name: prep_management_data.py
 Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
 Date: April, 2024
 Description: Download management data and prepare as needed for GRASSMIND input. 
+
+Management data source 'GER_Lange' map:
+    Lange, Maximilian; Feilhauer, Hannes; Kühn, Ingolf; Doktor, Daniel (2022):
+    Mapping land-use intensity of grasslands in Germany with machine learning and Sentinel-2 time series,
+    Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2022.112888
+
+    Based on grassland classifaction according to:
+        German ATKIS digital landscape model 2015.
+
+Management data source 'GER_Schwieder' map:
+    Schwieder, Marcel; Wesemeyer, Maximilian; Frantz, David; Pfoch, Kira; Erasmi, Stefan; Pickert, Jürgen;
+    Nendel, Claas; Hostert, Patrick (2022):
+    Mapping grassland mowing events across Germany based on combined Sentinel-2 and Landsat 8 time series,
+    Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2021.112795
+
+    Based on grassland classification according to:
+        Blickensdörfer, Lukas; Schwieder, Marcel; Pflugmacher, Dirk; Nendel, Claas; Erasmi, Stefan; 
+        Hostert, Patrick (2021):
+        National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and 
+        Landsat 8 data (2017, 2018 and 2019), https://zenodo.org/records/5153047.
+
+Mowing default dates according to:
+    Schmid, Julia (2022): 
+    Modeling species-rich ecosystems to understand community dynamics and structures emerging from individual
+    plant interactions, PhD thesis, Chapter 4, https://doi.org/10.48693/160
 """
 
 import argparse
 from copernicus import utils as ut_cop
+from datetime import datetime, timedelta
 import numpy as np
 from pathlib import Path
 import utils as ut
+import warnings
 
 
-def construct_management_data_file_name(folder, location, map_key, file_suffix):
+def construct_management_data_file_name(folder, location, years, map_key, file_suffix):
     """
     Construct data file name.
 
     Parameters:
         folder (str or Path): Folder where the data file will be stored.
         location (str or dict): Location information ('DEIMS.iD' or {'lat': float, 'lon': float}).
+        years (list): List of years covered by the management data.
         map_key (str): Key for the map containing the management data.
         file_suffix (str): File suffix (e.g. '.txt').
 
@@ -28,20 +56,23 @@ def construct_management_data_file_name(folder, location, map_key, file_suffix):
     # Get folder with path appropriate for different operating systems
     folder = Path(folder)
 
-    if "deims_id" in location:  # DEIMS.iD
-        file_start = location["deims_id"]
-    elif ("lat" in location) and (
+    if ("lat" in location) and (
         "lon" in location
     ):  # location as dictionary with lat, lon
-        formatted_lat = f"lat{location['lat']:.6f}".replace(".", "-")
-        formatted_lon = f"lon{location['lon']:.6f}".replace(".", "-")
+        formatted_lat = f"lat{location['lat']:.6f}"  # .replace(".", "-")
+        formatted_lon = f"lon{location['lon']:.6f}"  # .replace(".", "-")
         file_start = f"{formatted_lat}_{formatted_lon}"
+    elif "deims_id" in location:  # DEIMS.iD
+        file_start = location["deims_id"]
     elif isinstance(location, str):  # location as string (DEIMS.iD)
         file_start = location
     else:
         raise ValueError("Unsupported location format.")
 
-    file_name = folder / f"{file_start}_Management_{map_key}{file_suffix}"
+    file_name = (
+        folder
+        / f"{file_start}__{years[0]}_{years[-1]}__management__{map_key}{file_suffix}"
+    )
 
     return file_name
 
@@ -50,7 +81,10 @@ def management_data_to_txt_file(
     map_key,
     map_properties,
     location,
+    years,
     management_data,
+    is_raw_data=False,
+    fill_mode="none",
 ):
     """
     Write management data to a text file.
@@ -59,32 +93,66 @@ def management_data_to_txt_file(
         map_key (str): Key for the map.
         map_properties (list): List of map properties.
         location (str or dict): Location information ('DEIMS.iD' or {'lat': float, 'lon': float}).
+        years (list): List of years covered by the management data.
         management_data (numpy.ndarray): Management data.
+        is_raw_data (bool): Whether data are raw (default is False).
+        fill_mode (str): Method for completing missing data (default is 'none').
 
     Returns:
         None
     """
-    # Create data file name and data directory if missing
-    file_name = construct_management_data_file_name(
-        "managementDataPrepared", location, map_key, ".txt"
-    )
-    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
+    # Create data file name and header line
+    if is_raw_data:
+        file_name = construct_management_data_file_name(
+            "managementDataRaw", location, years, map_key, "_Raw.txt"
+        )
 
-    # Header line for file, capitalize only the first letter of each string
-    management_header = "\t".join(
-        map(lambda x: x[0].upper() + x[1:], ["Year"] + map_properties)
-    )
+        # Header line, capitalize only the first letter of each string
+        management_columns = [s.capitalize() for s in ["Year"] + map_properties]
+        management_fmt = "%.0f" + "\t%.4f" * len(map_properties)  # no digits for year
+        print_message = (
+            f"Text file with raw management data from '{map_key}' map prepared."
+        )
+    else:
+        if fill_mode == "none":
+            file_end = ".txt"
+        else:
+            file_end = f"__fill_{fill_mode}.txt"
+
+        file_name = construct_management_data_file_name(
+            "managementDataPrepared", location, years, map_key, file_end
+        )
+        management_columns = [
+            "Date",
+            "MowHeight[m]",
+            "Fertilizer[gm-2]",
+            "Irrigation[mm]",
+            "Seeds_PFT1",
+            "Seeds_PFT2",
+            "Seeds_PFT3",
+        ]
+        management_fmt = "%s\t%s\t%s\t%s\t%s\t%s\t%s"
+        print_message = (
+            f"Text file with final management data from '{map_key}' map prepared."
+        )
+
+        # Prepare empty management data for writing to file
+        if not management_data:
+            management_data = np.empty((0, len(management_columns)), dtype=str)
+
+    # Create data directory if missing
+    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
     np.savetxt(
         file_name,
         management_data,
         delimiter="\t",
-        fmt=["%.0f"] + len(map_properties) * ["%.4f"],  # no digits for year
-        header=management_header,
+        fmt=management_fmt,
+        header="\t".join(management_columns),
         comments="",
     )
 
-    print(f"Text file with management data from '{map_key}' map prepared.")
+    print(print_message)
 
 
 def get_management_map_file(
@@ -96,7 +164,7 @@ def get_management_map_file(
     Parameters:
         map_key (str): Key to identify the land use map.
         year (str): Year.
-        property (str): Name of the management property (default is "mowing").
+        property (str): Name of the management property (default is 'mowing').
         applicability (bool): Get area-of-applicability-map (default is False).
         map_local (bool): Read map from local file (default is False).
 
@@ -126,8 +194,9 @@ def get_management_map_file(
                     elif property == "LUI":
                         file_name = "4e7ab052-bd47-4ccf-9560-57ceb080945a"
                     else:
-                        print(
-                            f"Warning: Property '{property}' not found in '{map_key}' map!"
+                        warnings.warn(
+                            f"Property '{property}' not found in '{map_key}' map!",
+                            UserWarning,
                         )
 
                         return None
@@ -141,8 +210,9 @@ def get_management_map_file(
                     elif property == "LUI":
                         file_name = "54995bd6-2811-4198-ba55-675386510260"
                     else:
-                        print(
-                            f"Warning: Property '{property}' not found in '{map_key}' map!"
+                        warnings.warn(
+                            f"Property '{property}' not found in '{map_key}' map!",
+                            UserWarning,
                         )
 
                         return None
@@ -157,8 +227,9 @@ def get_management_map_file(
                     elif property == "LUI":
                         file_name = "0efe31de-1275-4cab-b470-af1ce9f28363"
                     else:
-                        print(
-                            f"Warning: Property '{property}' not found in '{map_key}' map!"
+                        warnings.warn(
+                            f"Property '{property}' not found in '{map_key}' map!",
+                            UserWarning,
                         )
 
                         return None
@@ -172,13 +243,16 @@ def get_management_map_file(
                     elif property == "LUI":
                         file_name = "28b419a6-c282-42fa-a23a-72676a288171"
                     else:
-                        print(
-                            f"Warning: Property '{property}' not found in '{map_key}' map!"
+                        warnings.warn(
+                            f"Property '{property}' not found in '{map_key}' map!",
+                            UserWarning,
                         )
 
                         return None
             else:
-                print(f"Warning: '{map_key}' {property} map not available for {year}!")
+                warnings.warn(
+                    f"'{map_key}' {property} map not available for {year}!", UserWarning
+                )
 
                 return None
 
@@ -193,12 +267,33 @@ def get_management_map_file(
 
             if map_local:
                 # Return local map file
-                return ut.get_package_root() / "landUseMaps" / map_key / file_name
-            else:
+                # map_file = ut.get_package_root() / "landUseMaps" / map_key / file_name
+                map_file = (
+                    Path(r"c:/_D/biodt_data/") / "landUseMaps" / map_key / file_name
+                )
+
+                if map_file.is_file():
+                    return map_file
+                else:
+                    print(
+                        f"Error: Local file '{map_file}' not found! Trying to access via url ..."
+                    )
+                    map_local = False
+
+            if not map_local:
                 # Return map file URL
-                return "https://zenodo.org/records/10609590/files/" + file_name
+                return (
+                    "http://134.94.199.14/grasslands-pdt/landUseMaps/"
+                    + map_key
+                    + "/"
+                    + file_name
+                )
+                # alternative zenodo address:
+                # return "https://zenodo.org/records/10609590/files/" + file_name
         else:
-            print(f"Warning: '{map_key}' {property} map not available for {year}!")
+            warnings.warn(
+                f"'{map_key}' {property} map not available for {year}!", UserWarning
+            )
 
             return None
 
@@ -206,20 +301,17 @@ def get_management_map_file(
 def get_GER_Lange_data(coordinates, map_properties, years):
     """
     Read management data for the given coordinates from GER_Lange map for the respective year and return as array.
-        Lange, Maximilian; Feilhauer, Hannes; Kühn, Ingolf; Doktor, Daniel (2022):
-        Mapping land-use intensity of grasslands in Germany with machine learning and Sentinel-2 time series,
-        Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2022.112888
 
-        Only works for locations classified as grassland according to German ATKIS digital landscape model 2015.
+    Only works for locations classified as grassland according to German ATKIS digital landscape model 2015.
 
-        Properties:
-            Mowing: number of moving events.
-            Fertilisation: information aggregated into fertilised or not fertilised.
-            Grazing: classification bases on grazing intensity (G), given as livestock units (depending on species and age) per ha and day
-                (Class 0: G=0, Class 1: 0 < G <= 0.33, Class 2: 0.33 < G <=0.88, Class 3: G > 0.88).
-            LUI calculation based on Mowing, Fertilisation and Grazing (cf. Lange et al. 2022).
+    Properties:
+        Mowing: number of moving events.
+        Fertilisation: information aggregated into fertilised or not fertilised.
+        Grazing: classification bases on grazing intensity (G), given as livestock units (depending on species and age) per ha and day
+            (Class 0: G=0, Class 1: 0 < G <= 0.33, Class 2: 0.33 < G <=0.88, Class 3: G > 0.88).
+        LUI calculation based on Mowing, Fertilisation and Grazing (cf. Lange et al. 2022).
 
-            Each property's model has a separate area of applicability for each year.
+        Each property's model has a separate area of applicability for each year.
 
     Parameters:
         coordinates (tuple): Coordinates ('lat', 'lon') to extract management data.
@@ -234,10 +326,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
 
     # Initialize property_data array with nans
     property_data = np.full(
-        (
-            len(years),
-            len(map_properties) + 1,
-        ),
+        (len(years), len(map_properties) + 1),
         np.nan,
         dtype=float,
     )
@@ -273,8 +362,9 @@ def get_GER_Lange_data(coordinates, map_properties, years):
 
                     if within_aoa == -1:
                         if warn_no_grassland:
-                            print(
-                                f"Warning: Location not classified as grassland in '{map_key}' map."
+                            warnings.warn(
+                                f"Location not classified as grassland in '{map_key}' map.",
+                                UserWarning,
                             )
                             warn_no_grassland = False
                         break
@@ -290,6 +380,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                         print(
                             f"{year}, {property} : {property_value}. Not used, outside area of applicability!"
                         )
+
     return property_data
 
 
@@ -320,7 +411,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
     map_bands = len(map_properties)
     property = map_properties[0]
 
-    if not property == "mowing":
+    if property != "mowing":
         raise ValueError(
             f"First property to read from '{map_key}' map must be 'mowing'!"
         )
@@ -343,9 +434,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
         map_file = ut.check_url(get_management_map_file(map_key, year))
 
         if map_file:
-            print(
-                f"{property[0].upper() + property[1:]} map for {year} found. Using '{map_file}'."
-            )
+            print(f"{property.capitalize()} map for {year} found. Using '{map_file}'.")
 
             # Read mowing events (band 1)
             band_index = 1
@@ -355,36 +444,311 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
 
             if band_value == -9999:
                 if warn_no_grassland:
-                    print(
-                        f"Warning: Location not classified as grassland in '{map_key}' map!"
+                    warnings.warn(
+                        f"Location not classified as grassland in '{map_key}' map.",
+                        UserWarning,
                     )
                     warn_no_grassland = False
-                break
+            else:
+                property_data[y_index, band_index] = band_value
+                print(f"{year}, {property}: {band_value} event(s).")
 
-            property_data[y_index, band_index] = band_value
-            print(f"{year}, {property} : {band_value} event(s).")
-
-            # Add mowing dates if available (bands 2 to end)
-            for band_index in range(2, map_bands + 1):
-                band_value = ut.extract_raster_value(
-                    map_file, coordinates, band_number=band_index
-                )
-
-                if not band_value == 0:
-                    property_data[y_index, band_index] = band_value
-                    band_date = ut.day_of_year_to_date(year, int(band_value))
-                    print(
-                        f"{property[0].upper() + property[1:]} event {band_index-1}: {band_date.strftime('%Y-%m-%d')}."
+                # Add mowing dates if available (bands 2 to end)
+                for band_index in range(2, map_bands + 1):
+                    band_value = ut.extract_raster_value(
+                        map_file, coordinates, band_number=band_index
                     )
+
+                    if band_value != 0:
+                        property_data[y_index, band_index] = band_value
+                        band_date = ut.day_of_year_to_date(year, int(band_value))
+                        print(
+                            f"{property.capitalize()} event {band_index - 1}: {band_date.strftime('%Y-%m-%d')}."
+                        )
     return property_data
 
 
-def data_processing(map_key, years, coordinates, deims_id):
+def get_mow_events(year, mow_days, mow_height, leap_year_considered=True):
+    """
+    Generate mowing event entries for a given year based on specified days and height.
+
+    Parameters:
+        year (int): Year for which to generate mowing events.
+        mow_days (list of int): Days of the year to schedule mowing.
+        mow_height (float): Height of mowing (in meters).
+        leap_year_considered (bool): Whether leap year was already considered for mow_days (default is True).
+
+    Returns:
+        list of list: list of mowing events in Grassmind management input data format,
+        one row for each mow_day, containing:
+            column 0: date string in the format YYYY-MM-DD
+            column 1: value of mow_height
+            columns 2 to 6: 'NaN' (for no fertilization, no irrigation and no seeds at this management event)
+    """
+    # Create result array, date and mow height in first rows, NaN for all other management rows
+    mow_events = []
+    for day_of_year in mow_days:
+        mow_date = ut.day_of_year_to_date(year, day_of_year, leap_year_considered)
+        row = [
+            mow_date.strftime("%Y-%m-%d"),
+            mow_height,
+            "NaN",
+            "NaN",
+            "NaN",
+            "NaN",
+            "NaN",
+        ]
+        mow_events.append(row)
+
+    return mow_events
+
+
+def get_mow_schedule(year, mow_count, mow_height):
+    """
+    Generate a schedule of mowing dates based on the number of mowings (mow_count) for a given year.
+
+    Parameters:
+        year (int): Year for which to generate the schedule.
+        mow_count (float): Number of mowing events (expected to be between 1 and 5).
+        mow_height (float): Height of mowing (in meters).
+
+    Returns:
+        numpy.ndarray: Array with mowing events in Grassmind management input data format,
+        mow_count rows, each row containing:
+            column 0: date string in the format YYYY-MM-DD
+            column 1: value of mow_height
+            columns 2 to 6: value NaN (for no fertilization, no irrigation and no seeds at this management event)
+    """
+    # Check if mow_count is NaN
+    if np.isnan(mow_count):
+        warnings.warn("mow_count is NaN. No schedule will be generated.", UserWarning)
+
+        return np.array([])
+
+    # Check if mow_count is between 1 and 5
+    if mow_count < 1:
+        mow_count = 1
+        warnings.warn(
+            "'mow_count' is smaller than 1! Value between 1 and 5 expected. Set to 1.",
+            UserWarning,
+        )
+    elif mow_count > 5:
+        mow_count = 5
+        warnings.warn(
+            "'mow_count' is greater than 5! Value between 1 and 5 expected. Set to 5.",
+            UserWarning,
+        )
+
+    # Convert mow_count to int
+    mow_count = int(mow_count)
+
+    # Define specific days for each mow_count (cf. Schmid 2022, Ch. 4, Table C.7)
+    mow_days = {
+        1: [213],  # 08-01
+        2: [152, 244],  # 06-01, 09-01
+        3: [121, 182, 244],  # 05-01, 07-01, 09-01
+        4: [105, 166, 213, 274],  # 04-15, 06-15, 08-01, 10-01
+        5: [91, 135, 182, 227, 288],  # 04-01, 05-15, 07-01, 08-15, 10-15
+    }
+
+    mow_events = get_mow_events(
+        year, mow_days[mow_count], mow_height, leap_year_considered=False
+    )
+
+    return mow_events
+
+
+def get_fert_schedule(year, fert_count):
+    """
+    Generate a schedule of fertilization dates based on the number of events (fert_count) for a given year.
+
+    Parameters:
+        year (int): Year for which to generate the schedule.
+        fert_count (float): Number of fertilization events (expected to be between 1 and 5).
+
+    Returns:
+        numpy.ndarray: Array with fertilization events in Grassmind management input data format,
+        fert_count rows, each row containing:
+            column 0: date string in the format YYYY-MM-DD
+            column 1: value NaN (for no mowing at this management event)
+            column 2: value of fert_amount
+            columns 3 to 6: value NaN (for no irrigation and no seeds at this management event)
+    """
+    # Check if fert_count is NaN
+    if np.isnan(fert_count):
+        warnings.warn("fert_count is NaN. No schedule will be generated.", UserWarning)
+
+        return np.array([])
+
+    # Check if fert_count is between 1 and 5
+    if fert_count < 1:
+        fert_count = 1
+        warnings.warn(
+            "'fert_count' is smaller than 1! Value between 1 and 5 expected. Set to 1.",
+            UserWarning,
+        )
+    elif fert_count > 5:
+        fert_count = 5
+        warnings.warn(
+            "'fert_count' is greater than 5! Value between 1 and 5 expected. Set to 5.",
+            UserWarning,
+        )
+
+    # Convert fert_count to int
+    fert_count = int(fert_count)
+
+    # Define specific days and amounts or each fert_count (cf. Schmid 2022, Ch. 4, Table C.7)
+    fert_days = {
+        1: [91],  # 04-01
+        2: [91, 166],  # 04-01, 06-15
+        3: [74, 135, 244],  # 03-15, 05-15, 09-01
+        4: [60, 121, 182, 227],  # 03-01, 05-01, 07-01, 08-15
+        5: [91, 135, 182, 227, 288],  # 03-01, 04-15, 06-01, 07-15, 09-01
+    }
+    fert_amounts = {  # in g/m²
+        1: [5.5],
+        2: [6.5, 3.5],
+        3: [12.5, 3.25, 3.25],
+        4: [16.5, 4, 2, 2],
+        5: [21, 2.5, 2.5, 2.5, 2.5],
+    }
+
+    # Create result array, date and mow height in first rows, NaN for all other management rows
+    fert_events = []
+
+    for d_index, day_of_year in enumerate(fert_days[fert_count]):
+        fert_date = ut.day_of_year_to_date(
+            year, day_of_year, leap_year_considered=False
+        )
+        row = [
+            fert_date.strftime("%Y-%m-%d"),
+            "NaN",
+            fert_amounts[fert_count][d_index],
+            "NaN",
+            "NaN",
+            "NaN",
+            "NaN",
+        ]
+        fert_events.append(row)
+
+    return fert_events
+
+
+def convert_management_data(management_data_raw, map_key, mow_height, fill_mode):
+    """
+    Convert raw management data into structured mowing and fertilization events.
+
+    Parameters:
+        management_data_raw (list of lists): Raw management data containing yearly mowing and fertilization info.
+        map_key (str): Key to identify the land use map ('GER_Lange' or 'GER_Schwieder').
+        mow_height (float): Height of mowing (in meters).
+        fill_mode (str): Method for completing missing data.
+
+    Returns:
+        list of lists: List of mowing events in Grassmind management input data format,
+        one row for each management event, containing:
+            column 0: date string in the format YYYY-MM-DD
+            column 1: value of mowing height (if mowing event, otherwise 'NaN')
+            column 2: value of fertilisation amount (if fertilisation event, otherwise 'NaN')
+            columns 3 to 6: 'NaN' (for no irrigation and no seeds at this management event)
+    """
+    management_events = []
+    fill_mode = fill_mode.lower()
+    events_if_fertilized = 2  # use 2 fertilisation events as default
+    years = []
+    sum_mow_count = 0
+    years_with_mow_data = []
+    sum_fert_count = 0
+    years_with_fert_data = []
+
+    if map_key == "GER_Lange":
+        for entry in management_data_raw:
+            year = int(entry[0])
+            years.append(year)
+            mow_count = entry[1]
+            fertilized = entry[2]
+
+            if not np.isnan(mow_count):
+                years_with_mow_data.append(year)
+
+                if mow_count > 0:
+                    sum_mow_count += mow_count
+                    mow_schedule = get_mow_schedule(year, mow_count, mow_height)
+                    management_events.extend(mow_schedule)
+
+            if not np.isnan(fertilized):
+                years_with_fert_data.append(year)
+
+                if fertilized == 1:
+                    sum_fert_count += events_if_fertilized
+                    fert_schedule = get_fert_schedule(year, events_if_fertilized)
+                    management_events.extend(fert_schedule)
+
+    elif map_key == "GER_Schwieder":
+        for entry in management_data_raw:
+            year = int(entry[0])
+            years.append(year)
+            mow_count = entry[1]
+
+            if not np.isnan(mow_count):
+                years_with_mow_data.append(year)
+
+                if mow_count > 0:
+                    sum_mow_count += mow_count
+                    mow_days = [int(x) for x in entry[2 : mow_count + 2]]
+                    mow_events = get_mow_events(
+                        year, mow_days, mow_height, leap_year_considered=True
+                    )
+                    management_events.extend(mow_events)
+
+    # Fill management configuration for years without data
+    if fill_mode == "mean":
+        # Use means of data retrieved for remaining years as well
+        print("Completing management data with means from years with data ...")
+        mow_count_float = (
+            sum_mow_count / len(years_with_mow_data) if years_with_mow_data else 0
+        )
+        mow_count = round(mow_count_float)
+        print(
+            f"Mean number of mowing events: {mow_count_float:.4f} per year. Using {mow_count} events per year."
+        )
+        fert_count_float = (
+            sum_fert_count / len(years_with_fert_data) if years_with_fert_data else 0
+        )
+        fert_count = round(fert_count_float)
+        print(
+            f"Mean number of fertilisation events: {fert_count_float:.4f} per year. Using {fert_count} events per year."
+        )
+    elif fill_mode == "default":
+        # Use default management settings for years without data
+        mow_count = 2
+        fert_count = events_if_fertilized
+    else:
+        mow_count = 0
+        fert_count = 0
+
+    if mow_count > 0:
+        for year in years:
+            if year not in years_with_mow_data:
+                mow_schedule = get_mow_schedule(year, mow_count, mow_height)
+                management_events.extend(mow_schedule)
+
+    if fert_count > 0:
+        for year in years:
+            if year not in years_with_fert_data:
+                fert_schedule = get_fert_schedule(year, fert_count)
+                management_events.extend(fert_schedule)
+
+    return sorted(management_events)
+
+
+def data_processing(map_key, fill_missing_data, years, coordinates, deims_id):
     """
     Read management data from land use map. Write to .txt files.
 
     Parameters:
-        map_key (str): Key to identify the land use map.
+        map_key (str): Key to identify the land use map ('GER_Lange' or 'GER_Schwieder').
+        fill_missing_data (str): String to identify the method for filling missing data ('mean', 'default', 'none').
         years (list): List of years to process.
         coordinates (list of dict): List of dictionaries with "lat" and "lon" keys.
         deims_id (str): Identifier of the eLTER site.
@@ -406,7 +770,7 @@ def data_processing(map_key, years, coordinates, deims_id):
             "grazing",
             "LUI",
         ]  #  , "fertilisation", "grazing", "LUI"
-        management_data = get_GER_Lange_data(coordinates, map_properties, years)
+        management_data_raw = get_GER_Lange_data(coordinates, map_properties, years)
     elif map_key == "GER_Schwieder":
         map_properties = [
             "mowing",
@@ -417,7 +781,7 @@ def data_processing(map_key, years, coordinates, deims_id):
             "date_5",
             "date_6",
         ]
-        management_data = get_GER_Schwieder_data(coordinates, map_properties, years)
+        management_data_raw = get_GER_Schwieder_data(coordinates, map_properties, years)
     else:
         raise ValueError(
             f"Map key '{map_key}' not found. Please provide valid map key!"
@@ -427,35 +791,65 @@ def data_processing(map_key, years, coordinates, deims_id):
         map_key,
         map_properties,
         coordinates,
-        management_data,
+        years,
+        management_data_raw,
+        is_raw_data=True,
+    )
+
+    management_data_prepared = convert_management_data(
+        management_data_raw, map_key, mow_height=0.1, fill_mode=fill_missing_data
+    )
+
+    management_data_to_txt_file(
+        map_key,
+        [],
+        coordinates,
+        years,
+        management_data_prepared,
+        is_raw_data=False,
+        fill_mode=fill_missing_data,
     )
 
 
 def prep_management_data(
+    map_key,
+    fill_missing_data,
     years,
     coordinates,
     deims_id,
-    map_key,
 ):
     """
     Prepare management data to be used as GRASSMIND input.
 
     Parameters:
+        map_key (str): Key to identify the land use map ('GER_Lange' or 'GER_Schwieder').
+        fill_missing_data (str): String to identify the method for filling missing data ('mean', 'default', 'none').
         years (list or None): List of years to process, or 'None' for default value.
         coordinates (dict): Coordinates dictionary with 'lat' and 'lon', or 'None' using DEIMS.iD.
         deims_id (str or None): DEIMS.iD, or 'None' for default value.
-        map_key (str): Key to identify the land use map.
+
     """
 
     if years is None:
-        years = list(range(2017, 2019))  # list(range(2017, 2019))
+        years = list(range(2013, 2024))  # list(range(2017, 2019))
+
+    if fill_missing_data is None:
+        fill_missing_data = "default"
 
     # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
     file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
     locations = ut.get_deims_ids_from_xls(file_name, header_row=1, country="DE")
 
+    # locations = [{"deims_id": "fd8b85c0-93ef-4a41-8706-3c4be9dec8e5"}]
+
     for location in locations:
-        data_processing(map_key, years, coordinates=None, deims_id=location["deims_id"])
+        data_processing(
+            map_key,
+            fill_missing_data,
+            years,
+            coordinates=None,
+            deims_id=location["deims_id"],
+        )
 
     # Example coordinates for checking without DEIMS.iDs
     locations = [
@@ -477,7 +871,9 @@ def prep_management_data(
     ]
 
     for location in locations:
-        data_processing(map_key, years, coordinates=location, deims_id=None)
+        data_processing(
+            map_key, fill_missing_data, years, coordinates=location, deims_id=None
+        )
 
 
 def main():
@@ -490,6 +886,20 @@ def main():
     )
 
     # Define command-line arguments
+    parser.add_argument(
+        "--map_key",
+        type=str,
+        default="GER_Schwieder",
+        choices=["GER_Lange", "GER_Schwieder"],
+        help="Options: 'GER_Lange', 'GER_Schwieder'. (Can be extended.)",
+    )
+    parser.add_argument(
+        "--fill_missing_data",
+        type=str,
+        default="mean",
+        choices=["mean", "default", "none"],
+        help="Options: 'mean', 'default', 'none'.",
+    )
     parser.add_argument("--years", nargs="*", type=int, help="List of years")
     parser.add_argument(
         "--coordinates",
@@ -497,21 +907,15 @@ def main():
         help="Coordinates as 'lat,lon'",
     )
     parser.add_argument("--deims_id", help="DEIMS.iD")
-    parser.add_argument(
-        "--map_key",
-        type=str,
-        default="GER_Lange",
-        choices=["GER_Lange", "GER_Schwieder"],
-        help="Options: 'GER_Lange', 'GER_Schwieder'. (Can be extended.)",
-    )
 
     args = parser.parse_args()
 
     prep_management_data(
+        map_key=args.map_key,
+        fill_missing_data=args.fill_missing_data,
         years=args.years,
         coordinates=args.coordinates,
         deims_id=args.deims_id,
-        map_key=args.map_key,
     )
 
 

@@ -585,15 +585,37 @@ def download_file_opendap(file_name, source_folder, target_folder):
         file.write(response.content)
 
 
-def day_of_year_to_date(year, day_of_year):
+def day_of_year_to_date(year, day_of_year, leap_year_considered=True):
     """
     Convert a day of a year to corresponding date.
 
     Args:
         year (int): Year.
         day_of_year (int): Day of the year (count from 1 for January 1st).
+        leap_year_correct (bool): Day of your correctly accounts for leap year (default is True).
 
     Returns:
         datetime: Corresponding date.
     """
-    return datetime(year, 1, 1) + timedelta(days=day_of_year - 1)
+    # Adjust days after Feb 29 for leap year, if not correct already
+    if (not leap_year_considered) and is_leap_year(year) and (day_of_year > 60):
+        delta_days = day_of_year
+    else:
+        delta_days = day_of_year - 1
+
+    return datetime(year, 1, 1) + timedelta(days=delta_days)
+
+
+def is_leap_year(year):
+    """
+    Check if a given year is a leap year.
+
+    Parameters:
+        year (int): The year.
+
+    Returns:
+        bool: True if the year is a leap year, False otherwise.
+    """
+    # A year is a leap year if it is divisible by 4,
+    # except for years that are divisible by 100 but not by 400
+    return (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)

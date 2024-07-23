@@ -200,6 +200,7 @@ landUseMaps
 
 # processed management data
 managementDataPrepared
+managementDataRaw
 
 # infos on grassland sites
 grasslandSites
