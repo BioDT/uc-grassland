@@ -71,7 +71,7 @@ def construct_management_data_file_name(folder, location, years, map_key, file_s
 
     file_name = (
         folder
-        / f"{file_start}__{years[0]}_{years[-1]}__management__{map_key}{file_suffix}"
+        / f"{file_start}__{years[0]}-01-01_{years[-1]}-12-31__management__{map_key}{file_suffix}"
     )
 
     return file_name
@@ -179,9 +179,17 @@ def get_management_map_file(
                 if applicability
                 else "S2_Germany_" + str(year) + "_" + property + ".tif"
             )
+            map_file = ut.get_package_root() / "landUseMaps" / map_key / file_name
 
-            return ut.get_package_root() / "landUseMaps" / map_key / file_name
-        else:
+            if map_file.is_file():
+                return map_file
+            else:
+                print(
+                    f"Error: Local file '{map_file}' not found! Trying to access via url ..."
+                )
+                map_local = False
+
+        if not map_local:
             # Return map file URL
             if year == 2017:
                 if applicability:
@@ -255,22 +263,24 @@ def get_management_map_file(
                 )
 
                 return None
-
-            return (
+            map_file = (
                 "https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/"
                 + file_name
                 + "/file_downloaded"
             )
+
+            if ut.check_url(map_file):
+                return map_file
+            else:
+                print(f"Error: File '{map_file}' not found!")
     elif map_key == "GER_Schwieder":
         if year in [2017, 2018, 2019, 2020, 2021]:
             file_name = "GLU_GER_" + str(year) + "_SUM_DOY_COG.tif"
 
             if map_local:
-                # Return local map file
-                # map_file = ut.get_package_root() / "landUseMaps" / map_key / file_name
                 map_file = (
                     Path(r"c:/_D/biodt_data/") / "landUseMaps" / map_key / file_name
-                )
+                )  # ut.get_package_root() / "landUseMaps" / map_key / file_name
 
                 if map_file.is_file():
                     return map_file
@@ -281,15 +291,17 @@ def get_management_map_file(
                     map_local = False
 
             if not map_local:
-                # Return map file URL
-                return (
+                map_file = (
                     "http://134.94.199.14/grasslands-pdt/landUseMaps/"
                     + map_key
                     + "/"
                     + file_name
-                )
-                # alternative zenodo address:
-                # return "https://zenodo.org/records/10609590/files/" + file_name
+                )  # or zenodo address: "https://zenodo.org/records/10609590/files/" + file_name
+
+                if ut.check_url(map_file):
+                    return map_file
+                else:
+                    print(f"Error: File '{map_file}' not found!")
         else:
             warnings.warn(
                 f"'{map_key}' {property} map not available for {year}!", UserWarning
@@ -465,6 +477,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
                         print(
                             f"{property.capitalize()} event {band_index - 1}: {band_date.strftime('%Y-%m-%d')}."
                         )
+
     return property_data
 
 
@@ -653,90 +666,100 @@ def convert_management_data(management_data_raw, map_key, mow_height, fill_mode)
             columns 3 to 6: 'NaN' (for no irrigation and no seeds at this management event)
     """
     management_events = []
+    years = np.array([int(entry[0]) for entry in management_data_raw])
+    years_with_mow_data = np.array([])
+
+    # Read mowing, same column for "GER_Lange" and "GER_Schwieder"
+    if map_key in ["GER_Lange", "GER_Schwieder"]:
+        mow_count_per_year = np.array([entry[1] for entry in management_data_raw])
+        years_with_mow_data = years[~np.isnan(mow_count_per_year)]
+
+        if map_key == "GER_Lange":
+            # Add mowing events to management events, using default schedule
+            for idx in np.where(mow_count_per_year > 0)[0]:
+                mow_schedule = get_mow_schedule(
+                    years[idx], mow_count_per_year[idx], mow_height
+                )
+                management_events.extend(mow_schedule)
+        elif map_key == "GER_Schwieder":
+            # Add mowing events to management events, using specific dates from "GER_Schwieder"
+            for idx in np.where(mow_count_per_year > 0)[0]:
+                entry = management_data_raw[idx]
+                mow_days = [int(x) for x in entry[2 : int(mow_count_per_year[idx]) + 2]]
+                mow_events = get_mow_events(
+                    years[idx], mow_days, mow_height, leap_year_considered=True
+                )
+                management_events.extend(mow_events)
+
+    # Fill mowing for years without data
     fill_mode = fill_mode.lower()
-    events_if_fertilized = 2  # use 2 fertilisation events as default
-    years = []
-    sum_mow_count = 0
-    years_with_mow_data = []
-    sum_fert_count = 0
-    years_with_fert_data = []
 
-    if map_key == "GER_Lange":
-        for entry in management_data_raw:
-            year = int(entry[0])
-            years.append(year)
-            mow_count = entry[1]
-            fertilized = entry[2]
-
-            if not np.isnan(mow_count):
-                years_with_mow_data.append(year)
-
-                if mow_count > 0:
-                    sum_mow_count += mow_count
-                    mow_schedule = get_mow_schedule(year, mow_count, mow_height)
-                    management_events.extend(mow_schedule)
-
-            if not np.isnan(fertilized):
-                years_with_fert_data.append(year)
-
-                if fertilized == 1:
-                    sum_fert_count += events_if_fertilized
-                    fert_schedule = get_fert_schedule(year, events_if_fertilized)
-                    management_events.extend(fert_schedule)
-
-    elif map_key == "GER_Schwieder":
-        for entry in management_data_raw:
-            year = int(entry[0])
-            years.append(year)
-            mow_count = entry[1]
-
-            if not np.isnan(mow_count):
-                years_with_mow_data.append(year)
-
-                if mow_count > 0:
-                    sum_mow_count += mow_count
-                    mow_days = [int(x) for x in entry[2 : mow_count + 2]]
-                    mow_events = get_mow_events(
-                        year, mow_days, mow_height, leap_year_considered=True
-                    )
-                    management_events.extend(mow_events)
-
-    # Fill management configuration for years without data
     if fill_mode == "mean":
         # Use means of data retrieved for remaining years as well
         print("Completing management data with means from years with data ...")
         mow_count_float = (
-            sum_mow_count / len(years_with_mow_data) if years_with_mow_data else 0
+            np.nanmean(mow_count_per_year)
+            if years_with_mow_data.size > 0  # np.any(~np.isnan(mow_count_per_year))
+            else 0
         )
-        mow_count = round(mow_count_float)
+        mow_count_fill = round(mow_count_float)
         print(
-            f"Mean number of mowing events: {mow_count_float:.4f} per year. Using {mow_count} events per year."
-        )
-        fert_count_float = (
-            sum_fert_count / len(years_with_fert_data) if years_with_fert_data else 0
-        )
-        fert_count = round(fert_count_float)
-        print(
-            f"Mean number of fertilisation events: {fert_count_float:.4f} per year. Using {fert_count} events per year."
+            f"Mean annual mowing events: {mow_count_float:.4f} (from {years_with_mow_data.size} years). Using {mow_count_fill} events per year."
         )
     elif fill_mode == "default":
         # Use default management settings for years without data
-        mow_count = 2
-        fert_count = events_if_fertilized
+        print("Completing management data with default values ...")
+        mow_count_fill = 2
+        print(f"Using {mow_count_fill} events per year.")
     else:
-        mow_count = 0
-        fert_count = 0
+        mow_count_fill = 0
 
-    if mow_count > 0:
-        for year in years:
-            if year not in years_with_mow_data:
-                mow_schedule = get_mow_schedule(year, mow_count, mow_height)
-                management_events.extend(mow_schedule)
+    mow_count_per_year[np.isnan(mow_count_per_year)] = mow_count_fill
 
-    if fert_count > 0:
-        for year in years:
-            if year not in years_with_fert_data:
-                fert_schedule = get_fert_schedule(year, fert_count)
+    # Add all remaining mowing events to schedule
+    for idx, year in enumerate(years):
+        if mow_count_per_year[idx] > 0 and not year in years_with_mow_data:
+            mow_schedule = get_mow_schedule(year, mow_count_fill, mow_height)
+            management_events.extend(mow_schedule)
+
+    # Read fertilization data for "GER_Lange"
+    if map_key == "GER_Lange":
+        fertilized_per_year = np.array([entry[2] for entry in management_data_raw])
+        fert_count_per_year = np.zeros_like(fertilized_per_year)
+
+        # If data say fertilization, adapt number of events to mowing events (even if mowing==0)!
+        for idx in np.where(fertilized_per_year == 1)[0]:
+            fert_count_per_year[idx] = mow_count_per_year[idx]
+
+        # Fill fertilisation years without data
+        if fill_mode == "mean":
+            # Use means of data retrieved for remaining years as well
+            fert_count_float = (
+                np.mean(fert_count_per_year[~np.isnan(fertilized_per_year)])
+                if np.any(~np.isnan(fertilized_per_year))
+                else 0
+            )
+            fert_count_fill = round(fert_count_float)
+            print(
+                f"Mean number of fertilisation events: {fert_count_float:.4f} per year. Using {fert_count_fill} events per year."
+            )
+        elif fill_mode == "default":
+            # Use default management settings for years without data
+            fert_count_fill = 2
+            print(f"Using {fert_count_fill} events per year.")
+        else:
+            fert_count_fill = 0
+
+        # Fill in fertilization events, but not more than mowing events of the same year
+        idx_to_fill = np.where(np.isnan(fertilized_per_year))[0]
+        fert_count_per_year[idx_to_fill] = np.minimum(
+            fert_count_fill, mow_count_per_year[idx_to_fill]
+        )
+
+        # Add all fertilization events to schedule
+        for idx, year in enumerate(years):
+            if fert_count_per_year[idx] > 0:
+                fert_schedule = get_fert_schedule(year, fert_count_fill)
                 management_events.extend(fert_schedule)
 
     return sorted(management_events)
@@ -878,7 +901,7 @@ def prep_management_data(
 
 def main():
     """
-    Runs the script with default arguments for calling the script.
+    Run script with default arguments for calling the script.
     """
 
     parser = argparse.ArgumentParser(
@@ -889,7 +912,7 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="GER_Schwieder",
+        default="GER_Lange",
         choices=["GER_Lange", "GER_Schwieder"],
         help="Options: 'GER_Lange', 'GER_Schwieder'. (Can be extended.)",
     )
