@@ -496,7 +496,7 @@ def get_mow_events(year, mow_days, mow_height, leap_year_considered=True):
         one row for each mow_day, containing:
             column 0: date string in the format YYYY-MM-DD
             column 1: value of mow_height
-            columns 2 to 6: 'NaN' (for no fertilization, no irrigation and no seeds at this management event)
+            columns 2 to 6: 'NaN' (for no fertilisation, no irrigation and no seeds at this management event)
     """
     # Create result array, date and mow height in first rows, NaN for all other management rows
     mow_events = []
@@ -530,7 +530,7 @@ def get_mow_schedule(year, mow_count, mow_height):
         mow_count rows, each row containing:
             column 0: date string in the format YYYY-MM-DD
             column 1: value of mow_height
-            columns 2 to 6: value NaN (for no fertilization, no irrigation and no seeds at this management event)
+            columns 2 to 6: value NaN (for no fertilisation, no irrigation and no seeds at this management event)
     """
     # Check if mow_count is NaN
     if np.isnan(mow_count):
@@ -573,14 +573,14 @@ def get_mow_schedule(year, mow_count, mow_height):
 
 def get_fert_schedule(year, fert_count):
     """
-    Generate a schedule of fertilization dates based on the number of events (fert_count) for a given year.
+    Generate a schedule of fertilisation dates based on the number of events (fert_count) for a given year.
 
     Parameters:
         year (int): Year for which to generate the schedule.
-        fert_count (float): Number of fertilization events (expected to be between 1 and 5).
+        fert_count (float): Number of fertilisation events (expected to be between 1 and 5).
 
     Returns:
-        numpy.ndarray: Array with fertilization events in Grassmind management input data format,
+        numpy.ndarray: Array with fertilisation events in Grassmind management input data format,
         fert_count rows, each row containing:
             column 0: date string in the format YYYY-MM-DD
             column 1: value NaN (for no mowing at this management event)
@@ -649,10 +649,10 @@ def get_fert_schedule(year, fert_count):
 
 def convert_management_data(management_data_raw, map_key, mow_height, fill_mode):
     """
-    Convert raw management data into structured mowing and fertilization events.
+    Convert raw management data into structured mowing and fertilisation events.
 
     Parameters:
-        management_data_raw (list of lists): Raw management data containing yearly mowing and fertilization info.
+        management_data_raw (list of lists): Raw management data containing yearly mowing and fertilisation info.
         map_key (str): Key to identify the land use map ('GER_Lange' or 'GER_Schwieder').
         mow_height (float): Height of mowing (in meters).
         fill_mode (str): Method for completing missing data.
@@ -669,8 +669,9 @@ def convert_management_data(management_data_raw, map_key, mow_height, fill_mode)
     years = np.array([int(entry[0]) for entry in management_data_raw])
     years_with_mow_data = np.array([])
 
-    # Read mowing, same column for "GER_Lange" and "GER_Schwieder"
+    # MOWING
     if map_key in ["GER_Lange", "GER_Schwieder"]:
+        # Read mowing, same column for "GER_Lange" and "GER_Schwieder"
         mow_count_per_year = np.array([entry[1] for entry in management_data_raw])
         years_with_mow_data = years[~np.isnan(mow_count_per_year)]
 
@@ -693,16 +694,15 @@ def convert_management_data(management_data_raw, map_key, mow_height, fill_mode)
 
     # Fill mowing for years without data
     fill_mode = fill_mode.lower()
+    epsilon = 1e-10
 
     if fill_mode == "mean":
         # Use means of data retrieved for remaining years as well
         print("Completing management data with means from years with data ...")
         mow_count_float = (
-            np.nanmean(mow_count_per_year)
-            if years_with_mow_data.size > 0  # np.any(~np.isnan(mow_count_per_year))
-            else 0
+            np.nanmean(mow_count_per_year) if years_with_mow_data.size > 0 else 0
         )
-        mow_count_fill = round(mow_count_float)
+        mow_count_fill = round(mow_count_float + epsilon)
         print(
             f"Mean annual mowing events: {mow_count_float:.4f} (from {years_with_mow_data.size} years). Using {mow_count_fill} events per year."
         )
@@ -722,45 +722,64 @@ def convert_management_data(management_data_raw, map_key, mow_height, fill_mode)
             mow_schedule = get_mow_schedule(year, mow_count_fill, mow_height)
             management_events.extend(mow_schedule)
 
-    # Read fertilization data for "GER_Lange"
+    # FERTILISATION
     if map_key == "GER_Lange":
-        fertilized_per_year = np.array([entry[2] for entry in management_data_raw])
-        fert_count_per_year = np.zeros_like(fertilized_per_year)
+        # Read fertilisation data for "GER_Lange"
+        fertilised_per_year = np.array([entry[2] for entry in management_data_raw])
+        fert_count_per_year = np.zeros_like(fertilised_per_year)
 
-        # If data say fertilization, adapt number of events to mowing events (even if mowing==0)!
-        for idx in np.where(fertilized_per_year == 1)[0]:
+        # If data say fertilisation, adapt number of events to mowing events (even if mowing==0)!
+        for idx in np.where(fertilised_per_year == 1)[0]:
             fert_count_per_year[idx] = mow_count_per_year[idx]
 
         # Fill fertilisation years without data
+        idx_to_fill = np.where(np.isnan(fertilised_per_year))[0]
+        no_data_for_mean = False
+
         if fill_mode == "mean":
-            # Use means of data retrieved for remaining years as well
-            fert_count_float = (
-                np.mean(fert_count_per_year[~np.isnan(fertilized_per_year)])
-                if np.any(~np.isnan(fertilized_per_year))
-                else 0
-            )
-            fert_count_fill = round(fert_count_float)
+            if np.any(~np.isnan(fertilised_per_year)):
+                # Use means of data retrieved for remaining years as well
+                fert_count_float = np.mean(
+                    fert_count_per_year[~np.isnan(fertilised_per_year)]
+                )
+                fert_count_fill = round(fert_count_float + epsilon)
+                print(
+                    f"Mean number of fertilisation events: {fert_count_float:.4f} per year."
+                    f" Using {fert_count_fill} events per year (but never more than mowing events of the same year)."
+                )
+
+                # Fill in fertilisation events, but not more than mowing events of the same year
+                fert_count_per_year[idx_to_fill] = np.minimum(
+                    fert_count_fill, mow_count_per_year[idx_to_fill]
+                )
+            else:
+                # No data for any of the years, use default option instead
+                print(
+                    "No fertilisation data for any year to calculate mean and complete other years."
+                )
+                no_data_for_mean = True
+
+        if fill_mode == "default" or no_data_for_mean:
+            # Use number of mowing events as default for years without fertilisation data
             print(
-                f"Mean number of fertilisation events: {fert_count_float:.4f} per year. Using {fert_count_fill} events per year."
+                "Using the same number of fertilisation events as mowing events for each year."
             )
-        elif fill_mode == "default":
-            # Use default management settings for years without data
-            fert_count_fill = 2
-            print(f"Using {fert_count_fill} events per year.")
-        else:
-            fert_count_fill = 0
+            fert_count_per_year[idx_to_fill] = mow_count_per_year[idx_to_fill]
+    elif map_key == "GER_Schwieder":
+        if fill_mode in ["mean", "default"]:
+            # No fertilisation data, use number of mowing events as default
+            print(
+                f"'{map_key}' map has no fertilisation data."
+                " Using the same number of fertilisation events as mowing events for each year."
+            )
+            fert_count_per_year = mow_count_per_year
 
-        # Fill in fertilization events, but not more than mowing events of the same year
-        idx_to_fill = np.where(np.isnan(fertilized_per_year))[0]
-        fert_count_per_year[idx_to_fill] = np.minimum(
-            fert_count_fill, mow_count_per_year[idx_to_fill]
-        )
-
-        # Add all fertilization events to schedule
-        for idx, year in enumerate(years):
-            if fert_count_per_year[idx] > 0:
-                fert_schedule = get_fert_schedule(year, fert_count_fill)
-                management_events.extend(fert_schedule)
+    # TODO: if specific mow dates come from data, set fert dates to fixed time_delta before instead of standard schedule
+    # Add all fertilisation events to schedule
+    for idx, year in enumerate(years):
+        if fert_count_per_year[idx] > 0:
+            fert_schedule = get_fert_schedule(year, fert_count_per_year[idx])
+            management_events.extend(fert_schedule)
 
     return sorted(management_events)
 
