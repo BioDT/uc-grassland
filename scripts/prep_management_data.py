@@ -25,9 +25,14 @@ Management data source 'GER_Schwieder' map:
         Landsat 8 data (2017, 2018 and 2019), https://zenodo.org/records/5153047.
 
 Mowing default dates according to:
-    Schmid, Julia (2022): 
-    Modeling species-rich ecosystems to understand community dynamics and structures emerging from individual
-    plant interactions, PhD thesis, Chapter 4, https://doi.org/10.48693/160
+    Filipiak, Matthias; Gabriel, Doreen; Kuka, Katrin (2022):
+    Simulation-based assessment of the soil organic carbon sequestration in grasslands in relation to 
+    management and climate change scenarios, https://doi.org/10.1016/j.heliyon.2023.e17287
+
+    See also:
+        Schmid, Julia (2022): 
+        Modeling species-rich ecosystems to understand community dynamics and structures emerging from 
+        individual plant interactions, PhD thesis, Chapter 4, Table C.7, https://doi.org/10.48693/160
 """
 
 import argparse
@@ -44,10 +49,10 @@ def construct_management_data_file_name(folder, location, years, map_key, file_s
     Construct data file name.
 
     Parameters:
-        folder (str or Path): Folder where the data file will be stored.
+        folder (str or Path): Folder where data file will be stored.
         location (str or dict): Location information ('DEIMS.iD' or {'lat': float, 'lon': float}).
-        years (list): List of years covered by the management data.
-        map_key (str): Key for the map containing the management data.
+        years (list): List of years covered by management data.
+        map_key (str): Key to identify land use map.
         file_suffix (str): File suffix (e.g. '.txt').
 
     Returns:
@@ -90,10 +95,10 @@ def management_data_to_txt_file(
     Write management data to a text file.
 
     Parameters:
-        map_key (str): Key for the map.
+        map_key (str): Key to identify land use map.
         map_properties (list): List of map properties.
         location (str or dict): Location information ('DEIMS.iD' or {'lat': float, 'lon': float}).
-        years (list): List of years covered by the management data.
+        years (list): List of years covered by management data.
         management_data (numpy.ndarray): Management data.
         is_raw_data (bool): Whether data are raw (default is False).
         fill_mode (str): Method for completing missing data (default is 'none').
@@ -159,12 +164,12 @@ def get_management_map_file(
     map_key, year, property="mowing", applicability=False, map_local=False
 ):
     """
-    Generate file path or URL for a Management map based on the provided map key, property name and year.
+    Generate file path or URL for a management map based on provided map key, property name and year.
 
     Parameters:
-        map_key (str): Key to identify the land use map.
+        map_key (str): Key to identify land use map.
         year (str): Year.
-        property (str): Name of the management property (default is 'mowing').
+        property (str): Management property (default is 'mowing').
         applicability (bool): Get area-of-applicability-map (default is False).
         map_local (bool): Read map from local file (default is False).
 
@@ -185,7 +190,7 @@ def get_management_map_file(
                 return map_file
             else:
                 print(
-                    f"Error: Local file '{map_file}' not found! Trying to access via url ..."
+                    f"Error: Local file '{map_file}' not found! Trying to access via url..."
                 )
                 map_local = False
 
@@ -286,7 +291,7 @@ def get_management_map_file(
                     return map_file
                 else:
                     print(
-                        f"Error: Local file '{map_file}' not found! Trying to access via url ..."
+                        f"Error: Local file '{map_file}' not found! Trying to access via url..."
                     )
                     map_local = False
 
@@ -312,7 +317,7 @@ def get_management_map_file(
 
 def get_GER_Lange_data(coordinates, map_properties, years):
     """
-    Read management data for the given coordinates from GER_Lange map for the respective year and return as array.
+    Read management data for given coordinates from GER_Lange map for respective year and return as array.
 
     Only works for locations classified as grassland according to German ATKIS digital landscape model 2015.
 
@@ -346,7 +351,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
 
     # Extract values from tif maps for each year and each property
     for y_index, year in enumerate(years):
-        # Add year to the management data
+        # Add year to management data
         property_data[y_index, 0] = year
 
         # Add management properties from tif maps
@@ -398,7 +403,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
 
 def get_GER_Schwieder_data(coordinates, map_properties, years):
     """
-    Read mowing data for the given coordinates from GER_Schwieder map for the respective year and return as array.
+    Read mowing data for given coordinates from GER_Schwieder map for respective year and return as array.
         Schwieder, Marcel; Wesemeyer, Maximilian; Frantz, David; Pfoch, Kira; Erasmi, Stefan; Pickert, Jürgen;
         Nendel, Claas; Hostert, Patrick (2022):
         Mapping grassland mowing events across Germany based on combined Sentinel-2 and Landsat 8 time series,
@@ -441,7 +446,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
 
     # Extract values from tif maps for each year and each property
     for y_index, year in enumerate(years):
-        # Add year to the management data
+        # Add year to management data
         property_data[y_index, 0] = year
         map_file = ut.check_url(get_management_map_file(map_key, year))
 
@@ -487,14 +492,14 @@ def get_mow_events(year, mow_days, mow_height, leap_year_considered=True):
 
     Parameters:
         year (int): Year for which to generate mowing events.
-        mow_days (list of int): Days of the year to schedule mowing.
+        mow_days (list of int): Days of year to schedule mowing.
         mow_height (float): Height of mowing (in meters).
         leap_year_considered (bool): Whether leap year was already considered for mow_days (default is True).
 
     Returns:
         list of list: list of mowing events in Grassmind management input data format,
         one row for each mow_day, containing:
-            column 0: date string in the format YYYY-MM-DD
+            column 0: date string in format YYYY-MM-DD
             column 1: value of mow_height
             columns 2 to 6: 'NaN' (for no fertilisation, no irrigation and no seeds at this management event)
     """
@@ -518,7 +523,7 @@ def get_mow_events(year, mow_days, mow_height, leap_year_considered=True):
 
 def get_mow_schedule(year, mow_count, mow_height):
     """
-    Generate a schedule of mowing dates based on the number of mowings (mow_count) for a given year.
+    Generate a schedule of mowing dates based on number of mowings (mow_count) for a given year.
 
     Parameters:
         year (int): Year for which to generate the schedule.
@@ -528,7 +533,7 @@ def get_mow_schedule(year, mow_count, mow_height):
     Returns:
         numpy.ndarray: Array with mowing events in Grassmind management input data format,
         mow_count rows, each row containing:
-            column 0: date string in the format YYYY-MM-DD
+            column 0: date string in format YYYY-MM-DD
             column 1: value of mow_height
             columns 2 to 6: value NaN (for no fertilisation, no irrigation and no seeds at this management event)
     """
@@ -555,10 +560,10 @@ def get_mow_schedule(year, mow_count, mow_height):
     # Convert mow_count to int
     mow_count = int(mow_count)
 
-    # Define specific days for each mow_count (cf. Schmid 2022, Ch. 4, Table C.7)
+    # Define specific days for each number of mow events (cf. Filipiak et al. 2022, Table S6)
     mow_days = {
         1: [213],  # 08-01
-        2: [152, 244],  # 06-01, 09-01
+        2: [121, 244],  # 05-01, 09-01
         3: [121, 182, 244],  # 05-01, 07-01, 09-01
         4: [105, 166, 213, 274],  # 04-15, 06-15, 08-01, 10-01
         5: [91, 135, 182, 227, 288],  # 04-01, 05-15, 07-01, 08-15, 10-15
@@ -571,18 +576,91 @@ def get_mow_schedule(year, mow_count, mow_height):
     return mow_events
 
 
-def get_fert_schedule(year, fert_count):
+def get_fert_days(mow_days, year):
     """
-    Generate a schedule of fertilisation dates based on the number of events (fert_count) for a given year.
+    Calculate fertilisation dates based on mowing dates for a given year.
+
+    Using time differences between fertilization and mowing events, respectively, according to Filipiak et al. 2022, Table S6.
+
+    Parameters:
+        mow_days (list of int): List with day of year for each mowing event.
+        year (int): Year for which to calculate the fertlization events.        
+
+    Returns:
+        list of int: List with day of year for each fertilisation event.
+    """
+    event_count = len(mow_days)
+    days_ahead = {
+        0: [],  # allow empty mow day lists
+        1: [122],
+        2: [30, 78],
+        3: [47, 47, 48],
+        4: [45, 45, 31, 47],
+        5: [31, 30, 30, 31, 44],
+    }
+
+    if event_count not in days_ahead:
+        raise ValueError(
+            f"No fertilisation day values defined for list of {event_count} mow days."
+        )
+
+    deltas = days_ahead[event_count]
+    fert_days = []
+
+    # Set earliest possible fertilisation date to 03-01
+    earliest_fert_day = 61 if ut.is_leap_year(year) else 60
+    earliest_fert_date_str = ut.day_of_year_to_date(year, earliest_fert_day).strftime("%Y-%m-%d")
+
+    # Calculate fertilisation dates using specific days ahead of corresponding mow events
+    for idx, mow_day in enumerate(mow_days):
+        fert_day = mow_day - deltas[idx]
+
+        if fert_day < earliest_fert_day:            
+            print(
+                f"Warning: Calculated fertilisation date {ut.day_of_year_to_date(year, fert_day).strftime("%Y-%m-%d")}"
+                f" is before earliest date allowed! Set to {earliest_fert_date_str}."
+            )
+            fert_day = earliest_fert_day
+        fert_days.append(fert_day)
+
+    return fert_days
+
+
+def fert_days_from_mow_days(mow_days_per_year, years):
+    """
+    Calculate fertilisation dates based on mowing dates.
+
+    Using time differences between fertilization and mowing events, respectively, according to Filipiak et al. 2022, Table S6.
+
+    Parameters:
+        mow_days (list of list): List of lists with day of year for each mowing event for each year.
+        yeard (list of int): Year for which to calculate the fertlization events.        
+
+    Returns:
+        list of list: List of lists with day of year for each fertilisation event for each year.
+    """
+    fert_days_per_year = []
+
+    for idx, year in enumerate(years):
+        fert_days = get_fert_days(mow_days_per_year[idx], year)
+        fert_days_per_year.append(fert_days)
+
+    return fert_days_per_year
+
+
+def get_fert_schedule(year, fert_count, fert_days=None):
+    """
+    Generate a schedule of fertilisation dates based on number of events for a given year.
 
     Parameters:
         year (int): Year for which to generate the schedule.
         fert_count (float): Number of fertilisation events (expected to be between 1 and 5).
+        fert_days (list of int): Optional list with day of year for each event (default is None).
 
     Returns:
         numpy.ndarray: Array with fertilisation events in Grassmind management input data format,
         fert_count rows, each row containing:
-            column 0: date string in the format YYYY-MM-DD
+            column 0: date string in format YYYY-MM-DD
             column 1: value NaN (for no mowing at this management event)
             column 2: value of fert_amount
             columns 3 to 6: value NaN (for no irrigation and no seeds at this management event)
@@ -610,14 +688,34 @@ def get_fert_schedule(year, fert_count):
     # Convert fert_count to int
     fert_count = int(fert_count)
 
-    # Define specific days and amounts or each fert_count (cf. Schmid 2022, Ch. 4, Table C.7)
-    fert_days = {
-        1: [91],  # 04-01
-        2: [91, 166],  # 04-01, 06-15
-        3: [74, 135, 244],  # 03-15, 05-15, 09-01
-        4: [60, 121, 182, 227],  # 03-01, 05-01, 07-01, 08-15
-        5: [91, 135, 182, 227, 288],  # 03-01, 04-15, 06-01, 07-15, 09-01
-    }
+    # Check if specific days for fertilisation events are provided
+    if fert_days:
+        if len(fert_days) > fert_count:
+            warnings.warn(
+                f"List of fertilisation days for {year} has more entries than 'fert_count'."
+                f" Only first {fert_count} days will be used!",
+                UserWarning,
+            )
+        elif len(fert_days) < fert_count:
+            warnings.warn(
+                f"List of fertilisation days for {year} has fewer entries than expected for 'fert_count' = {fert_count}."
+                " List not used, replaced by standard schedule!",
+                UserWarning,
+            )
+            fert_days = None
+
+    if not fert_days:
+        # Define specific days for each number of fertilisation events (cf. Filipiak et al. 2022, Table S6)
+        fert_days_default = {
+            1: [91],  # 04-01
+            2: [91, 166],  # 04-01, 06-15
+            3: [74, 135, 196],  # 03-15, 05-15, 07-15
+            4: [60, 121, 182, 227],  # 03-01, 05-01, 07-01, 08-15
+            5: [60, 105, 152, 196, 244],  # 03-01, 04-15, 06-01, 07-15, 09-01
+        }
+        fert_days = fert_days_default[fert_count]
+
+    # Define specific amounts for each number of fertilisation events (cf. Filipiak et al. 2022, Table S6)
     fert_amounts = {  # in g/m²
         1: [5.5],
         2: [6.5, 3.5],
@@ -626,10 +724,10 @@ def get_fert_schedule(year, fert_count):
         5: [21, 2.5, 2.5, 2.5, 2.5],
     }
 
-    # Create result array, date and mow height in first rows, NaN for all other management rows
+    # Create result array, date in first row, fertilisation amount in third row, NaN for all other management rows
     fert_events = []
 
-    for d_index, day_of_year in enumerate(fert_days[fert_count]):
+    for d_index, day_of_year in enumerate(fert_days):
         fert_date = ut.day_of_year_to_date(
             year, day_of_year, leap_year_considered=False
         )
@@ -647,20 +745,23 @@ def get_fert_schedule(year, fert_count):
     return fert_events
 
 
-def convert_management_data(management_data_raw, map_key, mow_height, fill_mode):
+def convert_management_data(
+    management_data_raw, map_key, fill_mode, mow_height=0.05, mow_count_default=2
+):
     """
     Convert raw management data into structured mowing and fertilisation events.
 
     Parameters:
-        management_data_raw (list of lists): Raw management data containing yearly mowing and fertilisation info.
-        map_key (str): Key to identify the land use map ('GER_Lange' or 'GER_Schwieder').
-        mow_height (float): Height of mowing (in meters).
+        management_data_raw (list of list): Raw management data containing yearly mowing and fertilisation info.
+        map_key (str): Key to identify land use map ('GER_Lange' or 'GER_Schwieder').
         fill_mode (str): Method for completing missing data.
+        mow_height (float): Height of mowing (in meters, default is 0.05).
+        mow_count_default (int): Number of annual events when using fill_mode 'default' for completing data (default is 2).
 
     Returns:
-        list of lists: List of mowing events in Grassmind management input data format,
+        list of list: List of mowing events in Grassmind management input data format,
         one row for each management event, containing:
-            column 0: date string in the format YYYY-MM-DD
+            column 0: date string in format YYYY-MM-DD
             column 1: value of mowing height (if mowing event, otherwise 'NaN')
             column 2: value of fertilisation amount (if fertilisation event, otherwise 'NaN')
             columns 3 to 6: 'NaN' (for no irrigation and no seeds at this management event)
@@ -668,6 +769,8 @@ def convert_management_data(management_data_raw, map_key, mow_height, fill_mode)
     management_events = []
     years = np.array([int(entry[0]) for entry in management_data_raw])
     years_with_mow_data = np.array([])
+    mow_days_per_year = [[] for _ in range(len(years))]
+    fert_days_per_year = [[] for _ in range(len(years))]
 
     # MOWING
     if map_key in ["GER_Lange", "GER_Schwieder"]:
@@ -683,36 +786,54 @@ def convert_management_data(management_data_raw, map_key, mow_height, fill_mode)
                 )
                 management_events.extend(mow_schedule)
         elif map_key == "GER_Schwieder":
-            # Add mowing events to management events, using specific dates from "GER_Schwieder"
+            # Get specific mowing dates for each year with mowing, add to management events
             for idx in np.where(mow_count_per_year > 0)[0]:
                 entry = management_data_raw[idx]
-                mow_days = [int(x) for x in entry[2 : int(mow_count_per_year[idx]) + 2]]
+                mow_days_per_year[idx] = [
+                    int(x) for x in entry[2 : int(mow_count_per_year[idx]) + 2]
+                ]
                 mow_events = get_mow_events(
-                    years[idx], mow_days, mow_height, leap_year_considered=True
+                    years[idx],
+                    mow_days_per_year[idx],
+                    mow_height,
+                    leap_year_considered=True,
                 )
                 management_events.extend(mow_events)
 
     # Fill mowing for years without data
     fill_mode = fill_mode.lower()
     epsilon = 1e-10
+    mow_count_fill = 0
+    no_mow_data_for_mean = False
 
     if fill_mode == "mean":
         # Use means of data retrieved for remaining years as well
-        print("Completing management data with means from years with data ...")
-        mow_count_float = (
-            np.nanmean(mow_count_per_year) if years_with_mow_data.size > 0 else 0
-        )
-        mow_count_fill = round(mow_count_float + epsilon)
-        print(
-            f"Mean annual mowing events: {mow_count_float:.4f} (from {years_with_mow_data.size} years). Using {mow_count_fill} events per year."
-        )
-    elif fill_mode == "default":
+        print("Completing management data with means from years with data...")
+        
+        if years_with_mow_data.size > 0:
+            mow_count_float = (
+                np.nanmean(mow_count_per_year)
+            )
+            mow_count_fill = round(mow_count_float + epsilon)
+            print(
+                f"Mean annual mowing events: {mow_count_float:.4f} "
+                f"(from {years_with_mow_data.size} years). "
+                f"Using {mow_count_fill} events per year."
+            )
+        else:
+            # No data for any of the years, use default option instead
+            print(
+                "No mowing data for any year to calculate mean and complete other years."
+            )
+            no_mow_data_for_mean = True
+
+    if fill_mode == "default" or no_mow_data_for_mean:
         # Use default management settings for years without data
-        print("Completing management data with default values ...")
-        mow_count_fill = 2
-        print(f"Using {mow_count_fill} events per year.")
-    else:
-        mow_count_fill = 0
+        mow_count_fill = mow_count_default
+        print(
+            "Completing management data with default values... "
+            f"Using {mow_count_fill} events per year."
+        )           
 
     mow_count_per_year[np.isnan(mow_count_per_year)] = mow_count_fill
 
@@ -734,7 +855,7 @@ def convert_management_data(management_data_raw, map_key, mow_height, fill_mode)
 
         # Fill fertilisation years without data
         idx_to_fill = np.where(np.isnan(fertilised_per_year))[0]
-        no_data_for_mean = False
+        no_fert_data_for_mean = False
 
         if fill_mode == "mean":
             if np.any(~np.isnan(fertilised_per_year)):
@@ -744,8 +865,8 @@ def convert_management_data(management_data_raw, map_key, mow_height, fill_mode)
                 )
                 fert_count_fill = round(fert_count_float + epsilon)
                 print(
-                    f"Mean number of fertilisation events: {fert_count_float:.4f} per year."
-                    f" Using {fert_count_fill} events per year (but never more than mowing events of the same year)."
+                    f"Mean number of fertilisation events: {fert_count_float:.4f} per year. "
+                    f"Using {fert_count_fill} events per year (but never more than mowing events of the same year)."
                 )
 
                 # Fill in fertilisation events, but not more than mowing events of the same year
@@ -757,9 +878,9 @@ def convert_management_data(management_data_raw, map_key, mow_height, fill_mode)
                 print(
                     "No fertilisation data for any year to calculate mean and complete other years."
                 )
-                no_data_for_mean = True
+                no_fert_data_for_mean = True
 
-        if fill_mode == "default" or no_data_for_mean:
+        if fill_mode == "default" or no_fert_data_for_mean:
             # Use number of mowing events as default for years without fertilisation data
             print(
                 "Using the same number of fertilisation events as mowing events for each year."
@@ -769,31 +890,36 @@ def convert_management_data(management_data_raw, map_key, mow_height, fill_mode)
         if fill_mode in ["mean", "default"]:
             # No fertilisation data, use number of mowing events as default
             print(
-                f"'{map_key}' map has no fertilisation data."
-                " Using the same number of fertilisation events as mowing events for each year."
+                f"'{map_key}' map has no fertilisation data. "
+                "Using the same number of fertilisation events as mowing events for each year."
             )
             fert_count_per_year = mow_count_per_year
+            fert_days_per_year = fert_days_from_mow_days(mow_days_per_year, years)
 
-    # TODO: if specific mow dates come from data, set fert dates to fixed time_delta before instead of standard schedule
     # Add all fertilisation events to schedule
     for idx, year in enumerate(years):
         if fert_count_per_year[idx] > 0:
-            fert_schedule = get_fert_schedule(year, fert_count_per_year[idx])
+            fert_schedule = get_fert_schedule(
+                year, fert_count_per_year[idx], fert_days_per_year[idx]
+            )
             management_events.extend(fert_schedule)
 
     return sorted(management_events)
 
 
-def data_processing(map_key, fill_missing_data, years, coordinates, deims_id):
+def data_processing(
+    map_key, fill_missing_data, mow_height, years, coordinates, deims_id
+):
     """
     Read management data from land use map. Write to .txt files.
 
     Parameters:
-        map_key (str): Key to identify the land use map ('GER_Lange' or 'GER_Schwieder').
-        fill_missing_data (str): String to identify the method for filling missing data ('mean', 'default', 'none').
+        map_key (str): Key to identify land use map ('GER_Lange' or 'GER_Schwieder').
+        fill_missing_data (str): String to identify method for filling missing data ('mean', 'default', 'none').
+        mow_height (float): Height of mowing (in meters).
         years (list): List of years to process.
-        coordinates (list of dict): List of dictionaries with "lat" and "lon" keys.
-        deims_id (str): Identifier of the eLTER site.
+        coordinates (dict): Dictionary with 'lat' and 'lon' keys of location.
+        deims_id (str): Identifier of eLTER site.
     """
     if coordinates is None:
         if deims_id:
@@ -839,7 +965,7 @@ def data_processing(map_key, fill_missing_data, years, coordinates, deims_id):
     )
 
     management_data_prepared = convert_management_data(
-        management_data_raw, map_key, mow_height=0.1, fill_mode=fill_missing_data
+        management_data_raw, map_key, fill_missing_data, mow_height
     )
 
     management_data_to_txt_file(
@@ -856,6 +982,7 @@ def data_processing(map_key, fill_missing_data, years, coordinates, deims_id):
 def prep_management_data(
     map_key,
     fill_missing_data,
+    mow_height,
     years,
     coordinates,
     deims_id,
@@ -864,8 +991,9 @@ def prep_management_data(
     Prepare management data to be used as GRASSMIND input.
 
     Parameters:
-        map_key (str): Key to identify the land use map ('GER_Lange' or 'GER_Schwieder').
+        map_key (str): Key to identify land use map ('GER_Lange' or 'GER_Schwieder').
         fill_missing_data (str): String to identify the method for filling missing data ('mean', 'default', 'none').
+        mow_height (float): Height of mowing (in meters).
         years (list or None): List of years to process, or 'None' for default value.
         coordinates (dict): Coordinates dictionary with 'lat' and 'lon', or 'None' using DEIMS.iD.
         deims_id (str or None): DEIMS.iD, or 'None' for default value.
@@ -888,6 +1016,7 @@ def prep_management_data(
         data_processing(
             map_key,
             fill_missing_data,
+            mow_height,
             years,
             coordinates=None,
             deims_id=location["deims_id"],
@@ -914,7 +1043,12 @@ def prep_management_data(
 
     for location in locations:
         data_processing(
-            map_key, fill_missing_data, years, coordinates=location, deims_id=None
+            map_key,
+            fill_missing_data,
+            mow_height,
+            years,
+            coordinates=location,
+            deims_id=None,
         )
 
 
@@ -931,7 +1065,7 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="GER_Lange",
+        default="GER_Schwieder",
         choices=["GER_Lange", "GER_Schwieder"],
         help="Options: 'GER_Lange', 'GER_Schwieder'. (Can be extended.)",
     )
@@ -941,6 +1075,12 @@ def main():
         default="mean",
         choices=["mean", "default", "none"],
         help="Options: 'mean', 'default', 'none'.",
+    )
+    parser.add_argument(
+        "--mow_height",
+        type=float,
+        default=0.05,
+        help="Height of mowing (in meters).",
     )
     parser.add_argument("--years", nargs="*", type=int, help="List of years")
     parser.add_argument(
@@ -955,6 +1095,7 @@ def main():
     prep_management_data(
         map_key=args.map_key,
         fill_missing_data=args.fill_missing_data,
+        mow_height=args.mow_height,
         years=args.years,
         coordinates=args.coordinates,
         deims_id=args.deims_id,

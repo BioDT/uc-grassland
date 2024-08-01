@@ -5,7 +5,7 @@ Date: October, 2023
 Description: Functions for checking if coordinates are grassland according to given TIF land cover map.
 
 
-Land cover maps and classifications used: 
+# Land cover maps and classifications used: 
 
 Eunis EEA habitat types (version 2012):
 https://eunis.eea.europa.eu/habitats-code-browser.jsp
@@ -36,13 +36,28 @@ GeoBasis-DE. Geodaten der deutschen Landesvermessung.
 (derived via land use maps by Lange et al. (2022), https://data.mendeley.com/datasets/m9rrv26dvf/1)
 
 
-# further candidate maps:
+# Further candidate maps, not implemented (yet):
+
+ESA WorldCover 10 m 2021 v200
 https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v100#citations
 https://zenodo.org/records/7254221
-https://zenodo.org/records/7254221
 
+CORINE Land Cover 2018 (vector/raster 100 m), Europe
 https://gdz.bkg.bund.de/index.php/default/digitale-geodaten/digitale-landschaftsmodelle/corine-land-cover-5-ha-stand-2018-clc5-2018.html
 https://land.copernicus.eu/en/products/corine-land-cover
+REST API
+https://image.discomap.eea.europa.eu/arcgis/rest/services/Corine/CLC2018_WM/MapServer
+
+
+# Predecessors of Schwieder 2024, not implemented:
+
+Griffiths, Patrick; Nendel, Claas; Hostert, Patrick (2018): 
+National-scale crop- and land-cover map of Germany (2016) based on imagery acquired by Sentinel-2A MSI and Landsat-8 OLI.
+PANGAEA, https://doi.pangaea.de/10.1594/PANGAEA.893195
+
+Blickensdörfer, Lukas; Schwieder, Marcel; Pflugmacher, Dirk; Nendel, Claas; Erasmi, Stefan; Hostert, Patrick (2021):
+National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and Landsat 8 data (2017, 2018 and 2019).
+Zenodo, https://zenodo.org/records/5153047)
 
 """
 

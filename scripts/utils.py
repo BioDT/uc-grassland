@@ -592,13 +592,13 @@ def day_of_year_to_date(year, day_of_year, leap_year_considered=True):
     Args:
         year (int): Year.
         day_of_year (int): Day of the year (count from 1 for January 1st).
-        leap_year_correct (bool): Day of your correctly accounts for leap year (default is True).
+        leap_year_correct (bool): Day of year correctly accounts for leap year (default is True).
 
     Returns:
         datetime: Corresponding date.
     """
     # Adjust days after Feb 29 for leap year, if not correct already
-    if (not leap_year_considered) and is_leap_year(year) and (day_of_year > 60):
+    if (not leap_year_considered) and is_leap_year(year) and (day_of_year > 59):
         delta_days = day_of_year
     else:
         delta_days = day_of_year - 1
