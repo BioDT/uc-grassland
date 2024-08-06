@@ -36,7 +36,7 @@ Mowing default dates according to:
 """
 
 import argparse
-from copernicus import utils as ut_cop
+# from copernicus import utils as ut_cop
 from datetime import datetime, timedelta
 import numpy as np
 from pathlib import Path
@@ -923,7 +923,7 @@ def data_processing(
     """
     if coordinates is None:
         if deims_id:
-            coordinates = ut_cop.get_deims_coordinates(deims_id)
+            coordinates = ut.get_deims_coordinates(deims_id)
         else:
             raise ValueError(
                 "No location defined. Please provide coordinates or DEIMS.iD!"
@@ -1088,7 +1088,7 @@ def main():
         type=lambda s: dict(lat=float(s.split(",")[0]), lon=float(s.split(",")[1])),
         help="Coordinates as 'lat,lon'",
     )
-    parser.add_argument("--deims_id", help="DEIMS.iD")
+    parser.add_argument("--deims_id", type=int, help="DEIMS.iD")
 
     args = parser.parse_args()
 

@@ -5,9 +5,11 @@ Date: February, 2024
 Description: Utility functions for uc-grassland building block. 
 """
 
+import argparse
 import csv
 from collections import Counter
 from datetime import datetime, timedelta
+import deims
 from pathlib import Path
 import pandas as pd
 import pyproj
@@ -420,6 +422,39 @@ def get_package_root():
     raise FileNotFoundError("Could not find package root.")
 
 
+def get_deims_coordinates(deims_id):
+    """
+    Get coordinates for a DEIMS.iD.
+
+    Parameters:
+        deims_id (str): DEIMS.iD.
+
+    Returns:
+        dict: Coordinates as a dictionary with 'lat' and 'lon'.
+    """
+    try:
+        deims_gdf = deims.getSiteCoordinates(deims_id, filename=None)
+        # deims_gdf = deims.getSiteBoundaries(deims_id, filename=None)  # option: collect all coordinates from deims_gdf.boundary[0] ...
+
+        lon = deims_gdf.geometry[0].x
+        lat = deims_gdf.geometry[0].y
+        name = deims_gdf.name[0]
+        print(f"Coordinates for DEIMS.id '{deims_id}' found ({name}).")
+        print(f"Latitude: {lat}, Longitude: {lon}")
+
+        return {
+            "lat": lat,
+            "lon": lon,
+            "deims_id": deims_id,
+            "found": True,
+            "name": name,
+        }
+    except Exception as e:
+        print(f"Error: coordinates for DEIMS.id '{deims_id}' not found ({e})!")
+
+        return {"deims_id": deims_id, "found": False}
+
+
 def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
     """
     Extract DEIMS IDs from an Excel file and return as a list of dictionaries.
@@ -447,6 +482,38 @@ def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
 
     # Extract the column containing the list of DEIMS.iDs and return as list of dicts
     return [{"deims_id": deims_id} for deims_id in df["DEIMS.ID"].tolist()]
+
+
+def parse_locations(locations_str):
+    """
+    Parse a string of locations (separated by semicolons) into a list of dictionaries.
+
+    Args:
+        locations_str (str): String containing locations separated by semicolons. Each location can be in the format
+                         'lat,lon' for coordinates or a plain string for a DEIMS.iD.
+
+    Returns:
+        list: List of dictionaries.
+            Each dictionary contains either a 'coordinates' key with a dictionary {'lat': float, 'lon': float}
+            and 'deims_id' set to None, or a 'deims_id' key with a string value and 'coordinates' set to None.
+    """
+    locations = []
+
+    for item in locations_str.split(";"):
+        if "," in item:
+            try:
+                lat, lon = map(float, item.split(","))
+                locations.append(
+                    {"coordinates": {"lat": lat, "lon": lon}, "deims_id": None}
+                )
+            except ValueError:
+                raise argparse.ArgumentTypeError(
+                    f"Invalid coordinate input: {item}. Expected format is 'lat,lon'."
+                )
+        else:
+            locations.append({"coordinates": None, "deims_id": item})
+
+    return locations
 
 
 def get_unique_keys(list_of_dicts):

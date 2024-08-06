@@ -43,12 +43,12 @@ def prep_soil_data(
 
     dprc.data_processing(coordinates, deims_id)
 
-    # # Example to get multiple coordinates from DEIMS.iDs from XLS file
-    file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-    locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
+    # # test get multiple coordinates from DEIMS.iDs from XLS file
+    # file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+    # locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
 
-    for location in locations:
-        dprc.data_processing(coordinates=None, deims_id=location["deims_id"])
+    # for location in locations:
+    #     dprc.data_processing(coordinates=None, deims_id=location["deims_id"])
 
 
 def main():
