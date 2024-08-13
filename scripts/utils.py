@@ -462,7 +462,7 @@ def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
     Parameters:
         xls_file (Path): Path to the Excel file.
         header_row (int): Row number containing the column names.
-        country (str): Optional code to return only one country (e.g. "AT", "DE", ..., default is "ALL").
+        country (str): Code to return only one country (e.g. "AT", "DE", ..., default is "ALL").
 
     Returns:
         list: List of dictionaries containing DEIMS IDs.

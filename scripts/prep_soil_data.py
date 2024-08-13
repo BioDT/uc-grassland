@@ -13,6 +13,7 @@ import utils as ut
 def prep_soil_data(
     coordinates,
     deims_id,
+    file_name=None,
 ):
     """
     Prepare soil data to be used as GRASSMIND input.
@@ -20,6 +21,7 @@ def prep_soil_data(
     Parameters:
         coordinates (dict): Coordinates dictionary with 'lat' and 'lon', or 'None' using DEIMS.iD.
         deims_id (str or None): DEIMS.iD, or 'None' for default value.
+        file_name (str or Path): File name to save soil data (default is None, default file name is used if not provided).
     """
 
     # # test Jena experiment
@@ -41,7 +43,7 @@ def prep_soil_data(
         if deims_id is None:
             deims_id = "102ae489-04e3-481d-97df-45905837dc1a"  # GCEF site
 
-    dprc.data_processing(coordinates, deims_id)
+    dprc.data_processing(coordinates, deims_id, file_name)
 
     # # test get multiple coordinates from DEIMS.iDs from XLS file
     # file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
@@ -66,12 +68,10 @@ def main():
         help="Coordinates as 'lat,lon'",
     )
     parser.add_argument("--deims_id", help="DEIMS.iD")
-
+    parser.add_argument("--file_name", help="File name to save soil data")
     args = parser.parse_args()
-
     prep_soil_data(
-        coordinates=args.coordinates,
-        deims_id=args.deims_id,
+        coordinates=args.coordinates, deims_id=args.deims_id, file_name=args.file_name
     )
 
 

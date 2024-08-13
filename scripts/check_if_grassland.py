@@ -62,7 +62,6 @@ Zenodo, https://zenodo.org/records/5153047)
 """
 
 import argparse
-from copernicus import utils as ut_cop
 import copy
 import deims
 import pandas as pd
@@ -291,7 +290,7 @@ def get_category_deims(location, map_key):
 
 def get_category_hrl_grassland(location):
     """
-    Get the category based on HRL Grassland raster at the specified location.
+    Get category based on HRL Grassland raster at specified location.
 
     Parameters:
         location (dict): Dictionary with 'lat' and 'lon' keys for extracting raster value.
@@ -428,19 +427,42 @@ def check_if_grassland(category, location, map_key):
 
     return is_grassland
 
+
 def get_intial_site_check(location):
+    """
+    Create initial site check dictionary with latitude and longitude as entries.
+
+    Args:
+        location (dict): Dictionary containing location information. It can have:
+            - 'lat' and 'lon' keys for latitude and longitude coordinates.
+            - 'coordinates' key containing a dictionary with 'lat' and 'lon'.
+            - 'deims_id' key for retrieving coordinates via DEIMS.iD.
+
+    Returns:
+        dict: Site data containing at least 'lat' and 'lon' as entries.
+    """
     if ("lat" in location) and ("lon" in location):
         return copy.deepcopy(location)
     elif "coordinates" in location:
         return copy.deepcopy(location["coordinates"])
     elif "deims_id" in location:
-        return ut_cop.get_deims_coordinates(location["deims_id"])
+        return ut.get_deims_coordinates(location["deims_id"])
     else:
         raise ValueError("No location defined. Please provide coordinates ('lat', 'lon') or DEIMS.iD!")
     
     
 def check_results_to_file(grassland_check, file_name=None, map_key=None):
-    # Save results to file
+    """
+    Save grassland check results to file.
+
+    Args:
+        grassland_check (list): List of dictionaries containing grassland check results.
+        file_name (str or Path): File name (default is None, default file name is used if not provided).
+        map_key (str): Map key to be included in the default file name if no file_name provided (default is None).
+
+    Returns:
+        None
+    """
     if file_name is None:
         if map_key is None:
             map_key = ""
@@ -460,8 +482,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
     Parameters:
         locations (list): List of location dictionaries containing coordinates ('lat', 'lon') or DEIMS.iD.
         map_key (str): Identifier of the map to be used.
-        file_name (str or Path): Optional. Path to save the check results (no file will be created otherwise).
-
+        file_name (str or Path): File name to save check results (no file will be created otherwise).
     Returns:
         list of dict: List of dicioniaries containing the check results for each location.
     """
@@ -484,7 +505,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
     if map_key in deims_keys:
         for location in locations:
             if "deims_id" in location:
-                site_check = ut_cop.get_deims_coordinates(location["deims_id"])
+                site_check = ut.get_deims_coordinates(location["deims_id"])
                 site_check["map_key"] = map_key
                 all_categories = get_category_deims(site_check, map_key)
                 site_check["is_grass"] = False
@@ -559,6 +580,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
 
     return grassland_check
 
+
 def main():
     """
     Runs the script with default arguments for calling the script.
@@ -605,9 +627,8 @@ def main():
     )
     parser.add_argument(
         "--file_name",
-        type=str,
         default=None,
-        help="File name to save grassland check results (default file will be created if not specified).",
+        help="File name to save results",
     )
     args = parser.parse_args()
 
@@ -648,7 +669,7 @@ def main():
         # ]
 
     # Default file name will be used as no file name is passed here, return argument not needed here
-    check_locations_for_grassland(args.locations, args.map_key, args.file_name)
+    check_locations_for_grassland(locations=args.locations, map_key=args.map_key, file_name=args.file_name)
 
 
 # Execute main function when the script is run directly

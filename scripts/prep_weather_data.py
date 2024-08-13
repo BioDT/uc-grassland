@@ -79,9 +79,7 @@ def main():
         help="Coordinates as 'lat,lon'",
     )
     parser.add_argument("--deims_id", help="DEIMS.iD")
-
     args = parser.parse_args()
-
     prep_weather_data(
         data_sets=args.data_sets,
         years=args.years,

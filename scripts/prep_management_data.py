@@ -73,11 +73,18 @@ def construct_management_data_file_name(folder, location, years, map_key, file_s
         file_start = location
     else:
         raise ValueError("Unsupported location format.")
-
-    file_name = (
-        folder
-        / f"{file_start}__{years[0]}-01-01_{years[-1]}-12-31__management__{map_key}{file_suffix}"
-    )
+    
+    if years:
+        file_name = (
+            folder
+            / f"{file_start}__{years[0]}-01-01_{years[-1]}-12-31__management__{map_key}{file_suffix}"
+        )
+    else: 
+        file_name = folder / f"{file_start}__management__{map_key}{file_suffix}"
+        warnings.warn(
+            "No years provided! Returning management file name without time information.",
+            UserWarning,
+        )
 
     return file_name
 
@@ -90,6 +97,7 @@ def management_data_to_txt_file(
     management_data,
     is_raw_data=False,
     fill_mode="none",
+    file_name=None,
 ):
     """
     Write management data to a text file.
@@ -102,21 +110,23 @@ def management_data_to_txt_file(
         management_data (numpy.ndarray): Management data.
         is_raw_data (bool): Whether data are raw (default is False).
         fill_mode (str): Method for completing missing data (default is 'none').
+        file_name (str or Path): File name to save management data (default is None, default file name is used if not provided).       
 
     Returns:
         None
     """
     # Create data file name and header line
     if is_raw_data:
-        file_name = construct_management_data_file_name(
-            "managementDataRaw", location, years, map_key, "_Raw.txt"
-        )
+        if not file_name:
+            file_name = construct_management_data_file_name(
+                "managementDataRaw", location, years, map_key, "_Raw.txt"
+            )
 
         # Header line, capitalize only the first letter of each string
         management_columns = [s.capitalize() for s in ["Year"] + map_properties]
         management_fmt = "%.0f" + "\t%.4f" * len(map_properties)  # no digits for year
         print_message = (
-            f"Text file with raw management data from '{map_key}' map prepared."
+            f"Raw management data from '{map_key}' map written to file '{file_name}'."
         )
     else:
         if fill_mode == "none":
@@ -124,9 +134,11 @@ def management_data_to_txt_file(
         else:
             file_end = f"__fill_{fill_mode}.txt"
 
-        file_name = construct_management_data_file_name(
-            "managementDataPrepared", location, years, map_key, file_end
-        )
+        if not file_name:
+            file_name = construct_management_data_file_name(
+                "managementDataPrepared", location, years, map_key, file_end
+            )
+
         management_columns = [
             "Date",
             "MowHeight[m]",
@@ -138,7 +150,7 @@ def management_data_to_txt_file(
         ]
         management_fmt = "%s\t%s\t%s\t%s\t%s\t%s\t%s"
         print_message = (
-            f"Text file with final management data from '{map_key}' map prepared."
+            f"Processed management data from '{map_key}' map written to file '{file_name}'."
         )
 
         # Prepare empty management data for writing to file
@@ -655,7 +667,7 @@ def get_fert_schedule(year, fert_count, fert_days=None):
     Parameters:
         year (int): Year for which to generate the schedule.
         fert_count (float): Number of fertilisation events (expected to be between 1 and 5).
-        fert_days (list of int): Optional list with day of year for each event (default is None).
+        fert_days (list of int): List with day of year for each event (default is None).
 
     Returns:
         numpy.ndarray: Array with fertilisation events in Grassmind management input data format,
@@ -908,7 +920,7 @@ def convert_management_data(
 
 
 def data_processing(
-    map_key, fill_missing_data, mow_height, years, coordinates, deims_id
+    map_key, fill_missing_data, mow_height, years, coordinates, deims_id, file_name=None,
 ):
     """
     Read management data from land use map. Write to .txt files.
@@ -920,6 +932,7 @@ def data_processing(
         years (list): List of years to process.
         coordinates (dict): Dictionary with 'lat' and 'lon' keys of location.
         deims_id (str): Identifier of eLTER site.
+        file_name (str or Path): File name to save final management data (default is None, default file name is used if not provided).
     """
     if coordinates is None:
         if deims_id:
@@ -976,6 +989,7 @@ def data_processing(
         management_data_prepared,
         is_raw_data=False,
         fill_mode=fill_missing_data,
+        file_name=file_name,
     )
 
 
@@ -986,6 +1000,7 @@ def prep_management_data(
     years,
     coordinates,
     deims_id,
+    file_name=None,
 ):
     """
     Prepare management data to be used as GRASSMIND input.
@@ -997,66 +1012,85 @@ def prep_management_data(
         years (list or None): List of years to process, or 'None' for default value.
         coordinates (dict): Coordinates dictionary with 'lat' and 'lon', or 'None' using DEIMS.iD.
         deims_id (str or None): DEIMS.iD, or 'None' for default value.
-
+        file_name
     """
-
     if years is None:
         years = list(range(2013, 2024))  # list(range(2017, 2019))
 
     if fill_missing_data is None:
         fill_missing_data = "default"
 
-    # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
-    file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-    locations = ut.get_deims_ids_from_xls(file_name, header_row=1, country="DE")
-
-    # locations = [{"deims_id": "fd8b85c0-93ef-4a41-8706-3c4be9dec8e5"}]
-
-    for location in locations:
+    if coordinates:
         data_processing(
             map_key,
             fill_missing_data,
             mow_height,
             years,
-            coordinates=None,
-            deims_id=location["deims_id"],
+            coordinates,
+            None,
+            file_name,
         )
-
-    # Example coordinates for checking without DEIMS.iDs
-    locations = [
-        {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
-        {
-            "lat": 51.3919,
-            "lon": 11.8787,
-        },  # GER, GCEF grassland site, centroid, non-grassland in HRL!
-        {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
-        {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
-        {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city
-        {"lat": 51.7123725, "lon": 12.5833917},  # GER, forest outside of city
-        {"lat": 46.8710811, "lon": 11.0244728},  # AT, should be grassland
-        {"lat": 64.2304403, "lon": 27.6856269},  # FIN, near LUMI site
-        {"lat": 64.2318989, "lon": 27.6952722},  # FIN, LUMI site
-        {"lat": 49.8366436, "lon": 18.1540575},  # CZ, near IT4I Ostrava
-        {"lat": 43.173, "lon": 8.467},  # Mediterranean Sea
-        {"lat": 30, "lon": 1},  # out of Europe
-    ]
-
-    for location in locations:
+    elif deims_id:
         data_processing(
             map_key,
             fill_missing_data,
             mow_height,
             years,
-            coordinates=location,
-            deims_id=None,
+            None,
+            deims_id,
+            file_name,
         )
+    else:
+        # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
+        sites_file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        locations = ut.get_deims_ids_from_xls(sites_file_name, header_row=1, country="DE")
+
+        # locations = [{"deims_id": "fd8b85c0-93ef-4a41-8706-3c4be9dec8e5"}]
+
+        for location in locations:
+            data_processing(
+                map_key,
+                fill_missing_data,
+                mow_height,
+                years,
+                coordinates=None,
+                deims_id=location["deims_id"],
+            )
+
+        # Example coordinates for checking without DEIMS.iDs
+        locations = [
+            {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+            {
+                "lat": 51.3919,
+                "lon": 11.8787,
+            },  # GER, GCEF grassland site, centroid, non-grassland in HRL!
+            {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
+            {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
+            {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city
+            {"lat": 51.7123725, "lon": 12.5833917},  # GER, forest outside of city
+            {"lat": 46.8710811, "lon": 11.0244728},  # AT, should be grassland
+            {"lat": 64.2304403, "lon": 27.6856269},  # FIN, near LUMI site
+            {"lat": 64.2318989, "lon": 27.6952722},  # FIN, LUMI site
+            {"lat": 49.8366436, "lon": 18.1540575},  # CZ, near IT4I Ostrava
+            {"lat": 43.173, "lon": 8.467},  # Mediterranean Sea
+            {"lat": 30, "lon": 1},  # out of Europe
+        ]
+
+        for location in locations:
+            data_processing(
+                map_key,
+                fill_missing_data,
+                mow_height,
+                years,
+                coordinates=location,
+                deims_id=None,
+            )
 
 
 def main():
     """
     Run script with default arguments for calling the script.
     """
-
     parser = argparse.ArgumentParser(
         description="Set default arguments for calling the script."
     )
@@ -1089,9 +1123,8 @@ def main():
         help="Coordinates as 'lat,lon'",
     )
     parser.add_argument("--deims_id", type=int, help="DEIMS.iD")
-
+    parser.add_argument("--file_name", help="File name to save final management data")
     args = parser.parse_args()
-
     prep_management_data(
         map_key=args.map_key,
         fill_missing_data=args.fill_missing_data,
@@ -1099,6 +1132,7 @@ def main():
         years=args.years,
         coordinates=args.coordinates,
         deims_id=args.deims_id,
+        file_name=args.file_name,
     )
 
 

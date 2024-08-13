@@ -205,6 +205,7 @@ managementDataRaw
 # infos on grassland sites
 grasslandSites
 landCoverCheckResults
+grasslandModelInputFiles
 
 # LUMI simulation files
 slurm*.out
