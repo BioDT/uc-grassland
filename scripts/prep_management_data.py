@@ -36,8 +36,7 @@ Mowing default dates according to:
 """
 
 import argparse
-# from copernicus import utils as ut_cop
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 import numpy as np
 from pathlib import Path
 import utils as ut
@@ -95,6 +94,7 @@ def management_data_to_txt_file(
     location,
     years,
     management_data,
+    data_query_protocol,
     is_raw_data=False,
     fill_mode="none",
     file_name=None,
@@ -108,6 +108,7 @@ def management_data_to_txt_file(
         location (str or dict): Location information ('DEIMS.iD' or {'lat': float, 'lon': float}).
         years (list): List of years covered by management data.
         management_data (numpy.ndarray): Management data.
+        data_query_protocol (list): List of sources and time_stamps from retrieving management data.
         is_raw_data (bool): Whether data are raw (default is False).
         fill_mode (str): Method for completing missing data (default is 'none').
         file_name (str or Path): File name to save management data (default is None, default file name is used if not provided).       
@@ -170,6 +171,14 @@ def management_data_to_txt_file(
     )
 
     print(print_message)
+
+    if data_query_protocol:
+        file_name = file_name.with_name(file_name.stem + "__data_query_protocol" + file_name.suffix)
+        ut.list_to_file(
+            data_query_protocol,
+            ["management_data_source", "time_stamp"],
+            file_name,
+        )
 
 
 def get_management_map_file(
@@ -348,10 +357,11 @@ def get_GER_Lange_data(coordinates, map_properties, years):
         years (list): List of years to process.
 
     Returns:
-        numpy.ndarray: 2D array containing property data for given years (nan if no grassland or outside area of applicability).
+        tuple: Property data for given years  (2D numpy.ndarray, nan if no grassland or outside area of applicability), and list of query sources and time stamps.
     """
     map_key = "GER_Lange"
     print(f"Reading management data from '{map_key}' map...")
+    query_protocol =[]  
 
     # Initialize property_data array with nans
     property_data = np.full(
@@ -387,7 +397,9 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                     print(
                         f"{property[0].upper() + property[1:]} map AOA for {year} found. Using '{aoa_file}'."
                     )
+                    time_stamp = datetime.now(timezone.utc).isoformat()
                     within_aoa = ut.extract_raster_value(aoa_file, coordinates)
+                    query_protocol.append([aoa_file, time_stamp])
 
                     if within_aoa == -1:
                         if warn_no_grassland:
@@ -398,7 +410,9 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                             warn_no_grassland = False
                         break
 
+                    time_stamp = datetime.now(timezone.utc).isoformat()
                     property_value = ut.extract_raster_value(map_file, coordinates)
+                    query_protocol.append([map_file, time_stamp])
 
                     if within_aoa:
                         print(
@@ -410,7 +424,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                             f"{year}, {property} : {property_value}. Not used, outside area of applicability!"
                         )
 
-    return property_data
+    return property_data, query_protocol
 
 
 def get_GER_Schwieder_data(coordinates, map_properties, years):
@@ -433,10 +447,11 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
         years (list): List of years to process.
 
     Returns:
-        numpy.ndarray: 2D array containing property data for given years (nan if no grassland or no further mowing event).
+        tuple: Property data for given years  (2D numpy.ndarray, nan if no grassland or no mowing event), and list of query sources and time stamps.
     """
     map_key = "GER_Schwieder"
     print(f"Reading management data from '{map_key}' map...")
+    query_protocol =[]  
     map_bands = len(map_properties)
     property = map_properties[0]
 
@@ -467,9 +482,11 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
 
             # Read mowing events (band 1)
             band_index = 1
+            time_stamp = datetime.now(timezone.utc).isoformat()
             band_value = ut.extract_raster_value(
                 map_file, coordinates, band_number=band_index
             )
+            query_protocol.append([map_file, time_stamp])
 
             if band_value == -9999:
                 if warn_no_grassland:
@@ -484,18 +501,20 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
 
                 # Add mowing dates if available (bands 2 to end)
                 for band_index in range(2, map_bands + 1):
+                    time_stamp = datetime.now(timezone.utc).isoformat()
                     band_value = ut.extract_raster_value(
                         map_file, coordinates, band_number=band_index
-                    )
+                    )                    
 
                     if band_value != 0:
                         property_data[y_index, band_index] = band_value
+                        query_protocol.append([map_file, time_stamp])
                         band_date = ut.day_of_year_to_date(year, int(band_value))
                         print(
                             f"{property.capitalize()} event {band_index - 1}: {band_date.strftime('%Y-%m-%d')}."
                         )
 
-    return property_data
+    return property_data, query_protocol
 
 
 def get_mow_events(year, mow_days, mow_height, leap_year_considered=True):
@@ -951,7 +970,7 @@ def data_processing(
             "grazing",
             "LUI",
         ]  #  , "fertilisation", "grazing", "LUI"
-        management_data_raw = get_GER_Lange_data(coordinates, map_properties, years)
+        management_data_raw, data_query_protocol = get_GER_Lange_data(coordinates, map_properties, years)
     elif map_key == "GER_Schwieder":
         map_properties = [
             "mowing",
@@ -962,7 +981,7 @@ def data_processing(
             "date_5",
             "date_6",
         ]
-        management_data_raw = get_GER_Schwieder_data(coordinates, map_properties, years)
+        management_data_raw, data_query_protocol = get_GER_Schwieder_data(coordinates, map_properties, years)
     else:
         raise ValueError(
             f"Map key '{map_key}' not found. Please provide valid map key!"
@@ -974,6 +993,7 @@ def data_processing(
         coordinates,
         years,
         management_data_raw,
+        data_query_protocol,
         is_raw_data=True,
     )
 
@@ -987,6 +1007,7 @@ def data_processing(
         coordinates,
         years,
         management_data_prepared,
+        data_query_protocol,
         is_raw_data=False,
         fill_mode=fill_missing_data,
         file_name=file_name,
@@ -1099,7 +1120,7 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="GER_Schwieder",
+        default="GER_Lange",
         choices=["GER_Lange", "GER_Schwieder"],
         help="Options: 'GER_Lange', 'GER_Schwieder'. (Can be extended.)",
     )

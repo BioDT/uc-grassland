@@ -30,7 +30,7 @@ def data_processing(location, years):
         
         # get location coordinates for file names and folder
         formatted_lat = f"lat{location["coordinates"]["lat"]:.6f}"  
-        formatted_lon = f"lon{location["coordinates"]["lat"]:.6f}"  
+        formatted_lon = f"lon{location["coordinates"]["lon"]:.6f}"  
         file_start = f"{formatted_lat}_{formatted_lon}"
         location_head_folder = Path(
             ut.get_package_root()
@@ -41,7 +41,7 @@ def data_processing(location, years):
         # check if grassland according to all available land cover maps
         grassland_checks = []
         land_cover_map_keys = [
-            "HRL_Grassland",
+            "EUR_hrl_grassland",
             "EUR_Pflugmacher",
             "GER_Preidl",
             "GER_Schwieder_2017",
@@ -53,9 +53,9 @@ def data_processing(location, years):
             # "GER_Lange_2018", only 1 GER_Lange map needed as both use German ATKIS digital landscape model 2015 
         ]
         
-        # "eunisHabitat" only works for DEIMS.iDs
+        # "EUR_eunis_habitat" only works for DEIMS.iDs
         if location["deims_id"]:
-            land_cover_map_keys.append("eunisHabitat")
+            land_cover_map_keys.append("EUR_eunis_habitat")
 
         for map_key in land_cover_map_keys:
             check_this_map = check_if_grassland.check_locations_for_grassland([location], map_key)
@@ -66,6 +66,7 @@ def data_processing(location, years):
             / "landCover"
             / f"{file_start}__grasslandCheck__allMaps.txt"
         )
+        grassland_checks.sort(key=lambda x: x["map_year"])
         check_if_grassland.check_results_to_file(grassland_checks, file_name)
 
         # run weather script

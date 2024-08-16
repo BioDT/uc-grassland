@@ -63,6 +63,7 @@ Zenodo, https://zenodo.org/records/5153047)
 
 import argparse
 import copy
+from datetime import datetime, timezone
 import deims
 import pandas as pd
 from pathlib import Path
@@ -249,43 +250,47 @@ def get_category_tif(tif_file, category_mapping, location):
         location (dict): Dictionary with 'lat' and 'lon' keys for extracting raster value.
 
     Returns:
-        str: Category corresponding to the raster value at the specified location,
-             or "Unknown Category" if the value is not found in the mapping.
+         tuple: Category (str) corresponding to the raster value at the specified location,
+             or "Unknown Category" if the value is not found in the mapping, and time stamp.
     """
-    return category_mapping.get(
+    time_stamp = datetime.now(timezone.utc).isoformat()
+    category = category_mapping.get(
         ut.extract_raster_value(tif_file, location), "Unknown Category"
     )
 
+    return category, time_stamp
 
-def get_category_deims(location, map_key):
+
+def get_category_deims(location):
     """
     Get all categories based on habitat types (eunisHabitat) of DEIMS-Site.
 
     Parameters:
         location (dict): Dictionary with 'lat' and 'lon' keys for extracting categories.
-        map_key (str): Identifier of the map to be used.
 
     Returns:
-        str: Category as classified ('grassland' or 'non-grassland') if found.
+        tuple: List of categories as classified and time stamp, if found.
     """
     if "deims_id" in location:
+        time_stamp = datetime.now(timezone.utc).isoformat()
         location_record = deims.getSiteById(location["deims_id"])
         categories = []
 
-        if (
-            location_record["attributes"]["environmentalCharacteristics"][map_key]
-            is not None
-        ):
+        # if (
+        #     location_record["attributes"]["environmentalCharacteristics"]["eunisHabitat"]
+        #     is not None
+        # ):
+        if location_record["attributes"]["environmentalCharacteristics"]["eunisHabitat"]:    
             for item in location_record["attributes"]["environmentalCharacteristics"][
-                map_key
+                "eunisHabitat"
             ]:
-                print(f"Habitat: {item['label']}")
+                print(f"Habitat: {item["label"]}")
                 categories.append(item["label"])
         else:
             print(f"Habitat: None")
             categories.append("None")
 
-        return categories
+        return categories, time_stamp
 
 
 def get_category_hrl_grassland(location):
@@ -296,7 +301,7 @@ def get_category_hrl_grassland(location):
         location (dict): Dictionary with 'lat' and 'lon' keys for extracting raster value.
 
     Returns:
-        str: Category as classified if found (e.g. 'grassland', 'non-grassland').
+        tuple: Category (str) as classified if found (e.g. 'grassland', 'non-grassland'), and time stamp.
     """
     # Define URL and request
     url = "https://image.discomap.eea.europa.eu/arcgis/rest/services/GioLandPublic/HRL_Grassland_2018/ImageServer"
@@ -318,6 +323,7 @@ def get_category_hrl_grassland(location):
     }
 
     # Send request
+    time_stamp = datetime.now(timezone.utc).isoformat()
     response = requests.get(f"{url}/identify", params=params)
 
     # Check if the request was successful
@@ -331,24 +337,24 @@ def get_category_hrl_grassland(location):
 
             # Return classification based on value
             if value == "0":
-                return "non-grassland"
+                return "non-grassland", time_stamp
             if value == "1":
-                return "grassland"
+                return "grassland", time_stamp
             if value == "254":
-                return "unclassifiable (no satellite image available, clouds, shadows or snow)"
+                return "unclassifiable (no satellite image available, clouds, shadows or snow)", time_stamp
             if value == "255":
-                return "outside area"
+                return "outside area", time_stamp
 
             # Handle unknown values
             print(f"Warning: Unknown value for specified location: {value}.")
 
-            return value
+            return value, time_stamp
         else:
             print("Warning: No value for specified location.")
     else:
         print(f"Error: {response.status_code}")
 
-    return None
+    return None, time_stamp
 
 
 def check_desired_categories(category, target_categories, location, map_key):
@@ -394,7 +400,7 @@ def check_if_grassland(category, location, map_key):
     Returns:
         bool: True if the category represents grassland, False otherwise.
     """
-    if map_key == "eunisHabitat":
+    if map_key == "EUR_eunis_habitat":
         # Set accepted eunis EEA habitat types
         grass_labels = ["E", "E1", "E2", "E3", "E4", "E5"]
         # not included:
@@ -487,7 +493,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
         list of dict: List of dicioniaries containing the check results for each location.
     """
     print("Starting grassland check...")
-    deims_keys = ["eunisHabitat"]
+    deims_keys = ["EUR_eunis_habitat"]
     tif_keys = [
         "EUR_Pflugmacher",
         "GER_Preidl",
@@ -499,15 +505,30 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
         "GER_Lange_2017",
         "GER_Lange_2018",
     ]
-    hrl_keys = ["HRL_Grassland"]
+    hrl_keys = ["EUR_hrl_grassland"]
+    map_years = {
+        "EUR_eunis_habitat": 2012,
+        "EUR_Pflugmacher": 2015,
+        "GER_Preidl": 2016,
+        "GER_Schwieder_2017": 2017,
+        "GER_Schwieder_2018": 2018,
+        "GER_Schwieder_2019": 2019,
+        "GER_Schwieder_2020": 2020,
+        "GER_Schwieder_2021": 2021,
+        "GER_Lange_2017": 2015,
+        "GER_Lange_2018": 2015, 
+        "EUR_hrl_grassland": 2018,
+    }
     grassland_check = []
 
     if map_key in deims_keys:
         for location in locations:
             if "deims_id" in location:
                 site_check = ut.get_deims_coordinates(location["deims_id"])
-                site_check["map_key"] = map_key
-                all_categories = get_category_deims(site_check, map_key)
+                site_check["map_year"] = map_years[map_key]
+                site_check["map_key"] = map_key      
+                site_check["map_source"] = ("https://deims.org/api/sites/" + deims._normaliseDeimsID(location["deims_id"]))      
+                all_categories, site_check["map_query_time_stamp"] = get_category_deims(site_check)
                 site_check["is_grass"] = False
                 
                 for index, category in enumerate(all_categories):
@@ -543,28 +564,34 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
 
         for location in locations:
             site_check = get_intial_site_check(location)
+            site_check["map_year"] = map_years[map_key]
             site_check["map_key"] = map_key
+            site_check["map_source"] = tif_file                    
 
             # Check for grassland if coordinates present
             if ("lat" in site_check) and ("lon" in site_check):
-                site_check["category"] = get_category_tif(
+                category, site_check["map_query_time_stamp"] = get_category_tif(
                     tif_file, category_mapping, site_check
-                )
+                )                
                 site_check["is_grass"] = check_if_grassland(
-                    site_check["category"], site_check, map_key,
+                    category, site_check, map_key,
                 )
+                site_check["category001"] = category
             grassland_check.append(site_check)
     elif map_key in hrl_keys:
         for location in locations:
             site_check = get_intial_site_check(location)
-            site_check["map_key"] = map_key
+            site_check["map_year"] = map_years[map_key]
+            site_check["map_key"] = map_key   
+            site_check["map_source"] = "https://image.discomap.eea.europa.eu/arcgis/rest/services/GioLandPublic/HRL_Grassland_2018/ImageServer"      
 
             # Check for grassland if coordinates present
             if ("lat" in site_check) and ("lon" in site_check):
-                site_check["category"] = get_category_hrl_grassland(site_check)
+                category, site_check["map_query_time_stamp"] = get_category_hrl_grassland(site_check)
                 site_check["is_grass"] = check_if_grassland(
-                    site_check["category"], site_check, map_key,
+                    category, site_check, map_key,
                 )
+                site_check["category001"] = category
             grassland_check.append(site_check)
     else:
         raise ValueError(
@@ -598,10 +625,10 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="eunisHabitat",
+        default="EUR_eunis_habitat",
         choices=[
-            "eunisHabitat",
-            "HRL_Grassland",
+            "EUR_eunis_habitat",
+            "EUR_hrl_grassland",
             "EUR_Pflugmacher",
             "GER_Preidl",
             "GER_Schwieder_2017",
@@ -613,8 +640,8 @@ def main():
             "GER_Lange_2018",
         ],
         help="""Options: 
-        'eunisHabitat', 
-        'HRL_Grassland', 
+        'EUR_eunis_habitat', 
+        'EUR_hrl_grassland', 
         'EUR_Pflugmacher', 
         'GER_Preidl', 
         'GER_Schwieder_2017', 
