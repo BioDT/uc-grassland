@@ -124,8 +124,8 @@ def prep_grassmind_input_data(locations, first_year, last_year):
         )
 
     if locations is None:    
-        # # Example locations list
-        # locations = ut.parse_locations("51.390427,11.876855;51.392331,11.883838;102ae489-04e3-481d-97df-45905837dc1a")
+        # Example locations list
+        locations = ut.parse_locations("51.390427,11.876855;51.392331,11.883838;102ae489-04e3-481d-97df-45905837dc1a")
 
         # # Example to get location coordinates via DEIMS.iDs from XLS file
         # file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
@@ -134,9 +134,9 @@ def prep_grassmind_input_data(locations, first_year, last_year):
         #     file_name, header_row=1, country=country_code
         # )
 
-        # Example to get location coordinates from CSV file (for single plots/stations)
-        file_name = ut.get_package_root() / "grasslandSites" / "DE_RhineMainObservatory_station.csv"
-        locations = ut.get_plot_locations_from_csv(file_name)
+        # # Example to get location coordinates from CSV file (for single plots/stations)
+        # file_name = ut.get_package_root() / "grasslandSites" / "DE_RhineMainObservatory_station.csv"
+        # locations = ut.get_plot_locations_from_csv(file_name)
 
     for location in locations:
         if location.get("coordinates") is None:
