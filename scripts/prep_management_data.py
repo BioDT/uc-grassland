@@ -199,7 +199,7 @@ def get_management_map_file(
     """
     if map_key == "GER_Lange":
         if map_local:
-            # Return local map file
+            # Look for local map file
             file_name = (
                 "S2_Germany_" + str(year) + "_AOA_" + property + ".tif"
                 if applicability
@@ -210,95 +210,92 @@ def get_management_map_file(
             if map_file.is_file():
                 return map_file
             else:
-                print(
-                    f"Error: Local file '{map_file}' not found! Trying to access via url..."
-                )
-                map_local = False
-
-        if not map_local:
-            # Return map file URL
-            if year == 2017:
-                if applicability:
-                    if property == "mowing":
-                        file_name = "98d7c7ab-0a8f-4c2f-a78f-6c1739ee9354"
-                    elif property == "fertilisation":
-                        file_name = "7a4b70a9-95b3-4a06-ae8b-082184144494"
-                    elif property == "grazing":
-                        file_name = "e83a9d4a-ea55-44dd-b3fb-2ee7cb046e92"
-                    elif property == "LUI":
-                        file_name = "4e7ab052-bd47-4ccf-9560-57ceb080945a"
-                    else:
-                        warnings.warn(
-                            f"Property '{property}' not found in '{map_key}' map!",
-                            UserWarning,
-                        )
-
-                        return None
+                print(f"Error: Local file '{map_file}' not found!")
+                print("Trying to access via URL ...")
+ 
+        # Return map file URL
+        if year == 2017:
+            if applicability:
+                if property == "mowing":
+                    file_name = "98d7c7ab-0a8f-4c2f-a78f-6c1739ee9354"
+                elif property == "fertilisation":
+                    file_name = "7a4b70a9-95b3-4a06-ae8b-082184144494"
+                elif property == "grazing":
+                    file_name = "e83a9d4a-ea55-44dd-b3fb-2ee7cb046e92"
+                elif property == "LUI":
+                    file_name = "4e7ab052-bd47-4ccf-9560-57ceb080945a"
                 else:
-                    if property == "mowing":
-                        file_name = "14a1d2b6-11c8-4e31-ac19-45a7b805428d"
-                    elif property == "fertilisation":
-                        file_name = "deaca5bf-8999-4ccf-beac-ab47210051f6"
-                    elif property == "grazing":
-                        file_name = "611798da-e43d-4de6-9ff5-d5fb562fbf46"
-                    elif property == "LUI":
-                        file_name = "54995bd6-2811-4198-ba55-675386510260"
-                    else:
-                        warnings.warn(
-                            f"Property '{property}' not found in '{map_key}' map!",
-                            UserWarning,
-                        )
+                    warnings.warn(
+                        f"Property '{property}' not found in '{map_key}' map!",
+                        UserWarning,
+                    )
 
-                        return None
-            elif year == 2018:
-                if applicability:
-                    if property == "mowing":
-                        file_name = "d871429a-b2a6-4592-b3e5-4650462a9ac3"
-                    elif property == "fertilisation":
-                        file_name = "3b24279c-e9ab-468d-86b8-fe1fadc121bf"
-                    elif property == "grazing":
-                        file_name = "69701524-ed47-4e4b-9ef2-e355f5103d76"
-                    elif property == "LUI":
-                        file_name = "0efe31de-1275-4cab-b470-af1ce9f28363"
-                    else:
-                        warnings.warn(
-                            f"Property '{property}' not found in '{map_key}' map!",
-                            UserWarning,
-                        )
-
-                        return None
-                else:
-                    if property == "mowing":
-                        file_name = "0eb6a466-417b-4b30-b5f8-070c3f2c99c3"
-                    elif property == "fertilisation":
-                        file_name = "aa81ef4f-4ed4-489a-9d52-04d1fd3a357a"
-                    elif property == "grazing":
-                        file_name = "2bc29d3f-08d1-4508-a0ca-c83517216f69"
-                    elif property == "LUI":
-                        file_name = "28b419a6-c282-42fa-a23a-72676a288171"
-                    else:
-                        warnings.warn(
-                            f"Property '{property}' not found in '{map_key}' map!",
-                            UserWarning,
-                        )
-
-                        return None
+                    return None
             else:
-                warnings.warn(
-                    f"'{map_key}' {property} map not available for {year}!", UserWarning
-                )
+                if property == "mowing":
+                    file_name = "14a1d2b6-11c8-4e31-ac19-45a7b805428d"
+                elif property == "fertilisation":
+                    file_name = "deaca5bf-8999-4ccf-beac-ab47210051f6"
+                elif property == "grazing":
+                    file_name = "611798da-e43d-4de6-9ff5-d5fb562fbf46"
+                elif property == "LUI":
+                    file_name = "54995bd6-2811-4198-ba55-675386510260"
+                else:
+                    warnings.warn(
+                        f"Property '{property}' not found in '{map_key}' map!",
+                        UserWarning,
+                    )
 
-                return None
-            map_file = (
-                "https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/"
-                + file_name
-                + "/file_downloaded"
+                    return None
+        elif year == 2018:
+            if applicability:
+                if property == "mowing":
+                    file_name = "d871429a-b2a6-4592-b3e5-4650462a9ac3"
+                elif property == "fertilisation":
+                    file_name = "3b24279c-e9ab-468d-86b8-fe1fadc121bf"
+                elif property == "grazing":
+                    file_name = "69701524-ed47-4e4b-9ef2-e355f5103d76"
+                elif property == "LUI":
+                    file_name = "0efe31de-1275-4cab-b470-af1ce9f28363"
+                else:
+                    warnings.warn(
+                        f"Property '{property}' not found in '{map_key}' map!",
+                        UserWarning,
+                    )
+
+                    return None
+            else:
+                if property == "mowing":
+                    file_name = "0eb6a466-417b-4b30-b5f8-070c3f2c99c3"
+                elif property == "fertilisation":
+                    file_name = "aa81ef4f-4ed4-489a-9d52-04d1fd3a357a"
+                elif property == "grazing":
+                    file_name = "2bc29d3f-08d1-4508-a0ca-c83517216f69"
+                elif property == "LUI":
+                    file_name = "28b419a6-c282-42fa-a23a-72676a288171"
+                else:
+                    warnings.warn(
+                        f"Property '{property}' not found in '{map_key}' map!",
+                        UserWarning,
+                    )
+
+                    return None
+        else:
+            warnings.warn(
+                f"'{map_key}' {property} map not available for {year}!", UserWarning
             )
 
-            if ut.check_url(map_file):
-                return map_file
-            else:
-                print(f"Error: File '{map_file}' not found!")
+            return None
+        map_file = (
+            "https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/"
+            + file_name
+            + "/file_downloaded"
+        )
+
+        if ut.check_url(map_file):
+            return map_file
+        else:
+            print(f"Error: File '{map_file}' not found!")
     elif map_key == "GER_Schwieder":
         if year in [2017, 2018, 2019, 2020, 2021]:
             file_name = "GLU_GER_" + str(year) + "_SUM_DOY_COG.tif"
@@ -311,29 +308,29 @@ def get_management_map_file(
                 if map_file.is_file():
                     return map_file
                 else:
-                    print(
-                        f"Error: Local file '{map_file}' not found! Trying to access via url..."
-                    )
-                    map_local = False
+                    print(f"Error: Local file '{map_file}' not found!")
+                    print("Trying to access via URL ...")
 
-            if not map_local:
-                map_file = (
-                    "http://134.94.199.14/grasslands-pdt/landUseMaps/"
-                    + map_key
-                    + "/"
-                    + file_name
-                )  # or zenodo address: "https://zenodo.org/records/10609590/files/" + file_name
+            # opendap address
+            # map_file = (
+            #     "http://opendap.biodt.eu/grasslands-pdt/landUseMaps/"
+            #     + map_key
+            #     + "/"
+            #     + file_name
+            # )  
+            # zenodo address 
+            map_file = "https://zenodo.org/records/10609590/files/" + file_name
 
-                if ut.check_url(map_file):
-                    return map_file
-                else:
-                    print(f"Error: File '{map_file}' not found!")
+            if ut.check_url(map_file):
+                return map_file
+            else:
+                print(f"Error: File '{map_file}' not found!")
         else:
             warnings.warn(
                 f"'{map_key}' {property} map not available for {year}!", UserWarning
             )
 
-            return None
+    return None
 
 
 def get_GER_Lange_data(coordinates, map_properties, years):
@@ -360,7 +357,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
         tuple: Property data for given years  (2D numpy.ndarray, nan if no grassland or outside area of applicability), and list of query sources and time stamps.
     """
     map_key = "GER_Lange"
-    print(f"Reading management data from '{map_key}' map...")
+    print(f"Reading management data from '{map_key}' map ...")
     query_protocol =[]  
 
     # Initialize property_data array with nans
@@ -397,11 +394,10 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                     print(
                         f"{property[0].upper() + property[1:]} map AOA for {year} found. Using '{aoa_file}'."
                     )
-                    time_stamp = datetime.now(timezone.utc).isoformat()
-                    within_aoa = ut.extract_raster_value(aoa_file, coordinates)
+                    within_aoa, time_stamp = ut.extract_raster_value(aoa_file, coordinates)
                     query_protocol.append([aoa_file, time_stamp])
 
-                    if within_aoa == -1:
+                    if within_aoa==-1:
                         if warn_no_grassland:
                             warnings.warn(
                                 f"Location not classified as grassland in '{map_key}' map.",
@@ -410,8 +406,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                             warn_no_grassland = False
                         break
 
-                    time_stamp = datetime.now(timezone.utc).isoformat()
-                    property_value = ut.extract_raster_value(map_file, coordinates)
+                    property_value, time_stamp = ut.extract_raster_value(map_file, coordinates)
                     query_protocol.append([map_file, time_stamp])
 
                     if within_aoa:
@@ -450,7 +445,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
         tuple: Property data for given years  (2D numpy.ndarray, nan if no grassland or no mowing event), and list of query sources and time stamps.
     """
     map_key = "GER_Schwieder"
-    print(f"Reading management data from '{map_key}' map...")
+    print(f"Reading management data from '{map_key}' map ...")
     query_protocol =[]  
     map_bands = len(map_properties)
     property = map_properties[0]
@@ -482,8 +477,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
 
             # Read mowing events (band 1)
             band_index = 1
-            time_stamp = datetime.now(timezone.utc).isoformat()
-            band_value = ut.extract_raster_value(
+            band_value, time_stamp = ut.extract_raster_value(
                 map_file, coordinates, band_number=band_index
             )
             query_protocol.append([map_file, time_stamp])
@@ -501,8 +495,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
 
                 # Add mowing dates if available (bands 2 to end)
                 for band_index in range(2, map_bands + 1):
-                    time_stamp = datetime.now(timezone.utc).isoformat()
-                    band_value = ut.extract_raster_value(
+                    band_value, time_stamp = ut.extract_raster_value(
                         map_file, coordinates, band_number=band_index
                     )                    
 
@@ -839,7 +832,7 @@ def convert_management_data(
 
     if fill_mode == "mean":
         # Use means of data retrieved for remaining years as well
-        print("Completing management data with means from years with data...")
+        print("Completing management data with means from years with data ...")
         
         if years_with_mow_data.size > 0:
             mow_count_float = (
@@ -854,7 +847,7 @@ def convert_management_data(
         else:
             # No data for any of the years, use default option instead
             print(
-                "No mowing data for any year to calculate mean and complete other years."
+                "No mowing data for any year to calculate mean and complete other years!"
             )
             no_mow_data_for_mean = True
 
@@ -862,7 +855,7 @@ def convert_management_data(
         # Use default management settings for years without data
         mow_count_fill = mow_count_default
         print(
-            "Completing management data with default values... "
+            "Completing management data with default values ... "
             f"Using {mow_count_fill} events per year."
         )           
 
@@ -907,7 +900,7 @@ def convert_management_data(
             else:
                 # No data for any of the years, use default option instead
                 print(
-                    "No fertilisation data for any year to calculate mean and complete other years."
+                    "No fertilisation data for any year to calculate mean and complete other years!"
                 )
                 no_fert_data_for_mean = True
 
@@ -920,10 +913,8 @@ def convert_management_data(
     elif map_key == "GER_Schwieder":
         if fill_mode in ["mean", "default"]:
             # No fertilisation data, use number of mowing events as default
-            print(
-                f"'{map_key}' map has no fertilisation data. "
-                "Using the same number of fertilisation events as mowing events for each year."
-            )
+            print(f"'{map_key}' map has no fertilisation data!")
+            print("Using the same number of fertilisation events as mowing events for each year.")
             fert_count_per_year = mow_count_per_year
             fert_days_per_year = fert_days_from_mow_days(mow_days_per_year, years)
 
@@ -935,7 +926,14 @@ def convert_management_data(
             )
             management_events.extend(fert_schedule)
 
-    return sorted(management_events)
+    # management_events.sort(key=lambda x: x["map_year"]))
+    try:
+    #     test_list = sorted(management_events, key=lambda x: x[0]) 
+        management_events.sort(key=lambda x: x[0])
+    except:
+        print("Sorting failed.")
+
+    return management_events
 
 
 def data_processing(

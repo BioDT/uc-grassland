@@ -26,7 +26,7 @@ def data_processing(location, years):
     if location["coordinates"]: 
         # init dialogue               
         print(f"Preparing input data for latitude: {location["coordinates"]["lat"]},",
-              f"longitude: {location["coordinates"]["lon"]}...")
+              f"longitude: {location["coordinates"]["lon"]} ...")
         
         # get location coordinates for file names and folder
         formatted_lat = f"lat{location["coordinates"]["lat"]:.6f}"  
@@ -123,8 +123,23 @@ def prep_grassmind_input_data(locations, first_year, last_year):
             f"First year {first_year} is after last year {last_year}! Empty time period for generating input data defined."
         )
 
+    if locations is None:    
+        # # Example locations list
+        # locations = ut.parse_locations("51.390427,11.876855;51.392331,11.883838;102ae489-04e3-481d-97df-45905837dc1a")
+
+        # # Example to get location coordinates via DEIMS.iDs from XLS file
+        # file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        # country_code = "DE"  # "DE" "AT"
+        # locations = ut.get_deims_ids_from_xls(
+        #     file_name, header_row=1, country=country_code
+        # )
+
+        # Example to get location coordinates from CSV file (for single plots/stations)
+        file_name = ut.get_package_root() / "grasslandSites" / "DE_RhineMainObservatory_station.csv"
+        locations = ut.get_plot_locations_from_csv(file_name)
+
     for location in locations:
-        if location["coordinates"] is None:
+        if location.get("coordinates") is None:
             if location["deims_id"]:
                 location["coordinates"] = ut.get_deims_coordinates(location["deims_id"])
             else:
@@ -145,7 +160,6 @@ def main():
     # Define command-line arguments
     parser.add_argument(
         "--locations",
-        default="51.390427,11.876855;51.392331,11.883838;102ae489-04e3-481d-97df-45905837dc1a",
         type=ut.parse_locations,
         help="List of locations, separated by ';', each as 'lat,lon' pair or 'DEIMS.iD'.",
     )
@@ -161,7 +175,7 @@ def main():
         type=int,
         help="Last year for which to generate input data.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args()    
     prep_grassmind_input_data(
         locations=args.locations,
         first_year=args.first_year,

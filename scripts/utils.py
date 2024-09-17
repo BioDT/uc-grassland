@@ -8,13 +8,15 @@ Description: Utility functions for uc-grassland building block.
 import argparse
 import csv
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import deims
 from pathlib import Path
 import pandas as pd
 import pyproj
 import rasterio
 import requests
+import time
+import warnings
 
 # from dotenv import dotenv_values
 
@@ -25,21 +27,14 @@ def add_string_to_file_name(file_name, string_to_add):
 
     Parameters:
         file_name (Path): Path of the file.
-        string_to_add (str): String to add before the suffix.
+        string_to_add (str): String to add before suffix.
 
     Returns:
-        new_file_name (Path): New file path with the added string.
+        new_file_name (Path): New file path with added string.
     """
-    # Convert the WindowsPath object to a stringdo_warning
     file_str = str(file_name)
-
-    # Get the suffix (including the dot)
     suffix = file_name.suffix
-
-    # Insert the string before the suffix
     new_file_str = file_str[: -len(suffix)] + string_to_add + suffix
-
-    # Convert the modified string back to a WindowsPath object
     new_file_name = Path(new_file_str)
 
     return new_file_name
@@ -59,14 +54,14 @@ def replace_substrings(
         input_data (str or list): String or list of strings.
         substrings_to_replace (str or list): Substring or list of substrings to be replaced.
         replacement_string (str): New string to replace the specified substring(s).
-        at_end (bool): Replace the substring(s) only if appearing at the end of each string (default is False).
+        at_end (bool): Replace substring(s) only if appearing at the end of each string (default is False).
         warning_no_string (bool): Throw warning for input data list elements that are no string (default is False).
 
     Returns:
-        str or list: If input_data is a string, the modified string; if input_data is a list, a new list with the specified substrings replaced in each element.
+        str or list: If input_data is a string, the modified string; if input_data is a list, a new list with specified substrings replaced in each element.
     """
 
-    # Nested functions for either replacing substring at the end or everywhere
+    # Nested functions for either replacing substring at end or everywhere
     def replace_substring_at_end(original_string, substring_to_replace):
         return (
             original_string[: -len(substring_to_replace)] + replacement_string
@@ -84,7 +79,7 @@ def replace_substrings(
     if isinstance(input_data, str):
         input_data = [input_data]
 
-    # For list of input strings, replace list of substrings with the replacement string
+    # For list of input strings, replace list of substrings with replacement string
     if isinstance(input_data, list):
         modified_list = []
         for original_string in input_data:
@@ -98,9 +93,9 @@ def replace_substrings(
                         else replace_substring(modified_string, substring)
                     )
             elif warning_no_string:
-                # Warning for non string element in list.
-                print(
-                    f"Warning: {modified_string} is not a string. No replacements performed."
+                warnings.warn(
+                    f"{modified_string} is not a string. No replacements performed.",
+                    UserWarning,
                 )
 
             modified_list.append(modified_string)
@@ -129,14 +124,14 @@ def count_duplicates(lst):
 
 def get_row_values(key, values):
     """
-    Get row values based on the type of values.
+    Get row values based on type of values.
 
     Parameters:
         key (str): Key from the dictionary.
         values (str or dict): Values associated with the key.
 
     Returns:
-        list: Row values to be written to the file.
+        list: Row values.
     """
     if isinstance(values, dict):
         row_values = [key] + list(values.values())
@@ -151,9 +146,9 @@ def dict_to_file(dict_to_write, column_names, file_name):
     Write a dictionary to a text file (tab-separated) or csv file (;-separated) or an Excel file.
 
     Parameters:
-        dict_to_write (dict): Dictionary to be written to the file.
+        dict_to_write (dict): Dictionary to be written to file.
         column_names (list): List of all column names (strings, includes first column for dict_to_write keys).
-        file_name (str or Path): Path of the output file (suffix determines file type).
+        file_name (str or Path): Path of output file (suffix determines file type).
     """
     file_path = Path(file_name)
     file_suffix = file_path.suffix.lower()
@@ -199,9 +194,9 @@ def list_to_file(list_to_write, column_names, file_name):
     Write a list of tuples to a text file (tab-separated) or csv file (;-separated) or an Excel file.
 
     Parameters:
-        list_to_write (list): List of strings or tuples or dictionaries to be written to the file.
+        list_to_write (list): List of strings or tuples or dictionaries to be written to file.
         column_names (list): List of column names (strings).
-        file_name (str or Path): Path of the output file (suffix determines file type).
+        file_name (str or Path): Path of output file (suffix determines file type).
     """
     # Convert string entries to single item tuples
     list_to_write = [
@@ -214,7 +209,7 @@ def list_to_file(list_to_write, column_names, file_name):
         list_to_write = [
             [entry.get(col, "") for col in column_names] for entry in list_to_write
         ]
-    # Check if all tuples in the list have the same length as the column_names list
+    # Check if all tuples in list have the same length as the column_names list
     elif not all(len(entry) == len(column_names) for entry in list_to_write):
         print(
             f"Error: All tuples in the list must have {len(column_names)} entries (same as column_names)."
@@ -260,16 +255,16 @@ def add_to_dict(
     Parameters:
         dict_prev (dict): Existing dictionary.
         dict_to_add (dict): Dictionary of new values to add.
-        value_name_prev (str): Name for the existing values in the updated dictionary (default is 'info1').
-        value_name_add (str): Name for the new values in the updated dictionary (default is 'info2').
+        value_name_prev (str): Name for existing values in the updated dictionary (default is 'info1').
+        value_name_add (str): Name for new values in the updated dictionary (default is 'info2').
 
     Returns:
         dict: Updated dictionary with combined old and new values.
 
     Raises:
-        ValueError: If the keys in dict_prev and dict_to_add are not the same.
+        ValueError: If keys in dict_prev and dict_to_add are not the same.
     """
-    # Check if the keys are the same
+    # Check if keys are the same
     if set(dict_prev.keys()) != set(dict_to_add.keys()):
         raise ValueError(
             "Keys in previous dictionary and added dictionary must be the same."
@@ -281,7 +276,7 @@ def add_to_dict(
     else:
         dict_added = {key: {value_name_prev: value} for key, value in dict_prev.items()}
 
-    # Add the new values to each key
+    # Add new values to each key
     for key, value in dict_to_add.items():
         dict_added[key][value_name_add] = value
 
@@ -290,7 +285,7 @@ def add_to_dict(
 
 def add_to_list(list_prev, list_to_add):
     """
-    Combine values from two lists of tuples based on the equality of the first column.
+    Combine values from two lists of tuples based on equality of the first column.
 
     Parameters:
         list_prev (list): Existing list of tuples.
@@ -300,7 +295,7 @@ def add_to_list(list_prev, list_to_add):
         list: Combined list of tuples with old and new values.
 
     Raises:
-        ValueError: If the lists are not lists of tuples or if the first columns are not equal.
+        ValueError: If lists are not lists of tuples or if first columns are not equal.
     """
     # Check if both lists are lists of tuples
     if not all(
@@ -308,13 +303,13 @@ def add_to_list(list_prev, list_to_add):
     ) or not all(isinstance(item, tuple) and len(item) >= 2 for item in list_to_add):
         raise ValueError("Both lists must be lists of tuples with at least two values.")
 
-    # Check if the first columns are the same
+    # Check if first columns are the same
     if any(prev[0] != to_add[0] for prev, to_add in zip(list_prev, list_to_add)):
         raise ValueError(
-            "First columns in the previous list and list to add must be the same."
+            "First columns in previous list and list to add must be the same."
         )
 
-    # Add values from the second list to the tuples of the first list
+    # Add values from second list to the tuples of the first list
     list_added = [
         (*prev[0:], *to_add[1:]) for prev, to_add in zip(list_prev, list_to_add)
     ]
@@ -331,7 +326,7 @@ def lookup_info_in_dict(key, info_lookup):
         info_lookup (dict): Dictionary containing key-value pairs.
 
     Returns:
-        Value associated with the given key if found, or "not found" otherwise.
+        Value associated with given key if found, or "not found" otherwise.
     """
     if key in info_lookup:
         return info_lookup[key]
@@ -348,7 +343,7 @@ def add_info_to_list(list_to_lookup, info_dict):
         info_lookup (dict): Dictionary containing key-value pairs.
 
     Returns:
-        list: List of tuples (original entries with info looked up added as the last entry).
+        list: List of tuples (original entries with info looked up added as last entry).
     """
     info_list = []
 
@@ -380,7 +375,7 @@ def add_infos_to_list(list_to_lookup, *info_dicts):
 
 def reduce_dict_to_single_info(info_lookup, info_name):
     """
-    Reduce a dictionary of dictionaries to a single information specified by the given info_name.
+    Reduce a dictionary of dictionaries to a single information specified by given info_name.
 
     Parameters:
         info_lookup (dict): Dictionary where values can be dictionaries.
@@ -388,9 +383,6 @@ def reduce_dict_to_single_info(info_lookup, info_name):
 
     Returns:
         dict: Updated dictionary where each value is replaced with the specified information.
-
-    Raises:
-        KeyError: If the specified info_name is not found in any of the nested dictionaries.
     """
     for key, value in info_lookup.items():
         if isinstance(value, dict):
@@ -406,15 +398,15 @@ def reduce_dict_to_single_info(info_lookup, info_name):
 
 def get_package_root():
     """
-    Get the root directory of the package containing the current module.
+    Get root directory of the package containing the current module.
 
     Returns:
-        Path: The path to the package root directory.
+        Path: Path to package root directory.
     """
-    # Get the file path of the current module
+    # Get file path of current module
     module_path = Path(__file__).resolve()
 
-    # Navigate up from the module directory until the package root is found
+    # Navigate up from module directory until package root is found
     for parent in module_path.parents:
         if (parent / "setup.py").is_file():
             return parent
@@ -450,7 +442,7 @@ def get_deims_coordinates(deims_id):
             "name": name,
         }
     except Exception as e:
-        print(f"Error: coordinates for DEIMS.id '{deims_id}' not found ({e})!")
+        print(f"Error: Coordinates for DEIMS.id '{deims_id}' not found ({e})!")
 
         return {"deims_id": deims_id, "found": False}
 
@@ -460,17 +452,17 @@ def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
     Extract DEIMS IDs from an Excel file and return as a list of dictionaries.
 
     Parameters:
-        xls_file (Path): Path to the Excel file.
-        header_row (int): Row number containing the column names.
+        xls_file (Path): Path to Excel file.
+        header_row (int): Row number containing column names.
         country (str): Code to return only one country (e.g. "AT", "DE", ..., default is "ALL").
 
     Returns:
-        list: List of dictionaries containing DEIMS IDs.
+        list: List of dictionaries containing DEIMS.iDs.
     """
     if not xls_file.exists():
         raise FileNotFoundError(f"File '{xls_file}' not found.")
 
-    # Load the Excel file into a DataFrame
+    # Load Excel file into a DataFrame
     df = pd.read_excel(xls_file, header=header_row)
 
     # Filter by country code
@@ -478,10 +470,72 @@ def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
         df = df[df["Country"] == country]
 
         if df.empty:
-            print(f"Warning: No entries found for country code '{country}'.")
+            warnings.warn(
+                f"No entries found for country code '{country}'.",
+                UserWarning,
+            )
 
-    # Extract the column containing the list of DEIMS.iDs and return as list of dicts
+    # Extract column containing list of DEIMS.iDs and return as list of dicts
     return [{"deims_id": deims_id} for deims_id in df["DEIMS.ID"].tolist()]
+
+
+def get_plot_locations_from_csv(csv_file, header_row=0, sep=";", deims_id=None):
+    """
+    Extract DEIMS IDs from a CSV file and return as a list of dictionaries.
+
+    Parameters:
+        csv_file (Path): Path to CSV file.
+        header_row (int): Row number containing column names.
+        deims_id (str): DEIMS.iD to check for each plot if provided (default is None).
+
+    Returns:
+        list: List of dictionaries containing each plot's station code, latitude, longitude, and DEIMS.iD.
+    """
+    if not csv_file.exists():
+        raise FileNotFoundError(f"File '{csv_file}' not found.")
+
+    # Load CSV file into a DataFrame
+    df = pd.read_csv(csv_file, header=header_row, encoding="ISO-8859-1", sep=sep)
+
+    if df.empty:
+        warnings.warn(
+            f"No entries found in file '{csv_file}'. Returning empty plot locations list.",
+            UserWarning,
+        )
+
+        return []
+    else:
+        location_dicts = []
+        entries_required = [
+            "lat",
+            "lon",
+            "site_code",
+            "station_code",
+        ]  # or leave out site code and station code?
+
+        # Extract all entries from station file
+        for _, row in df.iterrows():
+            entries_raw = {col.lower(): row[col] for col in df.columns}
+
+            for item in entries_required:
+                if not item in entries_raw:
+                    warnings.warn(
+                        f"No '{item}' entry found. Skipping plot location row.",
+                        UserWarning,
+                    )
+
+            # Use only items needed, could be extended, e.g. using also altitude
+            location_entries = {
+                "coordinates": {"lat": entries_raw["lat"], "lon": entries_raw["lon"]},
+                "site_code": entries_raw["site_code"],
+                "station_code": entries_raw["station_code"],
+            }
+            location_entries["deims_id"] = deims._normaliseDeimsID(
+                entries_raw["site_code"]
+            )
+            location_dicts.append(location_entries)
+
+        return location_dicts
 
 
 def parse_locations(locations_str):
@@ -528,7 +582,6 @@ def get_unique_keys(list_of_dicts):
     """
     unique_keys = []
 
-    # Iterate over each dictionary in the list
     for d in list_of_dicts:
         for key in d.keys():
             if key not in unique_keys:
@@ -549,20 +602,20 @@ def reproject_coordinates(lat, lon, target_crs):
     Returns:
         tuple (float): Reprojected coordinates (easting, northing).
     """
-    # Define the source CRS (EPSG:4326 - WGS 84, commonly used for lat/lon)
+    # Define source CRS (EPSG:4326 - WGS 84, commonly used for lat/lon)
     src_crs = pyproj.CRS("EPSG:4326")
 
-    # Create a transformer to convert from the source CRS to the target CRS
+    # Create a transformer to convert from source CRS to target CRS
     # (always_xy: use lon/lat for source CRS and east/north for target CRS)
     transformer = pyproj.Transformer.from_crs(src_crs, target_crs, always_xy=True)
 
-    # Reproject the coordinates (order is lon, lat!)
+    # Reproject coordinates (order is lon, lat!)
     east, north = transformer.transform(lon, lat)
 
     return east, north
 
 
-def extract_raster_value(tif_file, location, band_number=1):
+def extract_raster_value(tif_file, location, band_number=1, attempts=5, delay=2):
     """
     Extract value from raster file at specified coordinates.
 
@@ -570,48 +623,77 @@ def extract_raster_value(tif_file, location, band_number=1):
         tif_file (str): TIF file path or URL.
         location (dict): Dictionary with 'lat' and 'lon' keys.
         band_number (int): Band number for which the value shall be extracted (default is 1).
+        attempts (int): Number of attempts to open TIF file in case of errors (default is 5).
+        delay (int): Number of seconds to wait between attempts (default is 2).
 
     Returns:
-        any: Extracted value.
+        tuple: Extracted value (None if extraction failed), and time stamp.
     """
-    with rasterio.open(tif_file) as src:
-        # Get the target CRS (as str in WKT format) from the TIF file
-        target_crs = src.crs.to_wkt()
+    while attempts > 0:
+        time_stamp = datetime.now(timezone.utc).isoformat()
 
-        # Reproject the coordinates to the target CRS
-        east, north = reproject_coordinates(
-            location["lat"], location["lon"], target_crs
-        )
+        try:
+            with rasterio.open(tif_file) as src:
+                # Get target CRS (as str in WKT format) from TIF file
+                target_crs = src.crs.to_wkt()
 
-        # Extract the value at the specified coordinates
-        value = next(src.sample([(east, north)], indexes=band_number))
+                # Reproject coordinates to target CRS
+                east, north = reproject_coordinates(
+                    location["lat"], location["lon"], target_crs
+                )
 
-    return value[0]
+                # Extract value from specified band number at specified coordinates
+                value = next(src.sample([(east, north)], indexes=band_number))
+
+            return value[0], time_stamp
+        except rasterio.errors.RasterioIOError as e:
+            attempts -= 1
+            print(f"Reading TIF file failed (Error {e}).")
+
+            if attempts > 0:
+                print(f"Retrying in {delay} seconds ...")
+                time.sleep(delay)
+            else:
+                return None, time_stamp
 
 
-def check_url(url):
+def check_url(url, attempts=5, delay=2):
     """
-    Check if a file exists at the specified URL and retrieve its content type.
+    Check if a file exists at specified URL and retrieve its content type.
 
     Parameters:
         url (str): URL to check.
+        attempts (int): Number of attempts in case of connection errors or specific status codes (default is 5).
+        delay (int): Number of seconds to wait between attempts (default is 2).
 
     Returns:
         str: URL if existing (original or redirected), None otherwise.
     """
-    if url:
+    if not url:
+        return None
+
+    retry_status_codes = {502, 503, 504}
+
+    while attempts > 0:
         try:
-            response = requests.head(url, allow_redirects=True)  # Allow redirection
+            response = requests.head(url, allow_redirects=True)
 
             if response.status_code == 200:
                 return response.url
-                # could be returned: content_type = response.headers.get("content-type")
+            elif response.status_code in retry_status_codes:
+                attempts -= 1
+
+                if attempts > 0:
+                    time.sleep(delay)
             else:
                 return None
         except requests.ConnectionError:
-            return None
-    else:
-        return None
+            attempts -= 1
+
+            if attempts > 0:
+                time.sleep(delay)
+
+    return None
 
 
 def download_file_opendap(file_name, source_folder, target_folder):
@@ -619,16 +701,16 @@ def download_file_opendap(file_name, source_folder, target_folder):
     Download a file from OPeNDAP server 'grasslands-pdt'.
 
     Args:
-        file_name (str): Name of the file to download.
-        source_folder (str): Folder where the file is expected on OPeNDAP server.
-        target_folder (str): Folder where the file will be saved.
+        file_name (str): Name of file to download.
+        source_folder (str): Folder where file is expected on OPeNDAP server.
+        target_folder (str): Folder where file will be saved.
 
     Returns:
         None
     """
-    print(f"Downloading file '{file_name}' from OPeNDAP server...")
-
-    url = "http://134.94.199.14/grasslands-pdt/" + source_folder + "/" + file_name
+    # will be "https://opendap.biodt.eu"
+    url = "http://opendap.biodt.eu/grasslands-pdt/" + source_folder + "/" + file_name
+    print(f"Downloading '{url}' ...")
     response = requests.get(url)
 
     # # Variant with authentication using OPeNDAP credentials from .env file.
@@ -638,9 +720,7 @@ def download_file_opendap(file_name, source_folder, target_folder):
     # response = session.get(url)
 
     if response.status_code == 404:
-        print(
-            f"Error: Specified file '{file_name}' not found in 'grasslands-pdt/{source_folder}'!"
-        )
+        print(f"Error: Specified file '{url}' not found!")
 
         return None
 
@@ -658,8 +738,8 @@ def day_of_year_to_date(year, day_of_year, leap_year_considered=True):
 
     Args:
         year (int): Year.
-        day_of_year (int): Day of the year (count from 1 for January 1st).
-        leap_year_correct (bool): Day of year correctly accounts for leap year (default is True).
+        day_of_year (int): Day of year (count from 1 for January 1st).
+        leap_year_considered (bool): Day of year correctly accounts for leap year (default is True).
 
     Returns:
         datetime: Corresponding date.
@@ -678,7 +758,7 @@ def is_leap_year(year):
     Check if a given year is a leap year.
 
     Parameters:
-        year (int): The year.
+        year (int): Year.
 
     Returns:
         bool: True if the year is a leap year, False otherwise.
