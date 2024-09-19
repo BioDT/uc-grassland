@@ -2,7 +2,7 @@
 Module Name: prep_management_data.py
 Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
 Date: April, 2024
-Description: Download management data and prepare as needed for GRASSMIND input. 
+Description: Download management data and prepare as needed for GRASSMIND input.
 
 Management data source 'GER_Lange' map:
     Lange, Maximilian; Feilhauer, Hannes; Kühn, Ingolf; Doktor, Daniel (2022):
@@ -19,24 +19,23 @@ Management data source 'GER_Schwieder' map:
     Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2021.112795
 
     Based on grassland classification according to:
-        Blickensdörfer, Lukas; Schwieder, Marcel; Pflugmacher, Dirk; Nendel, Claas; Erasmi, Stefan; 
+        Blickensdörfer, Lukas; Schwieder, Marcel; Pflugmacher, Dirk; Nendel, Claas; Erasmi, Stefan;
         Hostert, Patrick (2021):
-        National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and 
+        National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and
         Landsat 8 data (2017, 2018 and 2019), https://zenodo.org/records/5153047.
 
 Mowing default dates according to:
     Filipiak, Matthias; Gabriel, Doreen; Kuka, Katrin (2022):
-    Simulation-based assessment of the soil organic carbon sequestration in grasslands in relation to 
+    Simulation-based assessment of the soil organic carbon sequestration in grasslands in relation to
     management and climate change scenarios, https://doi.org/10.1016/j.heliyon.2023.e17287
 
     See also:
-        Schmid, Julia (2022): 
-        Modeling species-rich ecosystems to understand community dynamics and structures emerging from 
+        Schmid, Julia (2022):
+        Modeling species-rich ecosystems to understand community dynamics and structures emerging from
         individual plant interactions, PhD thesis, Chapter 4, Table C.7, https://doi.org/10.48693/160
 """
 
 import argparse
-from datetime import datetime, timezone
 import numpy as np
 from pathlib import Path
 import utils as ut
@@ -72,13 +71,13 @@ def construct_management_data_file_name(folder, location, years, map_key, file_s
         file_start = location
     else:
         raise ValueError("Unsupported location format.")
-    
+
     if years:
         file_name = (
             folder
             / f"{file_start}__{years[0]}-01-01_{years[-1]}-12-31__management__{map_key}{file_suffix}"
         )
-    else: 
+    else:
         file_name = folder / f"{file_start}__management__{map_key}{file_suffix}"
         warnings.warn(
             "No years provided! Returning management file name without time information.",
@@ -111,7 +110,7 @@ def management_data_to_txt_file(
         data_query_protocol (list): List of sources and time_stamps from retrieving management data.
         is_raw_data (bool): Whether data are raw (default is False).
         fill_mode (str): Method for completing missing data (default is 'none').
-        file_name (str or Path): File name to save management data (default is None, default file name is used if not provided).       
+        file_name (str or Path): File name to save management data (default is None, default file name is used if not provided).
 
     Returns:
         None
@@ -150,9 +149,7 @@ def management_data_to_txt_file(
             "Seeds_PFT3",
         ]
         management_fmt = "%s\t%s\t%s\t%s\t%s\t%s\t%s"
-        print_message = (
-            f"Processed management data from '{map_key}' map written to file '{file_name}'."
-        )
+        print_message = f"Processed management data from '{map_key}' map written to file '{file_name}'."
 
         # Prepare empty management data for writing to file
         if not management_data:
@@ -173,7 +170,9 @@ def management_data_to_txt_file(
     print(print_message)
 
     if data_query_protocol:
-        file_name = file_name.with_name(file_name.stem + "__data_query_protocol" + file_name.suffix)
+        file_name = file_name.with_name(
+            file_name.stem + "__data_query_protocol" + file_name.suffix
+        )
         ut.list_to_file(
             data_query_protocol,
             ["management_data_source", "time_stamp"],
@@ -212,7 +211,7 @@ def get_management_map_file(
             else:
                 print(f"Error: Local file '{map_file}' not found!")
                 print("Trying to access via URL ...")
- 
+
         # Return map file URL
         if year == 2017:
             if applicability:
@@ -317,8 +316,8 @@ def get_management_map_file(
             #     + map_key
             #     + "/"
             #     + file_name
-            # )  
-            # zenodo address 
+            # )
+            # zenodo address
             map_file = "https://zenodo.org/records/10609590/files/" + file_name
 
             if ut.check_url(map_file):
@@ -358,7 +357,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
     """
     map_key = "GER_Lange"
     print(f"Reading management data from '{map_key}' map ...")
-    query_protocol =[]  
+    query_protocol = []
 
     # Initialize property_data array with nans
     property_data = np.full(
@@ -394,10 +393,12 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                     print(
                         f"{property[0].upper() + property[1:]} map AOA for {year} found. Using '{aoa_file}'."
                     )
-                    within_aoa, time_stamp = ut.extract_raster_value(aoa_file, coordinates)
+                    within_aoa, time_stamp = ut.extract_raster_value(
+                        aoa_file, coordinates
+                    )
                     query_protocol.append([aoa_file, time_stamp])
 
-                    if within_aoa==-1:
+                    if within_aoa == -1:
                         if warn_no_grassland:
                             warnings.warn(
                                 f"Location not classified as grassland in '{map_key}' map.",
@@ -406,7 +407,9 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                             warn_no_grassland = False
                         break
 
-                    property_value, time_stamp = ut.extract_raster_value(map_file, coordinates)
+                    property_value, time_stamp = ut.extract_raster_value(
+                        map_file, coordinates
+                    )
                     query_protocol.append([map_file, time_stamp])
 
                     if within_aoa:
@@ -446,7 +449,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
     """
     map_key = "GER_Schwieder"
     print(f"Reading management data from '{map_key}' map ...")
-    query_protocol =[]  
+    query_protocol = []
     map_bands = len(map_properties)
     property = map_properties[0]
 
@@ -497,7 +500,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
                 for band_index in range(2, map_bands + 1):
                     band_value, time_stamp = ut.extract_raster_value(
                         map_file, coordinates, band_number=band_index
-                    )                    
+                    )
 
                     if band_value != 0:
                         property_data[y_index, band_index] = band_value
@@ -608,7 +611,7 @@ def get_fert_days(mow_days, year):
 
     Parameters:
         mow_days (list of int): List with day of year for each mowing event.
-        year (int): Year for which to calculate the fertlization events.        
+        year (int): Year for which to calculate the fertlization events.
 
     Returns:
         list of int: List with day of year for each fertilisation event.
@@ -633,13 +636,15 @@ def get_fert_days(mow_days, year):
 
     # Set earliest possible fertilisation date to 03-01
     earliest_fert_day = 61 if ut.is_leap_year(year) else 60
-    earliest_fert_date_str = ut.day_of_year_to_date(year, earliest_fert_day).strftime("%Y-%m-%d")
+    earliest_fert_date_str = ut.day_of_year_to_date(year, earliest_fert_day).strftime(
+        "%Y-%m-%d"
+    )
 
     # Calculate fertilisation dates using specific days ahead of corresponding mow events
     for idx, mow_day in enumerate(mow_days):
         fert_day = mow_day - deltas[idx]
 
-        if fert_day < earliest_fert_day:            
+        if fert_day < earliest_fert_day:
             print(
                 f"Warning: Calculated fertilisation date {ut.day_of_year_to_date(year, fert_day).strftime("%Y-%m-%d")}"
                 f" is before earliest date allowed! Set to {earliest_fert_date_str}."
@@ -658,7 +663,7 @@ def fert_days_from_mow_days(mow_days_per_year, years):
 
     Parameters:
         mow_days (list of list): List of lists with day of year for each mowing event for each year.
-        yeard (list of int): Year for which to calculate the fertlization events.        
+        yeard (list of int): Year for which to calculate the fertlization events.
 
     Returns:
         list of list: List of lists with day of year for each fertilisation event for each year.
@@ -833,11 +838,9 @@ def convert_management_data(
     if fill_mode == "mean":
         # Use means of data retrieved for remaining years as well
         print("Completing management data with means from years with data ...")
-        
+
         if years_with_mow_data.size > 0:
-            mow_count_float = (
-                np.nanmean(mow_count_per_year)
-            )
+            mow_count_float = np.nanmean(mow_count_per_year)
             mow_count_fill = round(mow_count_float + epsilon)
             print(
                 f"Mean annual mowing events: {mow_count_float:.4f} "
@@ -857,13 +860,13 @@ def convert_management_data(
         print(
             "Completing management data with default values ... "
             f"Using {mow_count_fill} events per year."
-        )           
+        )
 
     mow_count_per_year[np.isnan(mow_count_per_year)] = mow_count_fill
 
     # Add all remaining mowing events to schedule
     for idx, year in enumerate(years):
-        if mow_count_per_year[idx] > 0 and not year in years_with_mow_data:
+        if mow_count_per_year[idx] > 0 and year not in years_with_mow_data:
             mow_schedule = get_mow_schedule(year, mow_count_fill, mow_height)
             management_events.extend(mow_schedule)
 
@@ -914,7 +917,9 @@ def convert_management_data(
         if fill_mode in ["mean", "default"]:
             # No fertilisation data, use number of mowing events as default
             print(f"'{map_key}' map has no fertilisation data!")
-            print("Using the same number of fertilisation events as mowing events for each year.")
+            print(
+                "Using the same number of fertilisation events as mowing events for each year."
+            )
             fert_count_per_year = mow_count_per_year
             fert_days_per_year = fert_days_from_mow_days(mow_days_per_year, years)
 
@@ -928,7 +933,7 @@ def convert_management_data(
 
     # management_events.sort(key=lambda x: x["map_year"]))
     try:
-    #     test_list = sorted(management_events, key=lambda x: x[0]) 
+        #     test_list = sorted(management_events, key=lambda x: x[0])
         management_events.sort(key=lambda x: x[0])
     except:
         print("Sorting failed.")
@@ -937,7 +942,13 @@ def convert_management_data(
 
 
 def data_processing(
-    map_key, fill_missing_data, mow_height, years, coordinates, deims_id, file_name=None,
+    map_key,
+    fill_missing_data,
+    mow_height,
+    years,
+    coordinates,
+    deims_id,
+    file_name=None,
 ):
     """
     Read management data from land use map. Write to .txt files.
@@ -968,7 +979,9 @@ def data_processing(
             "grazing",
             "LUI",
         ]  #  , "fertilisation", "grazing", "LUI"
-        management_data_raw, data_query_protocol = get_GER_Lange_data(coordinates, map_properties, years)
+        management_data_raw, data_query_protocol = get_GER_Lange_data(
+            coordinates, map_properties, years
+        )
     elif map_key == "GER_Schwieder":
         map_properties = [
             "mowing",
@@ -979,7 +992,9 @@ def data_processing(
             "date_5",
             "date_6",
         ]
-        management_data_raw, data_query_protocol = get_GER_Schwieder_data(coordinates, map_properties, years)
+        management_data_raw, data_query_protocol = get_GER_Schwieder_data(
+            coordinates, map_properties, years
+        )
     else:
         raise ValueError(
             f"Map key '{map_key}' not found. Please provide valid map key!"
@@ -1061,8 +1076,12 @@ def prep_management_data(
         )
     else:
         # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
-        sites_file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-        locations = ut.get_deims_ids_from_xls(sites_file_name, header_row=1, country="DE")
+        sites_file_name = (
+            ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        )
+        locations = ut.get_deims_ids_from_xls(
+            sites_file_name, header_row=1, country="DE"
+        )
 
         # locations = [{"deims_id": "fd8b85c0-93ef-4a41-8706-3c4be9dec8e5"}]
 

@@ -2,7 +2,7 @@
 Module Name: prep_soil_data.py
 Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
 Date: February, 2024
-Description: Download soil data and prepare as needed for GRASSMIND input. 
+Description: Download soil data and prepare as needed for GRASSMIND input.
 """
 
 import argparse
@@ -24,33 +24,50 @@ def prep_soil_data(
         file_name (str or Path): File name to save soil data (default is None, default file name is used if not provided).
     """
 
-    # # test Jena experiment
+    # # example: Jena experiment
     # coordinates = {"lat": 50.95132596412849, "lon": 11.621566774599533}
 
-    # # test GiFACE
+    # # example: GiFACE
     # coordinates = {"lat": 50.53262187949219, "lon": 8.684426520889202}
 
-    # # test GCEF small scale difference
-    # coordinates = {"lat": 51.390427, "lon": 11.876855}  # GER, GCEF grassland site
-    # coordinates = {"lat": 51.392331, "lon": 11.883838}  # GER, GCEF grassland site
-    # coordinates = {
-    #     "lat": 51.3919,
-    #     "lon": 11.8787,
-    # }  # GER, GCEF grassland site, centroid, non-grassland in HRL
+    # example: GCEF small scale difference
+    coordinates = {"lat": 51.390427, "lon": 11.876855}  # GER, GCEF grassland site
+    coordinates = {"lat": 51.392331, "lon": 11.883838}  # GER, GCEF grassland site
+    coordinates = {
+        "lat": 51.3919,
+        "lon": 11.8787,
+    }  # GER, GCEF grassland site, centroid, non-grassland in HRL
 
-    # # Example call with single deims_id
+    # example: locations with missing data in one but not both of the sources
+    coordinates = {"lat": 50.311208, "lon": 9.448670}  # no soilgrids, hhs available
+    coordinates = {"lat": 50.279263, "lon": 9.367577}  # soilgrids available, no hhs
+
+    # example: call with single deims_id
+    coordinates = None
+    if deims_id is None:
+        deims_id = "102ae489-04e3-481d-97df-45905837dc1a"  # GCEF site
+
     if coordinates is None:
-        if deims_id is None:
-            deims_id = "102ae489-04e3-481d-97df-45905837dc1a"  # GCEF site
+        if deims_id:
+            coordinates = ut.get_deims_coordinates(deims_id)
+        else:
+            raise ValueError(
+                "No location defined. Please provide coordinates or DEIMS.iD!"
+            )
 
-    dprc.data_processing(coordinates, deims_id, file_name)
+    # # quick test for local cache file
+    # hhs_cache = "c:/_D/biodt_data/soilMapsHiHydroSoil"
+    # dprc.data_processing(coordinates, file_name, hhs_cache=hhs_cache)
 
-    # # test get multiple coordinates from DEIMS.iDs from XLS file
-    # file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-    # locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
+    dprc.data_processing(coordinates, file_name)
 
-    # for location in locations:
-    #     dprc.data_processing(coordinates=None, deims_id=location["deims_id"])
+    # example: get multiple coordinates from DEIMS.iDs from XLS file
+    file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+    locations = ut.get_deims_ids_from_xls(file_name, header_row=1)
+
+    for location in locations:
+        coordinates = ut.get_deims_coordinates(location["deims_id"])
+        dprc.data_processing(coordinates)
 
 
 def main():

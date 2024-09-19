@@ -3,7 +3,7 @@ Module Name: prep_grassmind_input_data.py
 Author: Thomas Banitz, Franziska Taubert, BioDT
 Date: August, 2024
 Description: Download all input data and prepare as needed for GRASSMIND simulations.
-             
+
 Uses:   check_if_grassland.py
         prep_weather_data.py
         prep_soil_data.py
@@ -20,23 +20,21 @@ import warnings
 
 
 def data_processing(location, years):
-    """
-    
-    """    
-    if location["coordinates"]: 
-        # init dialogue               
-        print(f"Preparing input data for latitude: {location["coordinates"]["lat"]},",
-              f"longitude: {location["coordinates"]["lon"]} ...")
-        
+    """ """
+    if location["coordinates"]:
+        # init dialogue
+        print(
+            f"Preparing input data for latitude: {location["coordinates"]["lat"]},",
+            f"longitude: {location["coordinates"]["lon"]} ...",
+        )
+
         # get location coordinates for file names and folder
-        formatted_lat = f"lat{location["coordinates"]["lat"]:.6f}"  
-        formatted_lon = f"lon{location["coordinates"]["lon"]:.6f}"  
+        formatted_lat = f"lat{location['coordinates']['lat']:.6f}"
+        formatted_lon = f"lon{location['coordinates']['lon']:.6f}"
         file_start = f"{formatted_lat}_{formatted_lon}"
         location_head_folder = Path(
-            ut.get_package_root()
-            / "grasslandModelInputFiles"
-            / file_start           
-        )        
+            ut.get_package_root() / "grasslandModelInputFiles" / file_start
+        )
 
         # check if grassland according to all available land cover maps
         grassland_checks = []
@@ -49,17 +47,19 @@ def data_processing(location, years):
             "GER_Schwieder_2019",
             "GER_Schwieder_2020",
             "GER_Schwieder_2021",
-            "GER_Lange_2017", 
-            # "GER_Lange_2018", only 1 GER_Lange map needed as both use German ATKIS digital landscape model 2015 
+            "GER_Lange_2017",
+            # "GER_Lange_2018", only 1 GER_Lange map needed as both use German ATKIS digital landscape model 2015
         ]
-        
+
         # "EUR_eunis_habitat" only works for DEIMS.iDs
         if location["deims_id"]:
             land_cover_map_keys.append("EUR_eunis_habitat")
 
         for map_key in land_cover_map_keys:
-            check_this_map = check_if_grassland.check_locations_for_grassland([location], map_key)
-            grassland_checks.append(check_this_map[0])    
+            check_this_map = check_if_grassland.check_locations_for_grassland(
+                [location], map_key
+            )
+            grassland_checks.append(check_this_map[0])
 
         file_name = (
             location_head_folder
@@ -72,19 +72,18 @@ def data_processing(location, years):
         # run weather script
         # TODO:
 
-
         # run soil script
         file_name = location_head_folder / "soil" / f"{file_start}__2020__soil.txt"
         prep_soil_data.prep_soil_data(
             location["coordinates"],
-            None, # deims_id
+            None,  # deims_id
             file_name,
         )
 
         # run management script
         land_use_map_keys = ["GER_Lange", "GER_Schwieder"]
         fill_missing_data = "mean"
-        mow_height=0.05
+        mow_height = 0.05
 
         for map_key in land_use_map_keys:
             file_name = (
@@ -99,12 +98,14 @@ def data_processing(location, years):
                 years,
                 location["coordinates"],
                 deims_id=None,
-                file_name=file_name
+                file_name=file_name,
             )
 
         # finish dialogue
-        print(f"Input data for latitude: {location["coordinates"]["lat"]},",
-              f"longitude: {location["coordinates"]["lon"]} completed.")
+        print(
+            f"Input data for latitude: {location['coordinates']['lat']},",
+            f"longitude: {location['coordinates']['lon']} completed.",
+        )
     else:
         warnings.warn(
             "Location coordinates missing! No input data generated.",
@@ -123,9 +124,11 @@ def prep_grassmind_input_data(locations, first_year, last_year):
             f"First year {first_year} is after last year {last_year}! Empty time period for generating input data defined."
         )
 
-    if locations is None:    
+    if locations is None:
         # Example locations list
-        locations = ut.parse_locations("51.390427,11.876855;51.392331,11.883838;102ae489-04e3-481d-97df-45905837dc1a")
+        locations = ut.parse_locations(
+            "51.390427,11.876855;51.392331,11.883838;102ae489-04e3-481d-97df-45905837dc1a"
+        )
 
         # # Example to get location coordinates via DEIMS.iDs from XLS file
         # file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
@@ -175,7 +178,7 @@ def main():
         type=int,
         help="Last year for which to generate input data.",
     )
-    args = parser.parse_args()    
+    args = parser.parse_args()
     prep_grassmind_input_data(
         locations=args.locations,
         first_year=args.first_year,

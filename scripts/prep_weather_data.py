@@ -2,7 +2,7 @@
 Module Name: prep_weather_data.py
 Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
 Date: November, 2023
-Description: Download weather data and prepare as needed for GRASSMIND input. 
+Description: Download weather data and prepare as needed for GRASSMIND input.
 """
 
 import argparse

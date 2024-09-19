@@ -2,7 +2,7 @@
 Module Name: utils.py
 Author: Thomas Banitz, Taimur Khan, Tuomas Rossi, Franziska Taubert, BioDT
 Date: February, 2024
-Description: Utility functions for uc-grassland building block. 
+Description: Utility functions for uc-grassland building block.
 """
 
 import argparse
@@ -183,7 +183,7 @@ def dict_to_file(dict_to_write, column_names, file_name):
         df.to_excel(file_path, index=False)
     else:
         print(
-            f"Error: Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
+            "Error: Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
         )
 
     print(f"Dictionary written to file '{file_name}'.")
@@ -239,8 +239,8 @@ def list_to_file(list_to_write, column_names, file_name):
         df = pd.DataFrame(list_to_write, columns=column_names)
         df.to_excel(file_path, index=False)
     else:
-        print(
-            f"Error: Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
+        raise ValueError(
+            "Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
         )
 
     print(f"List written to file '{file_name}'.")
@@ -518,7 +518,7 @@ def get_plot_locations_from_csv(csv_file, header_row=0, sep=";", deims_id=None):
             entries_raw = {col.lower(): row[col] for col in df.columns}
 
             for item in entries_required:
-                if not item in entries_raw:
+                if item not in entries_raw:
                     warnings.warn(
                         f"No '{item}' entry found. Skipping plot location row.",
                         UserWarning,

@@ -5,10 +5,10 @@ Date: January, 2024
 Description: Assign PFTs to species with the following options:
              - based on TRY categorical traits table (with prepared PFT column in this table)
              - based on GBIF taxonomic backbone for family and https://github.com/traitecoevo/growthform
-               table (Zanne et al.) for Woodiness 
+               table (Zanne et al.) for Woodiness
              - based on combination of both methods
 
-Species names can (and should) be adjusted by GBIF taxonomic backbone  
+Species names can (and should) be adjusted by GBIF taxonomic backbone
 """
 
 import pandas as pd
@@ -190,7 +190,7 @@ def get_valid_infos(info_name):
         return ["any"]
     else:
         raise ValueError(
-            f"ERROR: Unsupported species information type. Supported types are 'PFT' and 'Woodiness'."
+            "Unsupported species information type. Supported types are 'PFT' and 'Woodiness'."
         )
 
 
@@ -456,7 +456,7 @@ def get_gbif_dict(species_info_dict, file_name="", info_name="PFT"):
             info_name('PFT' or 'Woodiness'): corresponding species info.
             'originalNames': List of species names from input dictionary (that were replaced or not).
     """
-    print(f"Searching for species in GBIF taxonomic backbone ...")
+    print("Searching for species in GBIF taxonomic backbone ...")
     species_info_dict_gbif = {}
     processed_lines = 0
 
@@ -467,7 +467,7 @@ def get_gbif_dict(species_info_dict, file_name="", info_name="PFT"):
             spec_match != spec
             and not info_name == "Family"  # Keep family infos
             and spec_match.endswith(" species")
-            and not "grass" in info  # Keep all infos with "grass", also conflicts
+            and "grass" not in info  # Keep all infos with "grass", also conflicts
         ):
             info = "not assigned"
 
@@ -579,7 +579,7 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
         try:
             df = pd.read_excel(file_name, header=header_lines - 1)
         except Exception as e:
-            print(f"ERROR reading Excel file: {e}")
+            print(f"Error reading Excel file: {e}")
 
             return []
 
@@ -588,14 +588,14 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
             try:
                 column_index = df.columns.get_loc(species_column)
             except KeyError:
-                print(f"ERROR: Column '{species_column}' not found in the Excel file.")
+                print(f"Error: Column '{species_column}' not found in the Excel file.")
 
                 return []
         elif isinstance(species_column, int):
             column_index = species_column
         else:
             print(
-                "ERROR: Invalid column identifier. Please provide a column name (str) or column number (int)."
+                "Error: Invalid column identifier. Please provide a column name (str) or column number (int)."
             )
 
             return []
@@ -610,7 +610,7 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
             with open(file_name, "r") as file:
                 species_data = [line.strip().split("\t") for line in file]
         except Exception as e:
-            print(f"ERROR reading text file: {e}")
+            print(f"Error reading text file: {e}")
 
             return []
 
@@ -620,7 +620,7 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
                 column_index = species_data[header_lines - 1].index(species_column)
             else:
                 print(
-                    f"ERROR: Column '{species_column}' not found in the specified header line of the text file."
+                    f"Error: Column '{species_column}' not found in the specified header line of the text file."
                 )
 
                 return []
@@ -628,7 +628,7 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
             column_index = species_column
         else:
             print(
-                "ERROR: Invalid column identifier. Please provide a column name (str) or column number (int)."
+                "Error: Invalid column identifier. Please provide a column name (str) or column number (int)."
             )
 
             return []
@@ -644,7 +644,7 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
                 delimiter=";",
             )
         except Exception as e:
-            print(f"ERROR reading CSV file: {e}")
+            print(f"Error reading CSV file: {e}")
 
             return []
 
@@ -653,14 +653,14 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
             try:
                 column_index = df.columns.get_loc(species_column)
             except KeyError:
-                print(f"ERROR: Column '{species_column}' not found in the CSV file.")
+                print(f"Error: Column '{species_column}' not found in the CSV file.")
 
                 return []
         elif isinstance(species_column, int):
             column_index = species_column
         else:
             print(
-                "ERROR: Invalid column identifier. Please provide a column name (str) or column number (int)."
+                "Error: Invalid column identifier. Please provide a column name (str) or column number (int)."
             )
 
             return []
@@ -671,7 +671,7 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
         species_list = ut.replace_substrings(species_list, "nan", "", at_end=True)
     else:
         print(
-            f"ERROR: Unsupported file format. Supported formats are 'xlsx', 'txt', and 'csv'."
+            "Error: Unsupported file format. Supported formats are 'xlsx', 'txt', and 'csv'."
         )
 
         return []
@@ -681,7 +681,7 @@ def read_species_list(file_name, species_column=0, header_lines=1, check_gbif=Tr
 
     # GBIF check and correction if selected
     if check_gbif:
-        print(f"Searching for species in GBIF taxonomic backbone ...")
+        print("Searching for species in GBIF taxonomic backbone ...")
         species_list_renamed = []
 
         for spec in species_list:
@@ -796,7 +796,7 @@ def check_unclear_infos(info_name, species_info_dict, ask_user_input=True):
             if ask_user_input:
                 # Ask user if species with unclear info shall be modified manually
                 manual_input = input(
-                    f"Do you want to make manual inputs for these species? (y/n): "
+                    "Do you want to make manual inputs for these species? (y/n): "
                 ).lower()
 
                 if manual_input == "y":
