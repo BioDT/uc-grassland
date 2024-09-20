@@ -1,20 +1,47 @@
 """
 Module Name: assign_pfts.py
-Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
-Date: January, 2024
 Description: Assign PFTs to species with the following options:
-             - based on TRY categorical traits table (with prepared PFT column in this table)
-             - based on GBIF taxonomic backbone for family and https://github.com/traitecoevo/growthform
-               table (Zanne et al.) for Woodiness
-             - based on combination of both methods
+    - based on TRY categorical traits table,
+    - based on GBIF taxonomic backbone for family, and growth form table for woodiness,
+    - based on combination of both methods.
 
-Species names can (and should) be adjusted by GBIF taxonomic backbone
+    For any option, species names can (and should) be adjusted by GBIF taxonomic backbone.
+
+Copyright (C) 2024
+- Thomas Banitz, Franziska Taubert, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
+- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
+
+Licensed under the EUPL, Version 1.2 or - as soon they will be approved
+by the European Commission - subsequent versions of the EUPL (the "Licence").
+You may not use this work except in compliance with the Licence.
+
+You may obtain a copy of the Licence at:
+https://joinup.ec.europa.eu/software/page/eupl
+
+Data sources:
+    TRY categorical traits table:
+    - Kattge J., Díaz S., Lavorel S., Prentice I., Leadley P., et al. (2011):
+      TRY - a global database of plant traits.
+      Global Change Biology 17: 2905‑2935. https://doi.org/10.1111/j.1365-2486.2011.02451.x
+    - table provided upon personal request
+
+    GBIF taxonomic backbone:
+    - GBIF Secretariat (2023):
+      GBIF Backbone Taxonomy. Checklist dataset.
+      URL: https://doi.org/10.15468/39omei
+
+     Growth form table (woodiness):
+    - Zanne A.E., Tank D.C., Cornwell W.K., Eastman J.M., Smith S.A., et al. (2014):
+      Three keys to the radiation of angiosperms into freezing environments.
+      Nature 506: 89‑92. https://doi.org/10.1038/nature12872
+    - table available at: https://github.com/traitecoevo/growthform
 """
 
-import pandas as pd
 from pathlib import Path
-from pygbif import species
+
+import pandas as pd
 import utils as ut
+from pygbif import species
 
 
 def combine_info_strings(info_name, info_1, info_2):
@@ -749,7 +776,7 @@ def user_input_info(species_info_dict, info_name, start_string):
 
             try:
                 user_choice = int(user_choice)
-            except:
+            except ValueError:
                 print(f"Invalid choice. Leaving {info_name} as is.")
             else:
                 if 1 <= user_choice <= len(valid_choices):

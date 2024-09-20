@@ -1,13 +1,12 @@
-from setuptools import setup, find_packages
-from pathlib import Path
+from setuptools import find_packages, setup
 
 # Project metadata
 name = "uc-grassland"
 version = "0.1.0"
-author = "Thomas Banitz, Franziska Taubert, Tuomas Rossi, BioDT"
+author = "Thomas Banitz, Franziska Taubert, Tuomas Rossi, Taimur Haider Khan, BioDT"
 description = "Run scripts for BioDT pDT Grassland"
 url = "https://github.com/BioDT/uc-grassland"
-license = "MIT"
+license = "EUPL v1.2"
 
 # Specify project dependencies from a requirements.txt file
 with open("requirements.txt", "r") as req_file:

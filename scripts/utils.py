@@ -1,22 +1,38 @@
 """
 Module Name: utils.py
-Author: Thomas Banitz, Taimur Khan, Tuomas Rossi, Franziska Taubert, BioDT
-Date: February, 2024
 Description: Utility functions for uc-grassland building block.
+
+Copyright (C) 2024
+- Thomas Banitz, Franziska Taubert, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
+- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
+
+Licensed under the EUPL, Version 1.2 or - as soon they will be approved
+by the European Commission - subsequent versions of the EUPL (the "Licence").
+You may not use this work except in compliance with the Licence.
+
+You may obtain a copy of the Licence at:
+https://joinup.ec.europa.eu/software/page/eupl
 """
 
 import argparse
 import csv
-from collections import Counter
-from datetime import datetime, timedelta, timezone
-import deims
+import time
+import warnings
+from collections import (
+    Counter,
+)
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)
 from pathlib import Path
+
+import deims
 import pandas as pd
 import pyproj
 import rasterio
 import requests
-import time
-import warnings
 
 # from dotenv import dotenv_values
 
@@ -62,18 +78,30 @@ def replace_substrings(
     """
 
     # Nested functions for either replacing substring at end or everywhere
-    def replace_substring_at_end(original_string, substring_to_replace):
+    def replace_substring_at_end(
+        original_string,
+        substring_to_replace,
+    ):
         return (
             original_string[: -len(substring_to_replace)] + replacement_string
             if original_string.endswith(substring_to_replace)
             else original_string
         )
 
-    def replace_substring(original_string, substring_to_replace):
-        return original_string.replace(substring_to_replace, replacement_string)
+    def replace_substring(
+        original_string,
+        substring_to_replace,
+    ):
+        return original_string.replace(
+            substring_to_replace,
+            replacement_string,
+        )
 
     # Convert single strings to lists for unified handling
-    if isinstance(substrings_to_replace, str):
+    if isinstance(
+        substrings_to_replace,
+        str,
+    ):
         substrings_to_replace = [substrings_to_replace]
 
     if isinstance(input_data, str):
@@ -85,12 +113,21 @@ def replace_substrings(
         for original_string in input_data:
             modified_string = original_string
 
-            if isinstance(modified_string, str):
+            if isinstance(
+                modified_string,
+                str,
+            ):
                 for substring in substrings_to_replace:
                     modified_string = (
-                        replace_substring_at_end(modified_string, substring)
+                        replace_substring_at_end(
+                            modified_string,
+                            substring,
+                        )
                         if at_end
-                        else replace_substring(modified_string, substring)
+                        else replace_substring(
+                            modified_string,
+                            substring,
+                        )
                     )
             elif warning_no_string:
                 warnings.warn(
@@ -136,12 +173,19 @@ def get_row_values(key, values):
     if isinstance(values, dict):
         row_values = [key] + list(values.values())
     else:
-        row_values = [key, values]
+        row_values = [
+            key,
+            values,
+        ]
 
     return row_values
 
 
-def dict_to_file(dict_to_write, column_names, file_name):
+def dict_to_file(
+    dict_to_write,
+    column_names,
+    file_name,
+):
     """
     Write a dictionary to a text file (tab-separated) or csv file (;-separated) or an Excel file.
 
@@ -154,33 +198,72 @@ def dict_to_file(dict_to_write, column_names, file_name):
     file_suffix = file_path.suffix.lower()
 
     # Create data directory if missing
-    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
+    Path(file_name).parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-    if file_suffix in [".txt", ".csv"]:
-        with open(file_path, "w", newline="", encoding="utf-8") as file:
+    if file_suffix in [
+        ".txt",
+        ".csv",
+    ]:
+        with open(
+            file_path,
+            "w",
+            newline="",
+            encoding="utf-8",
+        ) as file:
             writer = (
-                csv.writer(file, delimiter="\t")
+                csv.writer(
+                    file,
+                    delimiter="\t",
+                )
                 if file_suffix == ".txt"
-                else csv.writer(file, delimiter=";")
+                else csv.writer(
+                    file,
+                    delimiter=";",
+                )
             )
             header = column_names
             writer.writerow(header)  # Header row
 
-            for key, values in dict_to_write.items():
-                writer.writerow(get_row_values(key, values))
+            for (
+                key,
+                values,
+            ) in dict_to_write.items():
+                writer.writerow(
+                    get_row_values(
+                        key,
+                        values,
+                    )
+                )
     elif file_suffix == ".xlsx":
         df = pd.DataFrame(columns=column_names)
 
-        for key, values in dict_to_write.items():
+        for (
+            key,
+            values,
+        ) in dict_to_write.items():
             df = pd.concat(
                 [
                     df,
-                    pd.DataFrame([get_row_values(key, values)], columns=column_names),
+                    pd.DataFrame(
+                        [
+                            get_row_values(
+                                key,
+                                values,
+                            )
+                        ],
+                        columns=column_names,
+                    ),
                 ],
                 ignore_index=True,
             )
 
-        df.to_excel(file_path, index=False)
+        df.to_excel(
+            file_path,
+            index=False,
+        )
     else:
         print(
             "Error: Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
@@ -189,7 +272,11 @@ def dict_to_file(dict_to_write, column_names, file_name):
     print(f"Dictionary written to file '{file_name}'.")
 
 
-def list_to_file(list_to_write, column_names, file_name):
+def list_to_file(
+    list_to_write,
+    column_names,
+    file_name,
+):
     """
     Write a list of tuples to a text file (tab-separated) or csv file (;-separated) or an Excel file.
 
@@ -221,14 +308,31 @@ def list_to_file(list_to_write, column_names, file_name):
     file_suffix = file_path.suffix.lower()
 
     # Create data directory if missing
-    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
+    Path(file_name).parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-    if file_suffix in [".txt", ".csv"]:
-        with open(file_path, "w", newline="", encoding="utf-8") as file:
+    if file_suffix in [
+        ".txt",
+        ".csv",
+    ]:
+        with open(
+            file_path,
+            "w",
+            newline="",
+            encoding="utf-8",
+        ) as file:
             writer = (
-                csv.writer(file, delimiter="\t")
+                csv.writer(
+                    file,
+                    delimiter="\t",
+                )
                 if file_suffix == ".txt"
-                else csv.writer(file, delimiter=";")
+                else csv.writer(
+                    file,
+                    delimiter=";",
+                )
             )
             header = column_names
             writer.writerow(header)  # Header row
@@ -236,8 +340,14 @@ def list_to_file(list_to_write, column_names, file_name):
             for entry in list_to_write:
                 writer.writerow(entry)
     elif file_suffix == ".xlsx":
-        df = pd.DataFrame(list_to_write, columns=column_names)
-        df.to_excel(file_path, index=False)
+        df = pd.DataFrame(
+            list_to_write,
+            columns=column_names,
+        )
+        df.to_excel(
+            file_path,
+            index=False,
+        )
     else:
         raise ValueError(
             "Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
@@ -247,7 +357,10 @@ def list_to_file(list_to_write, column_names, file_name):
 
 
 def add_to_dict(
-    dict_prev, dict_to_add, value_name_prev="info1", value_name_add="info2"
+    dict_prev,
+    dict_to_add,
+    value_name_prev="info1",
+    value_name_add="info2",
 ):
     """
     Add values from a dictionary to an existing dictionary under a specified key.
@@ -277,7 +390,10 @@ def add_to_dict(
         dict_added = {key: {value_name_prev: value} for key, value in dict_prev.items()}
 
     # Add new values to each key
-    for key, value in dict_to_add.items():
+    for (
+        key,
+        value,
+    ) in dict_to_add.items():
         dict_added[key][value_name_add] = value
 
     return dict_added
@@ -304,14 +420,27 @@ def add_to_list(list_prev, list_to_add):
         raise ValueError("Both lists must be lists of tuples with at least two values.")
 
     # Check if first columns are the same
-    if any(prev[0] != to_add[0] for prev, to_add in zip(list_prev, list_to_add)):
+    if any(
+        prev[0] != to_add[0]
+        for prev, to_add in zip(
+            list_prev,
+            list_to_add,
+        )
+    ):
         raise ValueError(
             "First columns in previous list and list to add must be the same."
         )
 
     # Add values from second list to the tuples of the first list
     list_added = [
-        (*prev[0:], *to_add[1:]) for prev, to_add in zip(list_prev, list_to_add)
+        (
+            *prev[0:],
+            *to_add[1:],
+        )
+        for prev, to_add in zip(
+            list_prev,
+            list_to_add,
+        )
     ]
 
     return list_added
@@ -349,14 +478,33 @@ def add_info_to_list(list_to_lookup, info_dict):
 
     for entry in list_to_lookup:
         if isinstance(entry, tuple):
-            info_list.append(entry + (lookup_info_in_dict(entry[0], info_dict),))
+            info_list.append(
+                entry
+                + (
+                    lookup_info_in_dict(
+                        entry[0],
+                        info_dict,
+                    ),
+                )
+            )
         else:
-            info_list.append((entry, lookup_info_in_dict(entry, info_dict)))
+            info_list.append(
+                (
+                    entry,
+                    lookup_info_in_dict(
+                        entry,
+                        info_dict,
+                    ),
+                )
+            )
 
     return info_list
 
 
-def add_infos_to_list(list_to_lookup, *info_dicts):
+def add_infos_to_list(
+    list_to_lookup,
+    *info_dicts,
+):
     """
     Extend a list with information looked up from multiple dictionaries.
 
@@ -368,7 +516,10 @@ def add_infos_to_list(list_to_lookup, *info_dicts):
         list: List of tuples (original entries with infos looked up added at end).
     """
     for info_dict in info_dicts:
-        list_to_lookup = add_info_to_list(list_to_lookup, info_dict)
+        list_to_lookup = add_info_to_list(
+            list_to_lookup,
+            info_dict,
+        )
 
     return list_to_lookup
 
@@ -384,7 +535,10 @@ def reduce_dict_to_single_info(info_lookup, info_name):
     Returns:
         dict: Updated dictionary where each value is replaced with the specified information.
     """
-    for key, value in info_lookup.items():
+    for (
+        key,
+        value,
+    ) in info_lookup.items():
         if isinstance(value, dict):
             try:
                 info_lookup[key] = value[info_name]
@@ -414,7 +568,9 @@ def get_package_root():
     raise FileNotFoundError("Could not find package root.")
 
 
-def get_deims_coordinates(deims_id):
+def get_deims_coordinates(
+    deims_id,
+):
     """
     Get coordinates for a DEIMS.iD.
 
@@ -425,7 +581,10 @@ def get_deims_coordinates(deims_id):
         dict: Coordinates as a dictionary with 'lat' and 'lon'.
     """
     try:
-        deims_gdf = deims.getSiteCoordinates(deims_id, filename=None)
+        deims_gdf = deims.getSiteCoordinates(
+            deims_id,
+            filename=None,
+        )
         # deims_gdf = deims.getSiteBoundaries(deims_id, filename=None)  # option: collect all coordinates from deims_gdf.boundary[0] ...
 
         lon = deims_gdf.geometry[0].x
@@ -444,10 +603,17 @@ def get_deims_coordinates(deims_id):
     except Exception as e:
         print(f"Error: Coordinates for DEIMS.id '{deims_id}' not found ({e})!")
 
-        return {"deims_id": deims_id, "found": False}
+        return {
+            "deims_id": deims_id,
+            "found": False,
+        }
 
 
-def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
+def get_deims_ids_from_xls(
+    xls_file,
+    header_row,
+    country="ALL",
+):
     """
     Extract DEIMS IDs from an Excel file and return as a list of dictionaries.
 
@@ -463,7 +629,10 @@ def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
         raise FileNotFoundError(f"File '{xls_file}' not found.")
 
     # Load Excel file into a DataFrame
-    df = pd.read_excel(xls_file, header=header_row)
+    df = pd.read_excel(
+        xls_file,
+        header=header_row,
+    )
 
     # Filter by country code
     if not country == "ALL":
@@ -479,7 +648,12 @@ def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
     return [{"deims_id": deims_id} for deims_id in df["DEIMS.ID"].tolist()]
 
 
-def get_plot_locations_from_csv(csv_file, header_row=0, sep=";", deims_id=None):
+def get_plot_locations_from_csv(
+    csv_file,
+    header_row=0,
+    sep=";",
+    deims_id=None,
+):
     """
     Extract DEIMS IDs from a CSV file and return as a list of dictionaries.
 
@@ -495,7 +669,12 @@ def get_plot_locations_from_csv(csv_file, header_row=0, sep=";", deims_id=None):
         raise FileNotFoundError(f"File '{csv_file}' not found.")
 
     # Load CSV file into a DataFrame
-    df = pd.read_csv(csv_file, header=header_row, encoding="ISO-8859-1", sep=sep)
+    df = pd.read_csv(
+        csv_file,
+        header=header_row,
+        encoding="ISO-8859-1",
+        sep=sep,
+    )
 
     if df.empty:
         warnings.warn(
@@ -514,7 +693,10 @@ def get_plot_locations_from_csv(csv_file, header_row=0, sep=";", deims_id=None):
         ]  # or leave out site code and station code?
 
         # Extract all entries from station file
-        for _, row in df.iterrows():
+        for (
+            _,
+            row,
+        ) in df.iterrows():
             entries_raw = {col.lower(): row[col] for col in df.columns}
 
             for item in entries_required:
@@ -526,7 +708,10 @@ def get_plot_locations_from_csv(csv_file, header_row=0, sep=";", deims_id=None):
 
             # Use only items needed, could be extended, e.g. using also altitude
             location_entries = {
-                "coordinates": {"lat": entries_raw["lat"], "lon": entries_raw["lon"]},
+                "coordinates": {
+                    "lat": entries_raw["lat"],
+                    "lon": entries_raw["lon"],
+                },
                 "site_code": entries_raw["site_code"],
                 "station_code": entries_raw["station_code"],
             }
@@ -538,7 +723,9 @@ def get_plot_locations_from_csv(csv_file, header_row=0, sep=";", deims_id=None):
         return location_dicts
 
 
-def parse_locations(locations_str):
+def parse_locations(
+    locations_str,
+):
     """
     Parse a string of locations (separated by semicolons) into a list of dictionaries.
 
@@ -556,21 +743,37 @@ def parse_locations(locations_str):
     for item in locations_str.split(";"):
         if "," in item:
             try:
-                lat, lon = map(float, item.split(","))
+                lat, lon = map(
+                    float,
+                    item.split(","),
+                )
                 locations.append(
-                    {"coordinates": {"lat": lat, "lon": lon}, "deims_id": None}
+                    {
+                        "coordinates": {
+                            "lat": lat,
+                            "lon": lon,
+                        },
+                        "deims_id": None,
+                    }
                 )
             except ValueError:
                 raise argparse.ArgumentTypeError(
                     f"Invalid coordinate input: {item}. Expected format is 'lat,lon'."
                 )
         else:
-            locations.append({"coordinates": None, "deims_id": item})
+            locations.append(
+                {
+                    "coordinates": None,
+                    "deims_id": item,
+                }
+            )
 
     return locations
 
 
-def get_unique_keys(list_of_dicts):
+def get_unique_keys(
+    list_of_dicts,
+):
     """
     Get the unique keys from a list of dictionaries.
 
@@ -607,7 +810,11 @@ def reproject_coordinates(lat, lon, target_crs):
 
     # Create a transformer to convert from source CRS to target CRS
     # (always_xy: use lon/lat for source CRS and east/north for target CRS)
-    transformer = pyproj.Transformer.from_crs(src_crs, target_crs, always_xy=True)
+    transformer = pyproj.Transformer.from_crs(
+        src_crs,
+        target_crs,
+        always_xy=True,
+    )
 
     # Reproject coordinates (order is lon, lat!)
     east, north = transformer.transform(lon, lat)
@@ -615,7 +822,13 @@ def reproject_coordinates(lat, lon, target_crs):
     return east, north
 
 
-def extract_raster_value(tif_file, location, band_number=1, attempts=5, delay=2):
+def extract_raster_value(
+    tif_file,
+    location,
+    band_number=1,
+    attempts=5,
+    delay=2,
+):
     """
     Extract value from raster file at specified coordinates.
 
@@ -638,12 +851,27 @@ def extract_raster_value(tif_file, location, band_number=1, attempts=5, delay=2)
                 target_crs = src.crs.to_wkt()
 
                 # Reproject coordinates to target CRS
-                east, north = reproject_coordinates(
-                    location["lat"], location["lon"], target_crs
+                (
+                    east,
+                    north,
+                ) = reproject_coordinates(
+                    location["lat"],
+                    location["lon"],
+                    target_crs,
                 )
 
                 # Extract value from specified band number at specified coordinates
-                value = next(src.sample([(east, north)], indexes=band_number))
+                value = next(
+                    src.sample(
+                        [
+                            (
+                                east,
+                                north,
+                            )
+                        ],
+                        indexes=band_number,
+                    )
+                )
 
             return value[0], time_stamp
         except rasterio.errors.RasterioIOError as e:
@@ -654,7 +882,10 @@ def extract_raster_value(tif_file, location, band_number=1, attempts=5, delay=2)
                 print(f"Retrying in {delay} seconds ...")
                 time.sleep(delay)
             else:
-                return None, time_stamp
+                return (
+                    None,
+                    time_stamp,
+                )
 
 
 def check_url(url, attempts=5, delay=2):
@@ -672,11 +903,18 @@ def check_url(url, attempts=5, delay=2):
     if not url:
         return None
 
-    retry_status_codes = {502, 503, 504}
+    retry_status_codes = {
+        502,
+        503,
+        504,
+    }
 
     while attempts > 0:
         try:
-            response = requests.head(url, allow_redirects=True)
+            response = requests.head(
+                url,
+                allow_redirects=True,
+            )
 
             if response.status_code == 200:
                 return response.url
@@ -696,7 +934,11 @@ def check_url(url, attempts=5, delay=2):
     return None
 
 
-def download_file_opendap(file_name, source_folder, target_folder):
+def download_file_opendap(
+    file_name,
+    source_folder,
+    target_folder,
+):
     """
     Download a file from OPeNDAP server 'grasslands-pdt'.
 
@@ -726,13 +968,20 @@ def download_file_opendap(file_name, source_folder, target_folder):
 
     # Specify target file, create directory if missing, save target file
     target_file = target_folder / file_name
-    Path(target_file).parent.mkdir(parents=True, exist_ok=True)
+    Path(target_file).parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     with open(target_file, "wb") as file:
         file.write(response.content)
 
 
-def day_of_year_to_date(year, day_of_year, leap_year_considered=True):
+def day_of_year_to_date(
+    year,
+    day_of_year,
+    leap_year_considered=True,
+):
     """
     Convert a day of a year to corresponding date.
 

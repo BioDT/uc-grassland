@@ -1,11 +1,21 @@
 """
 Module Name: prep_weather_data.py
-Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
-Date: November, 2023
-Description: Download weather data and prepare as needed for GRASSMIND input.
+Description: Download weather data and prepare as needed for grassland model input.
+
+Copyright (C) 2024
+- Thomas Banitz, Franziska Taubert, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
+- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
+
+Licensed under the EUPL, Version 1.2 or - as soon they will be approved
+by the European Commission - subsequent versions of the EUPL (the "Licence").
+You may not use this work except in compliance with the Licence.
+
+You may obtain a copy of the Licence at:
+https://joinup.ec.europa.eu/software/page/eupl
 """
 
 import argparse
+
 from copernicus import data_processing as dprc
 
 
@@ -17,7 +27,7 @@ def prep_weather_data(
     deims_id,
 ):
     """
-    Prepare weather data to be used as GRASSMIND input.
+    Prepare weather data to be used as grassland model input.
 
     Parameters:
         data_sets (list): List of data set names from which to download.
@@ -43,7 +53,7 @@ def prep_weather_data(
             # deims_id = "51d0598a-e9e1-4252-8850-60fc8f329aab"  # test Veronika
             # deims_id = "474916b5-8734-407f-9179-109083c031d8"  # Doode Bemde site, Belgium
 
-    # Final resolution as needed for GRASSMIND.
+    # Final resolution as needed for grassland model.
     final_resolution = "daily"
 
     dprc.data_processing(

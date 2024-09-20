@@ -1,75 +1,93 @@
 """
 Module Name: check_if_grassland.py
-Author: Thomas Banitz, Taimur Khan, Tuomas Rossi, Franziska Taubert, BioDT
-Date: October, 2023
 Description: Functions for checking if coordinates are grassland according to given TIF land cover map.
 
+Copyright (C) 2024
+- Thomas Banitz, Franziska Taubert, Taimur Haider Khan, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
+- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
 
-# Land cover maps and classifications used:
+Licensed under the EUPL, Version 1.2 or - as soon they will be approved
+by the European Commission - subsequent versions of the EUPL (the "Licence").
+You may not use this work except in compliance with the Licence.
 
-Eunis EEA habitat types (version 2012):
-https://eunis.eea.europa.eu/habitats-code-browser.jsp
-(Only for DEIMS Sites: Get all habitat types of a site, check if any of them is grassland.)
+You may obtain a copy of the Licence at:
+https://joinup.ec.europa.eu/software/page/eupl
 
-European Union's Copernicus Land Monitoring Service information (2020):
-High Resolution Layer (HRL) Grassland 2018 raster, Europe.
-https://doi.org/10.2909/60639d5b-9164-4135-ae93-fb4132bb6d83
-REST API
-https://sdi.eea.europa.eu/catalogue/copernicus/eng/catalog.search#/metadata/60639d5b-9164-4135-ae93-fb4132bb6d83
+Data sources:
+    # Land cover maps and classifications used:
 
-Pflugmacher, Dirk; Rabe, Andreas; Peters, Mathias; Hostert, Patrick (2018):
-Pan-European land cover map of 2015 based on Landsat and LUCAS data.
-PANGAEA, https://doi.org/10.1594/PANGAEA.896282
+    "EUR_eunis_habitat":
+    - Eunis EEA habitat types (version 2012):
+      https://eunis.eea.europa.eu/habitats-code-browser.jsp
+    - Only for DEIMS Sites: Get all habitat types of a site, check if any of them is grassland.
 
-Preidl, Sebastian; Lange, Maximilian; Doktor, Daniel (2020):
-Land cover classification map of Germany's agricultural area based on Sentinel-2A data from 2016.
-PANGAEA, https://doi.org/10.1594/PANGAEA.910837
+    "EUR_hrl_grassland":
+    - European Union's Copernicus Land Monitoring Service information (2020):
+      High Resolution Layer (HRL) Grassland 2018 raster, Europe.
+      https://doi.org/10.2909/60639d5b-9164-4135-ae93-fb4132bb6d83
+    - REST API:
+      https://sdi.eea.europa.eu/catalogue/copernicus/eng/catalog.search#/metadata/60639d5b-9164-4135-ae93-fb4132bb6d83
 
-Schwieder, Marcel; Tetteh, Gideon Okpoti; Blickensdörfer, Lukas; Gocht, Alexander; Erasmi, Stefan (2024):
-Agricultural land use (raster): National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and Landsat data (2017 to 2021)
-Zenodo, https://zenodo.org/records/10640528
+    "EUR_Pflugmacher":
+    - Pflugmacher, Dirk; Rabe, Andreas; Peters, Mathias; Hostert, Patrick (2018):
+      Pan-European land cover map of 2015 based on Landsat and LUCAS data.
+      PANGAEA, https://doi.org/10.1594/PANGAEA.896282
 
-German ATKIS digital landscape model 2015
-Bundesamt für Kartographie und Geodäsie, 2015.
-Digitales Basis-Landschaftsmodell (AAA-Modellierung).
-GeoBasis-DE. Geodaten der deutschen Landesvermessung.
-(derived via land use maps by Lange et al. (2022), https://data.mendeley.com/datasets/m9rrv26dvf/1)
+    "GER_Preidl":
+    - Preidl, Sebastian; Lange, Maximilian; Doktor, Daniel (2020):
+      Land cover classification map of Germany's agricultural area based on Sentinel-2A data from 2016.
+      PANGAEA, https://doi.org/10.1594/PANGAEA.910837
+
+    "GER_Schwieder":
+    - Schwieder, Marcel; Tetteh, Gideon Okpoti; Blickensdörfer, Lukas; Gocht, Alexander; Erasmi, Stefan (2024):
+      Agricultural land use (raster): National-scale crop type maps for Germany from combined time series of
+      Sentinel-1, Sentinel-2 and Landsat data (2017 to 2021).
+      Zenodo, https://zenodo.org/records/10640528
+
+    "GER_Lange":
+    - German ATKIS digital landscape model 2015
+      Bundesamt für Kartographie und Geodäsie, 2015.
+      Digitales Basis-Landschaftsmodell (AAA-Modellierung).
+      GeoBasis-DE. Geodaten der deutschen Landesvermessung.
+    - derived via land use maps by Lange et al. (2022), https://data.mendeley.com/datasets/m9rrv26dvf/1
 
 
-# Further candidate maps, not implemented (yet):
+    # Further candidate maps, not implemented (yet):
 
-ESA WorldCover 10 m 2021 v200
-https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v100#citations
-https://zenodo.org/records/7254221
+    ESA WorldCover 10 m 2021 v200:
+    - https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v100#citations
+    - https://zenodo.org/records/7254221
 
-CORINE Land Cover 2018 (vector/raster 100 m), Europe
-https://gdz.bkg.bund.de/index.php/default/digitale-geodaten/digitale-landschaftsmodelle/corine-land-cover-5-ha-stand-2018-clc5-2018.html
-https://land.copernicus.eu/en/products/corine-land-cover
-REST API
-https://image.discomap.eea.europa.eu/arcgis/rest/services/Corine/CLC2018_WM/MapServer
+    CORINE Land Cover 2018 (vector/raster 100 m), Europe
+    - https://gdz.bkg.bund.de/index.php/default/digitale-geodaten/digitale-landschaftsmodelle/corine-land-cover-5-ha-stand-2018-clc5-2018.html
+    - https://land.copernicus.eu/en/products/corine-land-cover
+    - REST API:
+      https://image.discomap.eea.europa.eu/arcgis/rest/services/Corine/CLC2018_WM/MapServer
 
 
-# Predecessors of Schwieder 2024, not implemented:
+    # Predecessors of Schwieder 2024, not implemented:
 
-Griffiths, Patrick; Nendel, Claas; Hostert, Patrick (2018):
-National-scale crop- and land-cover map of Germany (2016) based on imagery acquired by Sentinel-2A MSI and Landsat-8 OLI.
-PANGAEA, https://doi.pangaea.de/10.1594/PANGAEA.893195
+    "GER_Griffiths":
+    - Griffiths, Patrick; Nendel, Claas; Hostert, Patrick (2018):
+      National-scale crop- and land-cover map of Germany (2016) based on imagery acquired by Sentinel-2A MSI and Landsat-8 OLI.
+      PANGAEA, https://doi.pangaea.de/10.1594/PANGAEA.893195
 
-Blickensdörfer, Lukas; Schwieder, Marcel; Pflugmacher, Dirk; Nendel, Claas; Erasmi, Stefan; Hostert, Patrick (2021):
-National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and Landsat 8 data (2017, 2018 and 2019).
-Zenodo, https://zenodo.org/records/5153047)
-
+    "GER_Blickensdörfer":
+    - Blickensdörfer, Lukas; Schwieder, Marcel; Pflugmacher, Dirk; Nendel, Claas; Erasmi, Stefan; Hostert, Patrick (2021):
+      National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and Landsat 8 data (2017, 2018 and 2019).
+      Zenodo, https://zenodo.org/records/5153047)
 """
 
 import argparse
 import copy
+import warnings
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
+
 import deims
 import pandas as pd
 import requests
 import utils as ut
-import warnings
-import xml.etree.ElementTree as ET
 
 
 def get_map_specs(map_key):
@@ -319,10 +337,11 @@ def get_category_deims(location):
                 .get("environmentalCharacteristics", {})
                 .get("eunisHabitat")
             )
-        except:
+        except Exception as e:
             print(
                 f"Error: Access failed to DEIMS site record ('https://deims.org/api/sites/{location["deims_id"]}')."
             )
+            print(f" Exception: {str(e)}.")
 
         if "eunis_habitats" in locals() and isinstance(eunis_habitats, list):
             for item in eunis_habitats:

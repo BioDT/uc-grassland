@@ -2,44 +2,57 @@
 Module Name: prep_management_data.py
 Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
 Date: April, 2024
-Description: Download management data and prepare as needed for GRASSMIND input.
+Description: Download management data and prepare as needed for grassland model input.
 
-Management data source 'GER_Lange' map:
-    Lange, Maximilian; Feilhauer, Hannes; Kühn, Ingolf; Doktor, Daniel (2022):
-    Mapping land-use intensity of grasslands in Germany with machine learning and Sentinel-2 time series,
-    Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2022.112888
+Copyright (C) 2024
+- Thomas Banitz, Franziska Taubert, Taimur Haider Khan, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
+- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
 
-    Based on grassland classifaction according to:
-        German ATKIS digital landscape model 2015.
+Licensed under the EUPL, Version 1.2 or - as soon they will be approved
+by the European Commission - subsequent versions of the EUPL (the "Licence").
+You may not use this work except in compliance with the Licence.
 
-Management data source 'GER_Schwieder' map:
-    Schwieder, Marcel; Wesemeyer, Maximilian; Frantz, David; Pfoch, Kira; Erasmi, Stefan; Pickert, Jürgen;
-    Nendel, Claas; Hostert, Patrick (2022):
-    Mapping grassland mowing events across Germany based on combined Sentinel-2 and Landsat 8 time series,
-    Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2021.112795
+You may obtain a copy of the Licence at:
+https://joinup.ec.europa.eu/software/page/eupl
 
-    Based on grassland classification according to:
-        Blickensdörfer, Lukas; Schwieder, Marcel; Pflugmacher, Dirk; Nendel, Claas; Erasmi, Stefan;
-        Hostert, Patrick (2021):
-        National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and
-        Landsat 8 data (2017, 2018 and 2019), https://zenodo.org/records/5153047.
+Data sources:
+    Management data source 'GER_Lange' map:
+        Lange, Maximilian; Feilhauer, Hannes; Kühn, Ingolf; Doktor, Daniel (2022):
+        Mapping land-use intensity of grasslands in Germany with machine learning and Sentinel-2 time series,
+        Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2022.112888
 
-Mowing default dates according to:
-    Filipiak, Matthias; Gabriel, Doreen; Kuka, Katrin (2022):
-    Simulation-based assessment of the soil organic carbon sequestration in grasslands in relation to
-    management and climate change scenarios, https://doi.org/10.1016/j.heliyon.2023.e17287
+        Based on grassland classifaction according to:
+            German ATKIS digital landscape model 2015.
 
-    See also:
-        Schmid, Julia (2022):
-        Modeling species-rich ecosystems to understand community dynamics and structures emerging from
-        individual plant interactions, PhD thesis, Chapter 4, Table C.7, https://doi.org/10.48693/160
+    Management data source 'GER_Schwieder' map:
+        Schwieder, Marcel; Wesemeyer, Maximilian; Frantz, David; Pfoch, Kira; Erasmi, Stefan; Pickert, Jürgen;
+        Nendel, Claas; Hostert, Patrick (2022):
+        Mapping grassland mowing events across Germany based on combined Sentinel-2 and Landsat 8 time series,
+        Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2021.112795
+
+        Based on grassland classification according to:
+            Blickensdörfer, Lukas; Schwieder, Marcel; Pflugmacher, Dirk; Nendel, Claas; Erasmi, Stefan;
+            Hostert, Patrick (2021):
+            National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and
+            Landsat 8 data (2017, 2018 and 2019), https://zenodo.org/records/5153047.
+
+    Mowing default dates according to:
+        Filipiak, Matthias; Gabriel, Doreen; Kuka, Katrin (2022):
+        Simulation-based assessment of the soil organic carbon sequestration in grasslands in relation to
+        management and climate change scenarios, https://doi.org/10.1016/j.heliyon.2023.e17287
+
+        See also:
+            Schmid, Julia (2022):
+            Modeling species-rich ecosystems to understand community dynamics and structures emerging from
+            individual plant interactions, PhD thesis, Chapter 4, Table C.7, https://doi.org/10.48693/160
 """
 
 import argparse
-import numpy as np
-from pathlib import Path
-import utils as ut
 import warnings
+from pathlib import Path
+
+import numpy as np
+import utils as ut
 
 
 def construct_management_data_file_name(folder, location, years, map_key, file_suffix):
@@ -524,7 +537,7 @@ def get_mow_events(year, mow_days, mow_height, leap_year_considered=True):
         leap_year_considered (bool): Whether leap year was already considered for mow_days (default is True).
 
     Returns:
-        list of list: list of mowing events in Grassmind management input data format,
+        list of list: list of mowing events in grassland model management input data format,
         one row for each mow_day, containing:
             column 0: date string in format YYYY-MM-DD
             column 1: value of mow_height
@@ -558,7 +571,7 @@ def get_mow_schedule(year, mow_count, mow_height):
         mow_height (float): Height of mowing (in meters).
 
     Returns:
-        numpy.ndarray: Array with mowing events in Grassmind management input data format,
+        numpy.ndarray: Array with mowing events in grassland model management input data format,
         mow_count rows, each row containing:
             column 0: date string in format YYYY-MM-DD
             column 1: value of mow_height
@@ -687,7 +700,7 @@ def get_fert_schedule(year, fert_count, fert_days=None):
         fert_days (list of int): List with day of year for each event (default is None).
 
     Returns:
-        numpy.ndarray: Array with fertilisation events in Grassmind management input data format,
+        numpy.ndarray: Array with fertilisation events in grassland model management input data format,
         fert_count rows, each row containing:
             column 0: date string in format YYYY-MM-DD
             column 1: value NaN (for no mowing at this management event)
@@ -788,7 +801,7 @@ def convert_management_data(
         mow_count_default (int): Number of annual events when using fill_mode 'default' for completing data (default is 2).
 
     Returns:
-        list of list: List of mowing events in Grassmind management input data format,
+        list of list: List of mowing events in grassland model management input data format,
         one row for each management event, containing:
             column 0: date string in format YYYY-MM-DD
             column 1: value of mowing height (if mowing event, otherwise 'NaN')
@@ -935,8 +948,8 @@ def convert_management_data(
     try:
         #     test_list = sorted(management_events, key=lambda x: x[0])
         management_events.sort(key=lambda x: x[0])
-    except:
-        print("Sorting failed.")
+    except TypeError:
+        print("Sorting failed due to incompatible data types.")
 
     return management_events
 
@@ -1037,7 +1050,7 @@ def prep_management_data(
     file_name=None,
 ):
     """
-    Prepare management data to be used as GRASSMIND input.
+    Prepare management data to be used as grassland model input.
 
     Parameters:
         map_key (str): Key to identify land use map ('GER_Lange' or 'GER_Schwieder').

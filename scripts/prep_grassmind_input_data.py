@@ -1,22 +1,29 @@
 """
-Module Name: prep_grassmind_input_data.py
+Module Name: prep_grassland_model_input_data.py
 Author: Thomas Banitz, Franziska Taubert, BioDT
 Date: August, 2024
-Description: Download all input data and prepare as needed for GRASSMIND simulations.
+Description: Download all input data and prepare as needed for grassland model simulations.
 
-Uses:   check_if_grassland.py
-        prep_weather_data.py
-        prep_soil_data.py
-        prep_management_data.py
+Copyright (C) 2024
+- Thomas Banitz, Franziska Taubert, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
+- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
+
+Licensed under the EUPL, Version 1.2 or - as soon they will be approved
+by the European Commission - subsequent versions of the EUPL (the "Licence").
+You may not use this work except in compliance with the Licence.
+
+You may obtain a copy of the Licence at:
+https://joinup.ec.europa.eu/software/page/eupl
 """
 
 import argparse
-import check_if_grassland
+import warnings
 from pathlib import Path
+
+import check_if_grassland
 import prep_management_data
 import prep_soil_data
 import utils as ut
-import warnings
 
 
 def data_processing(location, years):
@@ -113,7 +120,7 @@ def data_processing(location, years):
         )
 
 
-def prep_grassmind_input_data(locations, first_year, last_year):
+def prep_grassland_model_input_data(locations, first_year, last_year):
     """ """
     first_year = int(first_year)
     last_year = int(last_year)
@@ -179,7 +186,7 @@ def main():
         help="Last year for which to generate input data.",
     )
     args = parser.parse_args()
-    prep_grassmind_input_data(
+    prep_grassland_model_input_data(
         locations=args.locations,
         first_year=args.first_year,
         last_year=args.last_year,
