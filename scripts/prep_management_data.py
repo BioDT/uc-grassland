@@ -17,7 +17,7 @@ https://joinup.ec.europa.eu/software/page/eupl
 
 Data sources:
     Management data source 'GER_Lange' map:
-        Lange, Maximilian; Feilhauer, Hannes; Kühn, Ingolf; Doktor, Daniel (2022):
+        Lange, M., Feilhauer, H., Kühn, I., Doktor, D. (2022).
         Mapping land-use intensity of grasslands in Germany with machine learning and Sentinel-2 time series,
         Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2022.112888
 
@@ -25,24 +25,22 @@ Data sources:
             German ATKIS digital landscape model 2015.
 
     Management data source 'GER_Schwieder' map:
-        Schwieder, Marcel; Wesemeyer, Maximilian; Frantz, David; Pfoch, Kira; Erasmi, Stefan; Pickert, Jürgen;
-        Nendel, Claas; Hostert, Patrick (2022):
+        Schwieder, M., Wesemeyer, M., Frantz, D., Pfoch, K., Erasmi, S., Pickert, J., Nendel, C., Hostert, P. (2022).
         Mapping grassland mowing events across Germany based on combined Sentinel-2 and Landsat 8 time series,
         Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2021.112795
 
         Based on grassland classification according to:
-            Blickensdörfer, Lukas; Schwieder, Marcel; Pflugmacher, Dirk; Nendel, Claas; Erasmi, Stefan;
-            Hostert, Patrick (2021):
+            Blickensdörfer, L., Schwieder, M., Pflugmacher, D., Nendel, C., Erasmi, S., Hostert, P. (2021).
             National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and
             Landsat 8 data (2017, 2018 and 2019), https://zenodo.org/records/5153047.
 
     Mowing default dates according to:
-        Filipiak, Matthias; Gabriel, Doreen; Kuka, Katrin (2022):
+        Filipiak, M., Gabriel, D., Kuka, K. (2022).
         Simulation-based assessment of the soil organic carbon sequestration in grasslands in relation to
         management and climate change scenarios, https://doi.org/10.1016/j.heliyon.2023.e17287
 
         See also:
-            Schmid, Julia (2022):
+            Schmid, J. (2022).
             Modeling species-rich ecosystems to understand community dynamics and structures emerging from
             individual plant interactions, PhD thesis, Chapter 4, Table C.7, https://doi.org/10.48693/160
 """
@@ -347,8 +345,7 @@ def get_management_map_file(
 
 def get_GER_Lange_data(coordinates, map_properties, years):
     """
-    Read management data for given coordinates from GER_Lange map for respective year and return as array.
-
+    Read management data for given coordinates from 'GER_Lange' map for respective year and return as array.
     Only works for locations classified as grassland according to German ATKIS digital landscape model 2015.
 
     Properties:
@@ -440,17 +437,11 @@ def get_GER_Lange_data(coordinates, map_properties, years):
 
 def get_GER_Schwieder_data(coordinates, map_properties, years):
     """
-    Read mowing data for given coordinates from GER_Schwieder map for respective year and return as array.
-        Schwieder, Marcel; Wesemeyer, Maximilian; Frantz, David; Pfoch, Kira; Erasmi, Stefan; Pickert, Jürgen;
-        Nendel, Claas; Hostert, Patrick (2022):
-        Mapping grassland mowing events across Germany based on combined Sentinel-2 and Landsat 8 time series,
-        Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2021.112795
+    Read mowing data for given coordinates from 'GER_Schwieder' map for respective year and return as array.
+    Only works for locations classified as (permanent) grassland in 2017, 2018 and 2019 according to Blickensdörfer et al. (2021).
 
-        Only works for locations classified as (permanent) grassland in 2017, 2018 and 2019 according to
-        Blickensdörfer et al. (2021), https://zenodo.org/records/5153047.
-
-        Properties:
-            Mowing: number of moving events (max. 6) and their dates (day of year).
+    Properties:
+        Mowing: number of moving events (max. 6) and their dates (day of year).
 
     Parameters:
         coordinates (tuple): Coordinates ('lat', 'lon') to extract management data.

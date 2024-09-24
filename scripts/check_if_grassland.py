@@ -17,29 +17,29 @@ Data sources:
     # Land cover maps and classifications used:
 
     "EUR_eunis_habitat":
-    - Eunis EEA habitat types (version 2012):
+    - Eunis EEA habitat types (version 2012).
       https://eunis.eea.europa.eu/habitats-code-browser.jsp
     - Only for DEIMS Sites: Get all habitat types of a site, check if any of them is grassland.
 
     "EUR_hrl_grassland":
-    - European Union's Copernicus Land Monitoring Service information (2020):
+    - European Union's Copernicus Land Monitoring Service information (2020).
       High Resolution Layer (HRL) Grassland 2018 raster, Europe.
       https://doi.org/10.2909/60639d5b-9164-4135-ae93-fb4132bb6d83
     - REST API:
       https://sdi.eea.europa.eu/catalogue/copernicus/eng/catalog.search#/metadata/60639d5b-9164-4135-ae93-fb4132bb6d83
 
     "EUR_Pflugmacher":
-    - Pflugmacher, Dirk; Rabe, Andreas; Peters, Mathias; Hostert, Patrick (2018):
+    - Pflugmacher, D., Rabe, A., Peters, M., Hostert, P. (2018).
       Pan-European land cover map of 2015 based on Landsat and LUCAS data.
       PANGAEA, https://doi.org/10.1594/PANGAEA.896282
 
     "GER_Preidl":
-    - Preidl, Sebastian; Lange, Maximilian; Doktor, Daniel (2020):
+    - Preidl, S., Lange, M., Doktor, Daniel (2020).
       Land cover classification map of Germany's agricultural area based on Sentinel-2A data from 2016.
       PANGAEA, https://doi.org/10.1594/PANGAEA.910837
 
     "GER_Schwieder":
-    - Schwieder, Marcel; Tetteh, Gideon Okpoti; Blickensdörfer, Lukas; Gocht, Alexander; Erasmi, Stefan (2024):
+    - Schwieder, M., Tetteh, G.O., Blickensdörfer, L., Gocht, A., Erasmi, S. (2024).
       Agricultural land use (raster): National-scale crop type maps for Germany from combined time series of
       Sentinel-1, Sentinel-2 and Landsat data (2017 to 2021).
       Zenodo, https://zenodo.org/records/10640528
@@ -68,12 +68,12 @@ Data sources:
     # Predecessors of Schwieder 2024, not implemented:
 
     "GER_Griffiths":
-    - Griffiths, Patrick; Nendel, Claas; Hostert, Patrick (2018):
+    - Griffiths, P., Nendel, C., Hostert, P. (2018).
       National-scale crop- and land-cover map of Germany (2016) based on imagery acquired by Sentinel-2A MSI and Landsat-8 OLI.
       PANGAEA, https://doi.pangaea.de/10.1594/PANGAEA.893195
 
     "GER_Blickensdörfer":
-    - Blickensdörfer, Lukas; Schwieder, Marcel; Pflugmacher, Dirk; Nendel, Claas; Erasmi, Stefan; Hostert, Patrick (2021):
+    - Blickensdörfer, L., Schwieder, M., Pflugmacher, D., Nendel, C., Erasmi, S., Hostert, P. (2021).
       National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and Landsat 8 data (2017, 2018 and 2019).
       Zenodo, https://zenodo.org/records/5153047)
 """
