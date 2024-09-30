@@ -12,6 +12,12 @@ You may not use this work except in compliance with the Licence.
 
 You may obtain a copy of the Licence at:
 https://joinup.ec.europa.eu/software/page/eupl
+
+This project has received funding from the European Union's Horizon Europe Research and Innovation
+Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
+The authors acknowledge the EuroHPC Joint Undertaking and CSC – IT Center for Science Ltd., Finland
+for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC – IT Center for
+Science Ltd., Finlande and the LUMI consortium through a EuroHPC Development Access call.
 """
 
 import argparse
@@ -272,16 +278,12 @@ def dict_to_file(
     print(f"Dictionary written to file '{file_name}'.")
 
 
-def list_to_file(
-    list_to_write,
-    column_names,
-    file_name,
-):
+def list_to_file(list_to_write, column_names, file_name):
     """
     Write a list of tuples to a text file (tab-separated) or csv file (;-separated) or an Excel file.
 
     Parameters:
-        list_to_write (list): List of strings or tuples or dictionaries to be written to file.
+        list_to_write (list): List of strings or tuples or dictionaries to be written to the file.
         column_names (list): List of column names (strings).
         file_name (str or Path): Path of output file (suffix determines file type).
     """
@@ -308,31 +310,14 @@ def list_to_file(
     file_suffix = file_path.suffix.lower()
 
     # Create data directory if missing
-    Path(file_name).parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
-    if file_suffix in [
-        ".txt",
-        ".csv",
-    ]:
-        with open(
-            file_path,
-            "w",
-            newline="",
-            encoding="utf-8",
-        ) as file:
+    if file_suffix in [".txt", ".csv"]:
+        with open(file_path, "w", newline="", encoding="utf-8") as file:
             writer = (
-                csv.writer(
-                    file,
-                    delimiter="\t",
-                )
+                csv.writer(file, delimiter="\t")
                 if file_suffix == ".txt"
-                else csv.writer(
-                    file,
-                    delimiter=";",
-                )
+                else csv.writer(file, delimiter=";")
             )
             header = column_names
             writer.writerow(header)  # Header row
@@ -340,14 +325,8 @@ def list_to_file(
             for entry in list_to_write:
                 writer.writerow(entry)
     elif file_suffix == ".xlsx":
-        df = pd.DataFrame(
-            list_to_write,
-            columns=column_names,
-        )
-        df.to_excel(
-            file_path,
-            index=False,
-        )
+        df = pd.DataFrame(list_to_write, columns=column_names)
+        df.to_excel(file_path, index=False)
     else:
         raise ValueError(
             "Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
@@ -578,7 +557,12 @@ def get_deims_coordinates(
         deims_id (str): DEIMS.iD.
 
     Returns:
-        dict: Coordinates as a dictionary with 'lat' and 'lon'.
+        dict: Location dictionary with keys:
+            'deims_id': DEIMS.iD as provided (str).
+            'found': Flag whether coordinates were found (bool).
+            'lat': Site latitude (float), if found.
+            'lon': Site longitude (float), if found.
+            'name': Site name (str), if found.
     """
     try:
         deims_gdf = deims.getSiteCoordinates(
@@ -645,7 +629,7 @@ def get_deims_ids_from_xls(
             )
 
     # Extract column containing list of DEIMS.iDs and return as list of dicts
-    return [{"deims_id": deims_id} for deims_id in df["DEIMS.ID"].tolist()]
+    return df["DEIMS.ID"].tolist()
 
 
 def get_plot_locations_from_csv(

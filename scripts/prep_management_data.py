@@ -15,6 +15,12 @@ You may not use this work except in compliance with the Licence.
 You may obtain a copy of the Licence at:
 https://joinup.ec.europa.eu/software/page/eupl
 
+This project has received funding from the European Union's Horizon Europe Research and Innovation
+Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
+The authors acknowledge the EuroHPC Joint Undertaking and CSC – IT Center for Science Ltd., Finland
+for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC – IT Center for
+Science Ltd., Finlande and the LUMI consortium through a EuroHPC Development Access call.
+
 Data sources:
     Management data source 'GER_Lange' map:
         Lange, M., Feilhauer, H., Kühn, I., Doktor, D. (2022).
@@ -186,7 +192,7 @@ def management_data_to_txt_file(
         )
         ut.list_to_file(
             data_query_protocol,
-            ["management_data_source", "time_stamp"],
+            ["data_source", "time_stamp"],
             file_name,
         )
 
@@ -951,7 +957,7 @@ def data_processing(
     mow_height,
     years,
     coordinates,
-    deims_id,
+    *,
     file_name=None,
 ):
     """
@@ -963,18 +969,16 @@ def data_processing(
         mow_height (float): Height of mowing (in meters).
         years (list): List of years to process.
         coordinates (dict): Dictionary with 'lat' and 'lon' keys of location.
-        deims_id (str): Identifier of eLTER site.
         file_name (str or Path): File name to save final management data (default is None, default file name is used if not provided).
     """
-    if coordinates is None:
-        if deims_id:
-            coordinates = ut.get_deims_coordinates(deims_id)
-        else:
-            raise ValueError(
-                "No location defined. Please provide coordinates or DEIMS.iD!"
-            )
+    if "lat" in coordinates and "lon" in coordinates:
+        print(
+            f"Preparing management data for latitude: {coordinates['lat']}, longitude: {coordinates['lon']} ..."
+        )
     else:
-        print(f"Latitude: {coordinates['lat']}, Longitude: {coordinates['lon']}")
+        raise ValueError(
+            "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
+        )
 
     if map_key == "GER_Lange":
         map_properties = [
@@ -1037,7 +1041,8 @@ def prep_management_data(
     mow_height,
     years,
     coordinates,
-    deims_id,
+    *,
+    deims_id=None,
     file_name=None,
 ):
     """
@@ -1049,8 +1054,8 @@ def prep_management_data(
         mow_height (float): Height of mowing (in meters).
         years (list or None): List of years to process, or 'None' for default value.
         coordinates (dict): Coordinates dictionary with 'lat' and 'lon', or 'None' using DEIMS.iD.
-        deims_id (str or None): DEIMS.iD, or 'None' for default value.
-        file_name
+        deims_id (str): DEIMS.iD (default is None).
+        file_name (str or Path): File name to save management data (default is None, default file name is used if not provided).
     """
     if years is None:
         years = list(range(2013, 2024))  # list(range(2017, 2019))
@@ -1065,39 +1070,44 @@ def prep_management_data(
             mow_height,
             years,
             coordinates,
-            None,
             file_name,
         )
     elif deims_id:
-        data_processing(
-            map_key,
-            fill_missing_data,
-            mow_height,
-            years,
-            None,
-            deims_id,
-            file_name,
-        )
-    else:
-        # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
-        sites_file_name = (
-            ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-        )
-        locations = ut.get_deims_ids_from_xls(
-            sites_file_name, header_row=1, country="DE"
-        )
+        location = ut.get_deims_coordinates(deims_id)
 
-        # locations = [{"deims_id": "fd8b85c0-93ef-4a41-8706-3c4be9dec8e5"}]
-
-        for location in locations:
+        if location["found"]:
             data_processing(
                 map_key,
                 fill_missing_data,
                 mow_height,
                 years,
-                coordinates=None,
-                deims_id=location["deims_id"],
+                location,
+                file_name,
             )
+        else:
+            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found!")
+    else:
+        # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
+        sites_file_name = (
+            ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        )
+        sites_ids = ut.get_deims_ids_from_xls(
+            sites_file_name, header_row=1, country="DE"
+        )
+        sites_ids = "fd8b85c0-93ef-4a41-8706-3c4be9dec8e5"
+
+        for deims_id in sites_ids:
+            location = ut.get_deims_coordinates(deims_id)
+
+            if location["found"]:
+                data_processing(
+                    map_key,
+                    fill_missing_data,
+                    mow_height,
+                    years,
+                    location,
+                    file_name,
+                )
 
         # Example coordinates for checking without DEIMS.iDs
         locations = [
@@ -1125,7 +1135,6 @@ def prep_management_data(
                 mow_height,
                 years,
                 coordinates=location,
-                deims_id=None,
             )
 
 
