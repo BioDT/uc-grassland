@@ -17,7 +17,7 @@ This project has received funding from the European Union's Horizon Europe Resea
 Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
 The authors acknowledge the EuroHPC Joint Undertaking and CSC – IT Center for Science Ltd., Finland
 for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC – IT Center for
-Science Ltd., Finlande and the LUMI consortium through a EuroHPC Development Access call.
+Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
 """
 
 import argparse
@@ -719,10 +719,10 @@ def parse_locations(
 
     Returns:
         list: List of dictionaries.
-            Each dictionary contains either a 'coordinates' key with a dictionary {'lat': float, 'lon': float}
-            and 'deims_id' set to None, or a 'deims_id' key with a string value and 'coordinates' set to None.
+            Each dictionary contains either a 'lat' and 'lon' keys with float values, or a 'deims_id' key with a string value.
     """
     locations = []
+    print("Parsing locations from input string ...")
 
     for item in locations_str.split(";"):
         if "," in item:
@@ -731,26 +731,20 @@ def parse_locations(
                     float,
                     item.split(","),
                 )
-                locations.append(
-                    {
-                        "coordinates": {
-                            "lat": lat,
-                            "lon": lon,
-                        },
-                        "deims_id": None,
-                    }
-                )
+                locations.append({"lat": lat, "lon": lon})
+                print(f"Latitude: {lat}, Longitude: {lon}")
+
             except ValueError:
                 raise argparse.ArgumentTypeError(
                     f"Invalid coordinate input: {item}. Expected format is 'lat,lon'."
                 )
         else:
-            locations.append(
-                {
-                    "coordinates": None,
-                    "deims_id": item,
-                }
-            )
+            location = get_deims_coordinates(item)
+
+            if location["found"]:
+                locations.append(location)
+            else:
+                raise ValueError(f"Coordinates for DEIMS.id '{item}' not found!")
 
     return locations
 
@@ -827,7 +821,7 @@ def extract_raster_value(
         tuple: Extracted value (None if extraction failed), and time stamp.
     """
     while attempts > 0:
-        time_stamp = datetime.now(timezone.utc).isoformat()
+        time_stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
         try:
             with rasterio.open(tif_file) as src:

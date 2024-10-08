@@ -17,7 +17,7 @@ This project has received funding from the European Union's Horizon Europe Resea
 Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
 The authors acknowledge the EuroHPC Joint Undertaking and CSC – IT Center for Science Ltd., Finland
 for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC – IT Center for
-Science Ltd., Finlande and the LUMI consortium through a EuroHPC Development Access call.
+Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
 
 Data sources:
     # Land cover maps and classifications used:
@@ -333,7 +333,7 @@ def get_category_deims(location):
         tuple: List of categories as classified and time stamp, if found.
     """
     if "deims_id" in location:
-        time_stamp = datetime.now(timezone.utc).isoformat()
+        time_stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
         categories = []
 
         try:
@@ -394,7 +394,7 @@ def get_category_hrl_grassland(location):
     }
 
     # Send request
-    time_stamp = datetime.now(timezone.utc).isoformat()
+    time_stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
     response = requests.get(f"{url}/identify", params=params)
 
     # Check if the request was successful
@@ -609,8 +609,6 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
         for location in locations:
             if "deims_id" in location:
                 deims_location_info = ut.get_deims_coordinates(location["deims_id"])
-                # site_check["map_year"] = map_years[map_key]
-                # site_check["map_key"] = map_key
 
                 if deims_location_info["found"]:
                     site_check = deims_location_info
@@ -630,7 +628,6 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                         site_check["is_grass"] = site_check[
                             "is_grass"
                         ] or check_if_grassland(category, site_check, map_key)
-                        # site_check[("category" + "{:03d}".format(index + 1))] = category
                         site_check[f"category{index + 1:03d}"] = category
 
                     # Print check results

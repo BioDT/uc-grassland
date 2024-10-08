@@ -19,7 +19,7 @@ This project has received funding from the European Union's Horizon Europe Resea
 Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
 The authors acknowledge the EuroHPC Joint Undertaking and CSC – IT Center for Science Ltd., Finland
 for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC – IT Center for
-Science Ltd., Finlande and the LUMI consortium through a EuroHPC Development Access call.
+Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
 
 Data sources:
     Management data source 'GER_Lange' map:
@@ -1070,7 +1070,7 @@ def prep_management_data(
             mow_height,
             years,
             coordinates,
-            file_name,
+            file_name=file_name,
         )
     elif deims_id:
         location = ut.get_deims_coordinates(deims_id)
@@ -1082,7 +1082,7 @@ def prep_management_data(
                 mow_height,
                 years,
                 location,
-                file_name,
+                file_name=file_name,
             )
         else:
             raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found!")
@@ -1094,7 +1094,7 @@ def prep_management_data(
         sites_ids = ut.get_deims_ids_from_xls(
             sites_file_name, header_row=1, country="DE"
         )
-        sites_ids = "fd8b85c0-93ef-4a41-8706-3c4be9dec8e5"
+        sites_ids = ["fd8b85c0-93ef-4a41-8706-3c4be9dec8e5"]
 
         for deims_id in sites_ids:
             location = ut.get_deims_coordinates(deims_id)
