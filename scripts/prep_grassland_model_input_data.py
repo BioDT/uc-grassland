@@ -32,15 +32,25 @@ import utils as ut
 
 
 def data_processing(coordinates, years):
-    """ """
+    """
+    Process data to be used as grassland site information and model input:
+        checks if the location is grassland according to different land cover sources,
+        downloads and prepares weather data,
+        downloads and prepares soil data,
+        downloads and prepares management data.
+
+    Parameters:
+        coordinates (list of dict): List of dictionaries with 'lat' and 'lon' keys.
+        years (list of int): Years list.
+    """
     if "lat" in coordinates and "lon" in coordinates:
-        # init dialogue
+        # Init dialogue
         print(
             f"Preparing input data for latitude: {coordinates['lat']},",
             f"longitude: {coordinates['lon']} ...",
         )
 
-        # get location coordinates for file names and folder
+        # Get location coordinates for file names and folder
         formatted_lat = f"lat{coordinates['lat']:.6f}"
         formatted_lon = f"lon{coordinates['lon']:.6f}"
         file_start = f"{formatted_lat}_{formatted_lon}"
@@ -48,7 +58,7 @@ def data_processing(coordinates, years):
             ut.get_package_root() / "grasslandModelInputFiles" / file_start
         )
 
-        # check if grassland according to all available land cover maps
+        # Check if grassland according to all available land cover maps
         grassland_checks = []
         land_cover_map_keys = [
             "EUR_hrl_grassland",
@@ -79,22 +89,20 @@ def data_processing(coordinates, years):
             / f"{file_start}__grasslandCheck__allMaps.txt"
         )
         grassland_checks.sort(key=lambda x: x["map_year"])
-        check_if_grassland.check_results_to_file(grassland_checks, file_name)
+        check_if_grassland.check_results_to_file(grassland_checks, file_name=file_name)
 
-        # run weather script
+        # Run weather script
         target_folder = location_head_folder / "weather"
         prep_weather_data.prep_weather_data(
             coordinates, years, target_folder=target_folder
         )
 
-        # run soil script
+        # Run soil script
         file_name = location_head_folder / "soil" / f"{file_start}__2020__soil.txt"
         prep_soil_data.prep_soil_data(coordinates, file_name=file_name)
 
-        # run management script
+        # Run management script
         land_use_map_keys = ["GER_Lange", "GER_Schwieder"]
-        fill_missing_data = "mean"
-        mow_height = 0.05
 
         for map_key in land_use_map_keys:
             file_name = (
@@ -103,16 +111,10 @@ def data_processing(coordinates, years):
                 / f"{file_start}__{years[0]}-01-01_{years[-1]}-12-31__management__{map_key}.txt"
             )
             prep_management_data.prep_management_data(
-                map_key,
-                fill_missing_data,
-                mow_height,
-                years,
-                coordinates,
-                deims_id=None,
-                file_name=file_name,
+                coordinates, years, map_key, file_name=file_name
             )
 
-        # finish dialogue
+        # Finish dialogue
         print(
             f"Input data for latitude: {coordinates['lat']},",
             f"longitude: {coordinates['lon']} completed.",
@@ -128,15 +130,25 @@ def data_processing(coordinates, years):
 def prep_grassland_model_input_data(
     coordinates, first_year, last_year, *, deims_id=None
 ):
-    """ """
+    """
+    Prepare all necessary data to be used as grassland model input.
+
+    Parameters:
+        coordinates (dict): Coordinates dictionary with 'lat' and 'lon', or 'None' using DEIMS.iD.
+        first_year (int): First year of desired time period.
+        last_year (int): Last year of desired time period.
+        deims_id (str): DEIMS.iD (default is None).
+    """
     first_year = int(first_year)
     last_year = int(last_year)
-    years = list(range(first_year, last_year + 1))
 
     if last_year < first_year:
         warnings.warn(
-            f"First year {first_year} is after last year {last_year}! Empty time period for generating input data defined."
+            f"First year {first_year} is after last year {last_year}! Last year set to {first_year}."
         )
+        last_year = first_year
+
+    years = list(range(first_year, last_year + 1))
 
     if coordinates:
         if "lat" in coordinates and "lon" in coordinates:
@@ -153,17 +165,25 @@ def prep_grassland_model_input_data(
         else:
             raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found!")
     else:
-        # # Example locations list
-        # locations = ut.parse_locations(
-        #     "51.390427,11.876855;51.392331,11.883838;102ae489-04e3-481d-97df-45905837dc1a"
-        # )
-
-        # for location in locations:
-        #     data_processing(location, years)
+        # Example locations list
+        locations = ut.parse_locations(
+            "51.390427,11.876855;51.392331,11.883838;102ae489-04e3-481d-97df-45905837dc1a"
+        )
 
         # # Example to get location coordinates from CSV file (for single plots/stations)
-        # file_name = ut.get_package_root() / "grasslandSites" / "DE_RhineMainObservatory_station.csv"
+        # file_name = (
+        #     ut.get_package_root()
+        #     / "grasslandSites"
+        #     / "DE_RhineMainObservatory_station.csv"
+        # )
+        # # file_name = (
+        # #     ut.get_package_root() / "grasslandSites" / "AT_Hochschwab_station.csv"
+        # # )
+        # years = list(range(1992, 2024))
         # locations = ut.get_plot_locations_from_csv(file_name)
+
+        for location in locations:
+            data_processing(location, years)
 
         # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
         sites_file_name = (
@@ -172,10 +192,8 @@ def prep_grassland_model_input_data(
         sites_ids = ut.get_deims_ids_from_xls(
             sites_file_name, header_row=1, country="AT"
         )
-        sites_ids = [
-            "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d"
-        ]  # Hochschwab, AT,  1998, 2001, 02, 08, 15
-        years = list(range(1984, 2024))
+        # sites_ids = ["4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d"]
+        # Hochschwab, AT,  1998, 2001, 02, 08, 15
 
         for deims_id in sites_ids:
             location = ut.get_deims_coordinates(deims_id)

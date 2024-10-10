@@ -26,12 +26,7 @@ import utils as ut
 from soilgrids import data_processing as dprc
 
 
-def prep_soil_data(
-    coordinates,
-    *,
-    deims_id=None,
-    file_name=None,
-):
+def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
     """
     Prepare soil data to be used as grassland model input.
 

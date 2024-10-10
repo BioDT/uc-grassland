@@ -1055,12 +1055,22 @@ folder = Path("speciesMappingExampleLists")
 # species_list_renamed = read_species_list(
 #     file_name_species_list, species_column="Name", check_gbif=True
 # )
+# file_name_species_list = folder / "IT_AppenninoCentroMeridionale_data_cover.csv"
+species_column = "NAME"
+file_name_species_list = folder / "AT_Hochschwab_reference.csv"
+file_name_species_list = folder / "AT_Obergurgl_reference.csv"
+file_name_species_list = folder / "AT_Schrankogel_reference.csv"
+# file_name_species_list = folder / "FR_AtelierArmorique_reference.csv"
+
+species_column = "TAXA"
+file_name_species_list = folder / "IT_Matschertal_data_abund.csv"
+file_name_species_list = folder / "AT_Stubai_data_abund.csv"
+file_name_species_list = folder / "DE_RhineMainObservatory_abund_data.csv"
 file_name_species_list = folder / "IT_AppenninoCentroMeridionale_data_cover.csv"
+
 # would also work for different folder location: file_name_species_list = Path("c:/.../AT_Schrankogel_reference.xlsx")
 species_list_renamed = read_species_list(
-    file_name_species_list,
-    species_column="TAXA",  # species_column="NAME",
-    check_gbif=True,
+    file_name_species_list, species_column=species_column, check_gbif=True
 )
 # file_name_species_list = (
 #     folder / "102ae489-04e3-481d-97df-45905837dc1a_Species__GBIFList.xlsx"
@@ -1074,10 +1084,7 @@ species_list = [entry[0] for entry in species_list_renamed]
 # Find Family (optional user modifications) based on TRY and write to file
 file_name = ut.add_string_to_file_name(file_name_species_list, "__FamilyTRY")
 species_family_try = get_species_info(
-    species_list,
-    species_family_try_lookup,
-    "Family",
-    file_name,
+    species_list, species_family_try_lookup, "Family", file_name
 )
 
 # Find Family based on GBIF and write to file
@@ -1087,36 +1094,26 @@ species_family_gbif = get_species_family(species_list, file_name)
 # Combine and resolve Family from both sources (TRY & GBIF, optional user modifications)
 file_name = ut.add_string_to_file_name(file_name_species_list, "__FamilyCombined")
 species_family_combined = resolve_species_info_dicts(
-    "Family",
-    species_family_try,
-    species_family_gbif,
+    "Family", species_family_try, species_family_gbif
 )
 ut.dict_to_file(species_family_combined, ["Species", "Family Combined"], file_name)
 
 # Find Woodiness (optional user modifications) based on TRY and write to file
 file_name = ut.add_string_to_file_name(file_name_species_list, "__WoodinessTRY")
 species_woodiness_try = get_species_info(
-    species_list,
-    species_woodiness_try_lookup,
-    "Woodiness",
-    file_name,
+    species_list, species_woodiness_try_lookup, "Woodiness", file_name
 )
 
 # Find Woodiness (optional user modifications) based on Zanne and write to file
 file_name = ut.add_string_to_file_name(file_name_species_list, "__WoodinessZanne")
 species_woodiness_zanne = get_species_info(
-    species_list,
-    species_woodiness_zanne_lookup,
-    "Woodiness",
-    file_name,
+    species_list, species_woodiness_zanne_lookup, "Woodiness", file_name
 )
 
 # Combine and resolve Woodiness from both sources (TRY & Zanne, optional user modifications)
 file_name = ut.add_string_to_file_name(file_name_species_list, "__WoodinessCombined")
 species_woodiness_combined = resolve_species_info_dicts(
-    "Woodiness",
-    species_woodiness_try,
-    species_woodiness_zanne,
+    "Woodiness", species_woodiness_try, species_woodiness_zanne
 )
 ut.dict_to_file(
     species_woodiness_combined, ["Species", "Woodiness Combined"], file_name
@@ -1127,10 +1124,7 @@ file_name = ut.add_string_to_file_name(
     file_name_species_list, "__PFTFamilyWoodinessTRY"
 )
 species_pft_family_woodiness_try = get_species_pft_from_family_woodiness(
-    species_list,
-    species_family_try,
-    species_woodiness_try,
-    file_name,
+    species_list, species_family_try, species_woodiness_try, file_name
 )
 
 # Find PFT (optional user modifications) based on GBIF Family and TRY Woodiness
@@ -1138,10 +1132,7 @@ file_name = ut.add_string_to_file_name(
     file_name_species_list, "__PFTFamilyWoodinessGBIF_TRY"
 )
 species_pft_family_woodiness_gbif_try = get_species_pft_from_family_woodiness(
-    species_list,
-    species_family_gbif,
-    species_woodiness_try,
-    file_name,
+    species_list, species_family_gbif, species_woodiness_try, file_name
 )
 
 # Find PFT (optional user modifications) based on GBIF Family and Zanne Woodiness
@@ -1149,10 +1140,7 @@ file_name = ut.add_string_to_file_name(
     file_name_species_list, "__PFTFamilyWoodinessGBIF_Zanne"
 )
 species_pft_family_woodiness_gbif_zanne = get_species_pft_from_family_woodiness(
-    species_list,
-    species_family_gbif,
-    species_woodiness_zanne,
-    file_name,
+    species_list, species_family_gbif, species_woodiness_zanne, file_name
 )
 
 # Find PFT (optional user modifications) based on GBIF Family and Combined Woodiness
@@ -1160,10 +1148,7 @@ file_name = ut.add_string_to_file_name(
     file_name_species_list, "__PFTFamilyWoodinessGBIF_Combined"
 )
 species_pft_family_woodiness_gbif_combined = get_species_pft_from_family_woodiness(
-    species_list,
-    species_family_gbif,
-    species_woodiness_combined,
-    file_name,
+    species_list, species_family_gbif, species_woodiness_combined, file_name
 )
 
 # Combine and resolve PFT from multiple sources (optional user modifications)
@@ -1171,14 +1156,10 @@ file_name = ut.add_string_to_file_name(file_name_species_list, "__PFTCombined")
 species_pft_combined = species_pft_family_woodiness_try
 
 species_pft_combined = resolve_species_info_dicts(
-    "PFT",
-    species_pft_combined,
-    species_pft_family_woodiness_gbif_try,
+    "PFT", species_pft_combined, species_pft_family_woodiness_gbif_try
 )
 species_pft_combined = resolve_species_info_dicts(
-    "PFT",
-    species_pft_combined,
-    species_pft_family_woodiness_gbif_zanne,
+    "PFT", species_pft_combined, species_pft_family_woodiness_gbif_zanne
 )
 
 
@@ -1197,7 +1178,9 @@ all_species_infos = ut.add_infos_to_list(
     species_pft_family_woodiness_gbif_combined,
     species_pft_combined,
 )
-file_name = ut.add_string_to_file_name(file_name_species_list, "__PFT_combined_infos")
+file_name = ut.add_string_to_file_name(
+    file_name_species_list, "__PFT_combined_infos", new_suffix=".xlsx"
+)
 ut.list_to_file(
     all_species_infos,
     [

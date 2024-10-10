@@ -59,75 +59,74 @@ import numpy as np
 import utils as ut
 
 
-def construct_management_data_file_name(folder, location, years, map_key, file_suffix):
+def construct_management_data_file_name(
+    coordinates,
+    years,
+    map_key,
+    *,
+    folder="managementDataFolder",
+    data_specifier="noInfo",
+    file_suffix=".txt",
+):
     """
-    Construct data file name.
+    Construct management data file name and create folder if missing.
 
     Parameters:
-        folder (str or Path): Folder where data file will be stored.
-        location (str or dict): Location information ('DEIMS.iD' or {'lat': float, 'lon': float}).
+        coordinates (dict): Dictionary with 'lat' and 'lon' keys ({'lat': float, 'lon': float}).
         years (list): List of years covered by management data.
-        map_key (str): Key to identify land use map.
-        file_suffix (str): File suffix (e.g. '.txt').
+        map_key (str): Key to identify land use map ('GER_Lange' or 'GER_Schwieder').
+        folder (str or Path): Folder where data file will be stored (default is 'managementDataFolder').
+        data_specifier (str): Data specifier (e.g. 'raw', 'fill_mean', default is 'noInfo').
+        file_suffix (str): File suffix (default is '.txt').
 
     Returns:
         Path: Constructed data file name as a Path object.
     """
-    # Get folder with path appropriate for different operating systems
+    # Get folder with path appropriate for different operating systems, create folder if missing
     folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
 
-    if ("lat" in location) and (
-        "lon" in location
-    ):  # location as dictionary with lat, lon
-        formatted_lat = f"lat{location['lat']:.6f}"  # .replace(".", "-")
-        formatted_lon = f"lon{location['lon']:.6f}"  # .replace(".", "-")
-        file_start = f"{formatted_lat}_{formatted_lon}"
-    elif "deims_id" in location:  # DEIMS.iD
-        file_start = location["deims_id"]
-    elif isinstance(location, str):  # location as string (DEIMS.iD)
-        file_start = location
-    else:
-        raise ValueError("Unsupported location format.")
-
-    if years:
+    if "lat" in coordinates and "lon" in coordinates:
+        formatted_lat = f"lat{coordinates['lat']:.6f}"
+        formatted_lon = f"lon{coordinates['lon']:.6f}"
+        formatted_years = f"{years[0]}-01-01_{years[-1]}-12-31"
         file_name = (
             folder
-            / f"{file_start}__{years[0]}-01-01_{years[-1]}-12-31__management__{map_key}{file_suffix}"
+            / f"{formatted_lat}_{formatted_lon}__{formatted_years}__management__{map_key}__{data_specifier}{file_suffix}"
         )
     else:
-        file_name = folder / f"{file_start}__management__{map_key}{file_suffix}"
-        warnings.warn(
-            "No years provided! Returning management file name without time information.",
-            UserWarning,
+        raise ValueError(
+            "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
         )
 
     return file_name
 
 
 def management_data_to_txt_file(
-    map_key,
-    map_properties,
     location,
     years,
+    map_key,
     management_data,
     data_query_protocol,
+    *,
     is_raw_data=False,
-    fill_mode="none",
+    map_properties=[],
+    fill_mode="mean",
     file_name=None,
 ):
     """
     Write management data to a text file.
 
     Parameters:
-        map_key (str): Key to identify land use map.
-        map_properties (list): List of map properties.
         location (str or dict): Location information ('DEIMS.iD' or {'lat': float, 'lon': float}).
         years (list): List of years covered by management data.
+        map_key (str): Key to identify land use map ('GER_Lange' or 'GER_Schwieder').
         management_data (numpy.ndarray): Management data.
         data_query_protocol (list): List of sources and time_stamps from retrieving management data.
         is_raw_data (bool): Whether data are raw (default is False).
-        fill_mode (str): Method for completing missing data (default is 'none').
-        file_name (str or Path): File name to save management data (default is None, default file name is used if not provided).
+        map_properties (list): List of map properties (default is [], for 'is_raw_data' only).
+        fill_mode (str): Method for completing missing data (default is 'mean', for Not 'is_raw_data' only).
+        file_name (str or Path): File name to save management data (default is None, default file name used if not provided).
 
     Returns:
         None
@@ -136,7 +135,11 @@ def management_data_to_txt_file(
     if is_raw_data:
         if not file_name:
             file_name = construct_management_data_file_name(
-                "managementDataRaw", location, years, map_key, "_Raw.txt"
+                location,
+                years,
+                map_key,
+                folder="managementDataRaw",
+                data_specifier="raw",
             )
 
         # Header line, capitalize only the first letter of each string
@@ -146,14 +149,13 @@ def management_data_to_txt_file(
             f"Raw management data from '{map_key}' map written to file '{file_name}'."
         )
     else:
-        if fill_mode == "none":
-            file_end = ".txt"
-        else:
-            file_end = f"__fill_{fill_mode}.txt"
-
         if not file_name:
             file_name = construct_management_data_file_name(
-                "managementDataPrepared", location, years, map_key, file_end
+                location,
+                years,
+                map_key,
+                folder="managementDataPrepared",
+                data_specifier=f"fill_{fill_mode}",
             )
 
         management_columns = [
@@ -164,16 +166,14 @@ def management_data_to_txt_file(
             "Seeds_PFT1",
             "Seeds_PFT2",
             "Seeds_PFT3",
+            "Data source",
         ]
-        management_fmt = "%s\t%s\t%s\t%s\t%s\t%s\t%s"
+        management_fmt = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s"
         print_message = f"Processed management data from '{map_key}' map written to file '{file_name}'."
 
         # Prepare empty management data for writing to file
         if not management_data:
             management_data = np.empty((0, len(management_columns)), dtype=str)
-
-    # Create data directory if missing
-    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
     np.savetxt(
         file_name,
@@ -183,45 +183,38 @@ def management_data_to_txt_file(
         header="\t".join(management_columns),
         comments="",
     )
-
     print(print_message)
 
     if data_query_protocol:
-        file_name = file_name.with_name(
-            file_name.stem + "__data_query_protocol" + file_name.suffix
-        )
-        ut.list_to_file(
-            data_query_protocol,
-            ["data_source", "time_stamp"],
-            file_name,
-        )
+        file_name = ut.add_string_to_file_name(file_name, "__data_query_protocol")
+        ut.list_to_file(data_query_protocol, ["data_source", "time_stamp"], file_name)
 
 
 def get_management_map_file(
-    map_key, year, property="mowing", applicability=False, map_local=False
+    map_key, year, *, property="mowing", applicability=False, cache=None
 ):
     """
     Generate file path or URL for a management map based on provided map key, property name and year.
 
     Parameters:
-        map_key (str): Key to identify land use map.
+        map_key (str): Key to identify land use map ('GER_Lange' or 'GER_Schwieder').
         year (str): Year.
         property (str): Management property (default is 'mowing').
         applicability (bool): Get area-of-applicability-map (default is False).
-        map_local (bool): Read map from local file (default is False).
+        cache (Path): Path for local management map directory (optional).
 
     Returns:
-        pathlib.Path: File path to the land use map.
+        str or pathlib.Path: URL or local path to the land use map file, or None if not found.
     """
     if map_key == "GER_Lange":
-        if map_local:
+        if cache is not None:
             # Look for local map file
             file_name = (
-                "S2_Germany_" + str(year) + "_AOA_" + property + ".tif"
+                f"S2_Germany_{year}_AOA_{property}.tif"
                 if applicability
-                else "S2_Germany_" + str(year) + "_" + property + ".tif"
+                else f"S2_Germany_{year}_{property}.tif"
             )
-            map_file = ut.get_package_root() / "landUseMaps" / map_key / file_name
+            map_file = Path(cache) / file_name
 
             if map_file.is_file():
                 return map_file
@@ -229,124 +222,78 @@ def get_management_map_file(
                 print(f"Error: Local file '{map_file}' not found!")
                 print("Trying to access via URL ...")
 
-        # Return map file URL
-        if year == 2017:
-            if applicability:
-                if property == "mowing":
-                    file_name = "98d7c7ab-0a8f-4c2f-a78f-6c1739ee9354"
-                elif property == "fertilisation":
-                    file_name = "7a4b70a9-95b3-4a06-ae8b-082184144494"
-                elif property == "grazing":
-                    file_name = "e83a9d4a-ea55-44dd-b3fb-2ee7cb046e92"
-                elif property == "LUI":
-                    file_name = "4e7ab052-bd47-4ccf-9560-57ceb080945a"
-                else:
-                    warnings.warn(
-                        f"Property '{property}' not found in '{map_key}' map!",
-                        UserWarning,
-                    )
+        # Nested dictionary for file names
+        file_names = {
+            2017: {
+                True: {
+                    "mowing": "98d7c7ab-0a8f-4c2f-a78f-6c1739ee9354",
+                    "fertilisation": "7a4b70a9-95b3-4a06-ae8b-082184144494",
+                    "grazing": "e83a9d4a-ea55-44dd-b3fb-2ee7cb046e92",
+                    "LUI": "4e7ab052-bd47-4ccf-9560-57ceb080945a",
+                },
+                False: {
+                    "mowing": "14a1d2b6-11c8-4e31-ac19-45a7b805428d",
+                    "fertilisation": "deaca5bf-8999-4ccf-beac-ab47210051f6",
+                    "grazing": "611798da-e43d-4de6-9ff5-d5fb562fbf46",
+                    "LUI": "54995bd6-2811-4198-ba55-675386510260",
+                },
+            },
+            2018: {
+                True: {
+                    "mowing": "d871429a-b2a6-4592-b3e5-4650462a9ac3",
+                    "fertilisation": "3b24279c-e9ab-468d-86b8-fe1fadc121bf",
+                    "grazing": "69701524-ed47-4e4b-9ef2-e355f5103d76",
+                    "LUI": "0efe31de-1275-4cab-b470-af1ce9f28363",
+                },
+                False: {
+                    "mowing": "0eb6a466-417b-4b30-b5f8-070c3f2c99c3",
+                    "fertilisation": "aa81ef4f-4ed4-489a-9d52-04d1fd3a357a",
+                    "grazing": "2bc29d3f-08d1-4508-a0ca-c83517216f69",
+                    "LUI": "28b419a6-c282-42fa-a23a-72676a288171",
+                },
+            },
+        }
 
-                    return None
-            else:
-                if property == "mowing":
-                    file_name = "14a1d2b6-11c8-4e31-ac19-45a7b805428d"
-                elif property == "fertilisation":
-                    file_name = "deaca5bf-8999-4ccf-beac-ab47210051f6"
-                elif property == "grazing":
-                    file_name = "611798da-e43d-4de6-9ff5-d5fb562fbf46"
-                elif property == "LUI":
-                    file_name = "54995bd6-2811-4198-ba55-675386510260"
-                else:
-                    warnings.warn(
-                        f"Property '{property}' not found in '{map_key}' map!",
-                        UserWarning,
-                    )
-
-                    return None
-        elif year == 2018:
-            if applicability:
-                if property == "mowing":
-                    file_name = "d871429a-b2a6-4592-b3e5-4650462a9ac3"
-                elif property == "fertilisation":
-                    file_name = "3b24279c-e9ab-468d-86b8-fe1fadc121bf"
-                elif property == "grazing":
-                    file_name = "69701524-ed47-4e4b-9ef2-e355f5103d76"
-                elif property == "LUI":
-                    file_name = "0efe31de-1275-4cab-b470-af1ce9f28363"
-                else:
-                    warnings.warn(
-                        f"Property '{property}' not found in '{map_key}' map!",
-                        UserWarning,
-                    )
-
-                    return None
-            else:
-                if property == "mowing":
-                    file_name = "0eb6a466-417b-4b30-b5f8-070c3f2c99c3"
-                elif property == "fertilisation":
-                    file_name = "aa81ef4f-4ed4-489a-9d52-04d1fd3a357a"
-                elif property == "grazing":
-                    file_name = "2bc29d3f-08d1-4508-a0ca-c83517216f69"
-                elif property == "LUI":
-                    file_name = "28b419a6-c282-42fa-a23a-72676a288171"
-                else:
-                    warnings.warn(
-                        f"Property '{property}' not found in '{map_key}' map!",
-                        UserWarning,
-                    )
-
-                    return None
-        else:
+        try:
+            file_name = file_names[year][applicability][property]
+        except KeyError:
             warnings.warn(
                 f"'{map_key}' {property} map not available for {year}!", UserWarning
             )
-
             return None
-        map_file = (
-            "https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/"
-            + file_name
-            + "/file_downloaded"
-        )
 
-        if ut.check_url(map_file):
-            return map_file
-        else:
-            print(f"Error: File '{map_file}' not found!")
+        map_file = (
+            f"https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/"
+            f"{file_name}/file_downloaded"
+        )
     elif map_key == "GER_Schwieder":
         if year in [2017, 2018, 2019, 2020, 2021]:
-            file_name = "GLU_GER_" + str(year) + "_SUM_DOY_COG.tif"
-
-            if map_local:
-                map_file = (
-                    Path(r"c:/_D/biodt_data/") / "landUseMaps" / map_key / file_name
-                )  # ut.get_package_root() / "landUseMaps" / map_key / file_name
-
-                if map_file.is_file():
-                    return map_file
-                else:
-                    print(f"Error: Local file '{map_file}' not found!")
-                    print("Trying to access via URL ...")
-
-            # opendap address
-            # map_file = (
-            #     "http://opendap.biodt.eu/grasslands-pdt/landUseMaps/"
-            #     + map_key
-            #     + "/"
-            #     + file_name
-            # )
-            # zenodo address
-            map_file = "https://zenodo.org/records/10609590/files/" + file_name
-
-            if ut.check_url(map_file):
-                return map_file
-            else:
-                print(f"Error: File '{map_file}' not found!")
+            file_name = f"GLU_GER_{year}_SUM_DOY_COG.tif"
         else:
             warnings.warn(
                 f"'{map_key}' {property} map not available for {year}!", UserWarning
             )
+            return None
 
-    return None
+        if cache is not None:
+            map_file = Path(cache) / file_name
+
+            if map_file.is_file():
+                return map_file
+            else:
+                print(f"Error: Local file '{map_file}' not found!")
+                print("Trying to access via URL ...")
+
+        # Get map file URL
+        # map_file = f"http://opendap.biodt.eu/grasslands-pdt/landUseMaps/{map_key}/{file_name}"
+        map_file = f"https://zenodo.org/records/10609590/files/{file_name}"
+
+    # Return map file URL, if found
+    if ut.check_url(map_file):
+        return map_file
+    else:
+        print(f"Error: File '{map_file}' not found!")
+        return None
 
 
 def get_GER_Lange_data(coordinates, map_properties, years):
@@ -357,8 +304,8 @@ def get_GER_Lange_data(coordinates, map_properties, years):
     Properties:
         Mowing: number of moving events.
         Fertilisation: information aggregated into fertilised or not fertilised.
-        Grazing: classification bases on grazing intensity (G), given as livestock units (depending on species and age) per ha and day
-            (Class 0: G=0, Class 1: 0 < G <= 0.33, Class 2: 0.33 < G <=0.88, Class 3: G > 0.88).
+        Grazing: classification bases on grazing intensity (G), given as livestock units (depending on species and
+            age) per ha and day (Class 0: G=0, Class 1: 0 < G <= 0.33, Class 2: 0.33 < G <=0.88, Class 3: G > 0.88).
         LUI calculation based on Mowing, Fertilisation and Grazing (cf. Lange et al. 2022).
 
         Each property's model has a separate area of applicability for each year.
@@ -369,18 +316,15 @@ def get_GER_Lange_data(coordinates, map_properties, years):
         years (list): List of years to process.
 
     Returns:
-        tuple: Property data for given years  (2D numpy.ndarray, nan if no grassland or outside area of applicability), and list of query sources and time stamps.
+        tuple: Property data for given years (2D numpy.ndarray, nan if no grassland or outside area of applicability),
+            and list of query sources and time stamps.
     """
     map_key = "GER_Lange"
     print(f"Reading management data from '{map_key}' map ...")
     query_protocol = []
 
     # Initialize property_data array with nans
-    property_data = np.full(
-        (len(years), len(map_properties) + 1),
-        np.nan,
-        dtype=float,
-    )
+    property_data = np.full((len(years), len(map_properties) + 1), np.nan, dtype=float)
     warn_no_grassland = True
 
     # Extract values from tif maps for each year and each property
@@ -391,8 +335,8 @@ def get_GER_Lange_data(coordinates, map_properties, years):
         # Add management properties from tif maps
         for p_index, property in enumerate(map_properties, start=1):
             # Extract property value
-            map_file = ut.check_url(
-                get_management_map_file(map_key, year, property, applicability=False)
+            map_file = get_management_map_file(
+                map_key, year, property=property, applicability=False
             )
 
             if map_file:
@@ -401,8 +345,8 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                 )
 
                 # Extract and check AOA value
-                aoa_file = ut.check_url(
-                    get_management_map_file(map_key, year, property, applicability=True)
+                aoa_file = get_management_map_file(
+                    map_key, year, property=property, applicability=True
                 )
 
                 if aoa_file:
@@ -455,7 +399,8 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
         years (list): List of years to process.
 
     Returns:
-        tuple: Property data for given years  (2D numpy.ndarray, nan if no grassland or no mowing event), and list of query sources and time stamps.
+        tuple: Property data for given years (2D numpy.ndarray, nan if no grassland or no mowing event),
+            and list of query sources and time stamps.
     """
     map_key = "GER_Schwieder"
     print(f"Reading management data from '{map_key}' map ...")
@@ -469,21 +414,14 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
         )
 
     # Initialize property_data array with nans
-    property_data = np.full(
-        (
-            len(years),
-            map_bands + 1,
-        ),
-        np.nan,
-        dtype=object,
-    )
+    property_data = np.full((len(years), map_bands + 1), np.nan, dtype=object)
     warn_no_grassland = True
 
     # Extract values from tif maps for each year and each property
     for y_index, year in enumerate(years):
         # Add year to management data
         property_data[y_index, 0] = year
-        map_file = ut.check_url(get_management_map_file(map_key, year))
+        map_file = get_management_map_file(map_key, year)
 
         if map_file:
             print(f"{property.capitalize()} map for {year} found. Using '{map_file}'.")
@@ -523,22 +461,26 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
     return property_data, query_protocol
 
 
-def get_mow_events(year, mow_days, mow_height, leap_year_considered=True):
+def get_mow_events(
+    year, mow_days, data_source, *, mow_height=0.05, leap_year_considered=True
+):
     """
     Generate mowing event entries for a given year based on specified days and height.
 
     Parameters:
         year (int): Year for which to generate mowing events.
         mow_days (list of int): Days of year to schedule mowing.
-        mow_height (float): Height of mowing (in meters).
+        data source (str): Datea source for mowing events (e.g. 'date observed', 'event assumed (...)').
+        mow_height (float): Height of mowing (in meters, default is 0.05).
         leap_year_considered (bool): Whether leap year was already considered for mow_days (default is True).
 
     Returns:
         list of list: list of mowing events in grassland model management input data format,
         one row for each mow_day, containing:
-            column 0: date string in format YYYY-MM-DD
-            column 1: value of mow_height
-            columns 2 to 6: 'NaN' (for no fertilisation, no irrigation and no seeds at this management event)
+            column 0: date string in format YYYY-MM-DD.
+            column 1: value of mow_height.
+            columns 2 to 6: 'NaN' (for no fertilisation, no irrigation and no seeds at this management event).
+            column 7: 'data_source' string to specify data source.
     """
     # Create result array, date and mow height in first rows, NaN for all other management rows
     mow_events = []
@@ -552,27 +494,30 @@ def get_mow_events(year, mow_days, mow_height, leap_year_considered=True):
             "NaN",
             "NaN",
             "NaN",
+            data_source,
         ]
         mow_events.append(row)
 
     return mow_events
 
 
-def get_mow_schedule(year, mow_count, mow_height):
+def get_mow_schedule(year, mow_count, data_source, mow_height=0.05):
     """
     Generate a schedule of mowing dates based on number of mowings (mow_count) for a given year.
 
     Parameters:
         year (int): Year for which to generate the schedule.
         mow_count (float): Number of mowing events (expected to be between 1 and 5).
-        mow_height (float): Height of mowing (in meters).
+        data source (str): Data source for mowing events (e.g. 'event assumed (...)').
+        mow_height (float): Height of mowing (in meters, default is 0.05).
 
     Returns:
         numpy.ndarray: Array with mowing events in grassland model management input data format,
         mow_count rows, each row containing:
-            column 0: date string in format YYYY-MM-DD
-            column 1: value of mow_height
-            columns 2 to 6: value NaN (for no fertilisation, no irrigation and no seeds at this management event)
+            column 0: date string in format YYYY-MM-DD.
+            column 1: value of mow_height.
+            columns 2 to 6: value NaN (for no fertilisation, no irrigation and no seeds at this management event).
+            column 7: 'data_source' string to specify data source.
     """
     # Check if mow_count is NaN
     if np.isnan(mow_count):
@@ -607,7 +552,11 @@ def get_mow_schedule(year, mow_count, mow_height):
     }
 
     mow_events = get_mow_events(
-        year, mow_days[mow_count], mow_height, leap_year_considered=False
+        year,
+        mow_days[mow_count],
+        data_source,
+        mow_height=mow_height,
+        leap_year_considered=False,
     )
 
     return mow_events
@@ -616,8 +565,8 @@ def get_mow_schedule(year, mow_count, mow_height):
 def get_fert_days(mow_days, year):
     """
     Calculate fertilisation dates based on mowing dates for a given year.
-
-    Using time differences between fertilization and mowing events, respectively, according to Filipiak et al. 2022, Table S6.
+    Using time differences between fertilization and mowing events, respectively,
+        according to Filipiak et al. 2022, Table S6.
 
     Parameters:
         mow_days (list of int): List with day of year for each mowing event.
@@ -656,10 +605,12 @@ def get_fert_days(mow_days, year):
 
         if fert_day < earliest_fert_day:
             print(
-                f"Warning: Calculated fertilisation date {ut.day_of_year_to_date(year, fert_day).strftime("%Y-%m-%d")}"
+                "Warning: Calculated fertilisation date"
+                f" {ut.day_of_year_to_date(year, fert_day).strftime("%Y-%m-%d")}"
                 f" is before earliest date allowed! Set to {earliest_fert_date_str}."
             )
             fert_day = earliest_fert_day
+
         fert_days.append(fert_day)
 
     return fert_days
@@ -668,8 +619,8 @@ def get_fert_days(mow_days, year):
 def fert_days_from_mow_days(mow_days_per_year, years):
     """
     Calculate fertilisation dates based on mowing dates.
-
-    Using time differences between fertilization and mowing events, respectively, according to Filipiak et al. 2022, Table S6.
+    Using time differences between fertilization and mowing events, respectively,
+        according to Filipiak et al. 2022, Table S6.
 
     Parameters:
         mow_days (list of list): List of lists with day of year for each mowing event for each year.
@@ -687,22 +638,24 @@ def fert_days_from_mow_days(mow_days_per_year, years):
     return fert_days_per_year
 
 
-def get_fert_schedule(year, fert_count, fert_days=None):
+def get_fert_schedule(year, fert_count, data_source, fert_days=None):
     """
-    Generate a schedule of fertilisation dates based on number of events for a given year.
+    Generate schedule of fertilisation dates based on number of events for a given year.
 
     Parameters:
         year (int): Year for which to generate the schedule.
         fert_count (float): Number of fertilisation events (expected to be between 1 and 5).
+        data source (str): Data source for mowing events (e.g. 'event assumed (...)').
         fert_days (list of int): List with day of year for each event (default is None).
 
     Returns:
         numpy.ndarray: Array with fertilisation events in grassland model management input data format,
         fert_count rows, each row containing:
-            column 0: date string in format YYYY-MM-DD
-            column 1: value NaN (for no mowing at this management event)
-            column 2: value of fert_amount
-            columns 3 to 6: value NaN (for no irrigation and no seeds at this management event)
+            column 0: date string in format YYYY-MM-DD.
+            column 1: value NaN (for no mowing at this management event).
+            column 2: value of fert_amount.
+            columns 3 to 6: value NaN (for no irrigation and no seeds at this management event).
+            column 7: 'data_source' string to specify data source.
     """
     # Check if fert_count is NaN
     if np.isnan(fert_count):
@@ -778,6 +731,7 @@ def get_fert_schedule(year, fert_count, fert_days=None):
             "NaN",
             "NaN",
             "NaN",
+            data_source,
         ]
         fert_events.append(row)
 
@@ -785,7 +739,12 @@ def get_fert_schedule(year, fert_count, fert_days=None):
 
 
 def convert_management_data(
-    management_data_raw, map_key, fill_mode, mow_height=0.05, mow_count_default=2
+    management_data_raw,
+    map_key,
+    *,
+    fill_mode="mean",
+    mow_height=0.05,
+    mow_count_default=2,
 ):
     """
     Convert raw management data into structured mowing and fertilisation events.
@@ -793,23 +752,25 @@ def convert_management_data(
     Parameters:
         management_data_raw (list of list): Raw management data containing yearly mowing and fertilisation info.
         map_key (str): Key to identify land use map ('GER_Lange' or 'GER_Schwieder').
-        fill_mode (str): Method for completing missing data.
+        fill_mode (str): Method for completing missing data (default is 'mean').
         mow_height (float): Height of mowing (in meters, default is 0.05).
         mow_count_default (int): Number of annual events when using fill_mode 'default' for completing data (default is 2).
 
     Returns:
         list of list: List of mowing events in grassland model management input data format,
         one row for each management event, containing:
-            column 0: date string in format YYYY-MM-DD
-            column 1: value of mowing height (if mowing event, otherwise 'NaN')
-            column 2: value of fertilisation amount (if fertilisation event, otherwise 'NaN')
-            columns 3 to 6: 'NaN' (for no irrigation and no seeds at this management event)
+            column 0: date string in format YYYY-MM-DD.
+            column 1: value of mowing height (if mowing event, otherwise 'NaN').
+            column 2: value of fertilisation amount (if fertilisation event, otherwise 'NaN').
+            columns 3 to 6: 'NaN' (for no irrigation and no seeds at this management event).
+            column 7: 'data_source' string to specify data source.
     """
     management_events = []
     years = np.array([int(entry[0]) for entry in management_data_raw])
     years_with_mow_data = np.array([])
     mow_days_per_year = [[] for _ in range(len(years))]
     fert_days_per_year = [[] for _ in range(len(years))]
+    fert_source_per_year = np.full(years.shape, "", dtype=object)
 
     # MOWING
     if map_key in ["GER_Lange", "GER_Schwieder"]:
@@ -821,7 +782,10 @@ def convert_management_data(
             # Add mowing events to management events, using default schedule
             for idx in np.where(mow_count_per_year > 0)[0]:
                 mow_schedule = get_mow_schedule(
-                    years[idx], mow_count_per_year[idx], mow_height
+                    years[idx],
+                    mow_count_per_year[idx],
+                    "event observed (date: schedule)",
+                    mow_height=mow_height,
                 )
                 management_events.extend(mow_schedule)
         elif map_key == "GER_Schwieder":
@@ -834,7 +798,8 @@ def convert_management_data(
                 mow_events = get_mow_events(
                     years[idx],
                     mow_days_per_year[idx],
-                    mow_height,
+                    "date observed",
+                    mow_height=mow_height,
                     leap_year_considered=True,
                 )
                 management_events.extend(mow_events)
@@ -857,6 +822,7 @@ def convert_management_data(
                 f"(from {years_with_mow_data.size} years). "
                 f"Using {mow_count_fill} events per year."
             )
+            data_source_str = f"event assumed (fill mode: {fill_mode}, date: schedule)"
         else:
             # No data for any of the years, use default option instead
             print(
@@ -871,13 +837,19 @@ def convert_management_data(
             "Completing management data with default values ... "
             f"Using {mow_count_fill} events per year."
         )
+        data_source_str = "event assumed (fill mode: default, date: schedule)"
 
     mow_count_per_year[np.isnan(mow_count_per_year)] = mow_count_fill
 
     # Add all remaining mowing events to schedule
     for idx, year in enumerate(years):
         if mow_count_per_year[idx] > 0 and year not in years_with_mow_data:
-            mow_schedule = get_mow_schedule(year, mow_count_fill, mow_height)
+            mow_schedule = get_mow_schedule(
+                year,
+                mow_count_fill,
+                data_source_str,
+                mow_height=mow_height,
+            )
             management_events.extend(mow_schedule)
 
     # FERTILISATION
@@ -889,6 +861,7 @@ def convert_management_data(
         # If data say fertilisation, adapt number of events to mowing events (even if mowing==0)!
         for idx in np.where(fertilised_per_year == 1)[0]:
             fert_count_per_year[idx] = mow_count_per_year[idx]
+            fert_source_per_year[idx] = "event observed (date: schedule)"
 
         # Fill fertilisation years without data
         idx_to_fill = np.where(np.isnan(fertilised_per_year))[0]
@@ -910,6 +883,9 @@ def convert_management_data(
                 fert_count_per_year[idx_to_fill] = np.minimum(
                     fert_count_fill, mow_count_per_year[idx_to_fill]
                 )
+                fert_source_per_year[idx_to_fill] = (
+                    f"event assumed (fill mode: {fill_mode}, date: schedule)"
+                )
             else:
                 # No data for any of the years, use default option instead
                 print(
@@ -923,7 +899,12 @@ def convert_management_data(
                 "Using the same number of fertilisation events as mowing events for each year."
             )
             fert_count_per_year[idx_to_fill] = mow_count_per_year[idx_to_fill]
+            fert_source_per_year[idx_to_fill] = (
+                "event assumed (fill mode: like mowing, date: schedule)"
+            )
     elif map_key == "GER_Schwieder":
+        fert_count_per_year = np.zeros_like(mow_count_per_year)
+
         if fill_mode in ["mean", "default"]:
             # No fertilisation data, use number of mowing events as default
             print(f"'{map_key}' map has no fertilisation data!")
@@ -932,18 +913,22 @@ def convert_management_data(
             )
             fert_count_per_year = mow_count_per_year
             fert_days_per_year = fert_days_from_mow_days(mow_days_per_year, years)
+            fert_source_per_year[:] = (
+                "event assumed (fill mode: like mowing, date: based on mowing)"
+            )
 
     # Add all fertilisation events to schedule
     for idx, year in enumerate(years):
         if fert_count_per_year[idx] > 0:
             fert_schedule = get_fert_schedule(
-                year, fert_count_per_year[idx], fert_days_per_year[idx]
+                year,
+                fert_count_per_year[idx],
+                fert_source_per_year[idx],
+                fert_days=fert_days_per_year[idx],
             )
             management_events.extend(fert_schedule)
 
-    # management_events.sort(key=lambda x: x["map_year"]))
     try:
-        #     test_list = sorted(management_events, key=lambda x: x[0])
         management_events.sort(key=lambda x: x[0])
     except TypeError:
         print("Sorting failed due to incompatible data types.")
@@ -952,24 +937,24 @@ def convert_management_data(
 
 
 def data_processing(
-    map_key,
-    fill_missing_data,
-    mow_height,
-    years,
     coordinates,
+    years,
+    map_key,
     *,
+    fill_mode="mean",
+    mow_height="0.05",
     file_name=None,
 ):
     """
     Read management data from land use map. Write to .txt files.
 
     Parameters:
+        coordinates (dict): Dictionary with 'lat' and 'lon' keys ({'lat': float, 'lon': float}).
+        years (list of int): List of years.
         map_key (str): Key to identify land use map ('GER_Lange' or 'GER_Schwieder').
-        fill_missing_data (str): String to identify method for filling missing data ('mean', 'default', 'none').
-        mow_height (float): Height of mowing (in meters).
-        years (list): List of years to process.
-        coordinates (dict): Dictionary with 'lat' and 'lon' keys of location.
-        file_name (str or Path): File name to save final management data (default is None, default file name is used if not provided).
+        fill_mode (str): String to identify method for filling missing data ('mean', 'default', 'none', default is 'mean').
+        mow_height (float): Height of mowing (in meters, default is 0.05).on.
+        file_name (str or Path): File name to save final management data (default is None, default file name used if not provided).
     """
     if "lat" in coordinates and "lon" in coordinates:
         print(
@@ -981,12 +966,7 @@ def data_processing(
         )
 
     if map_key == "GER_Lange":
-        map_properties = [
-            "mowing",
-            "fertilisation",
-            "grazing",
-            "LUI",
-        ]  #  , "fertilisation", "grazing", "LUI"
+        map_properties = ["mowing", "fertilisation", "grazing", "LUI"]
         management_data_raw, data_query_protocol = get_GER_Lange_data(
             coordinates, map_properties, years
         )
@@ -1009,39 +989,41 @@ def data_processing(
         )
 
     management_data_to_txt_file(
-        map_key,
-        map_properties,
         coordinates,
         years,
+        map_key,
         management_data_raw,
         data_query_protocol,
         is_raw_data=True,
+        map_properties=map_properties,
     )
 
     management_data_prepared = convert_management_data(
-        management_data_raw, map_key, fill_missing_data, mow_height
+        management_data_raw,
+        map_key,
+        fill_mode=fill_mode,
+        mow_height=mow_height,
     )
 
     management_data_to_txt_file(
-        map_key,
-        [],
         coordinates,
         years,
+        map_key,
         management_data_prepared,
         data_query_protocol,
         is_raw_data=False,
-        fill_mode=fill_missing_data,
+        fill_mode=fill_mode,
         file_name=file_name,
     )
 
 
 def prep_management_data(
-    map_key,
-    fill_missing_data,
-    mow_height,
-    years,
     coordinates,
+    years,
+    map_key,
     *,
+    fill_mode="mean",
+    mow_height=0.05,
     deims_id=None,
     file_name=None,
 ):
@@ -1049,27 +1031,24 @@ def prep_management_data(
     Prepare management data to be used as grassland model input.
 
     Parameters:
-        map_key (str): Key to identify land use map ('GER_Lange' or 'GER_Schwieder').
-        fill_missing_data (str): String to identify the method for filling missing data ('mean', 'default', 'none').
-        mow_height (float): Height of mowing (in meters).
-        years (list or None): List of years to process, or 'None' for default value.
         coordinates (dict): Coordinates dictionary with 'lat' and 'lon', or 'None' using DEIMS.iD.
+        years (list or None): List of years to process, or 'None' for default value.
+        map_key (str): Key to identify land use map ('GER_Lange' or 'GER_Schwieder').
+        fill_mode (str): String to identify the method for filling missing data ('mean', 'default', 'none', default is 'mean').
+        mow_height (float): Height of mowing (in meters, default is 0.05).
         deims_id (str): DEIMS.iD (default is None).
-        file_name (str or Path): File name to save management data (default is None, default file name is used if not provided).
+        file_name (str or Path): File name to save management data (default is None, default file name used if not provided).
     """
     if years is None:
         years = list(range(2013, 2024))  # list(range(2017, 2019))
 
-    if fill_missing_data is None:
-        fill_missing_data = "default"
-
     if coordinates:
         data_processing(
-            map_key,
-            fill_missing_data,
-            mow_height,
-            years,
             coordinates,
+            years,
+            map_key,
+            fill_mode=fill_mode,
+            mow_height=mow_height,
             file_name=file_name,
         )
     elif deims_id:
@@ -1077,11 +1056,11 @@ def prep_management_data(
 
         if location["found"]:
             data_processing(
-                map_key,
-                fill_missing_data,
-                mow_height,
-                years,
                 location,
+                years,
+                map_key,
+                fill_mode=fill_mode,
+                mow_height=mow_height,
                 file_name=file_name,
             )
         else:
@@ -1101,12 +1080,12 @@ def prep_management_data(
 
             if location["found"]:
                 data_processing(
-                    map_key,
-                    fill_missing_data,
-                    mow_height,
-                    years,
                     location,
-                    file_name,
+                    years,
+                    map_key,
+                    fill_mode=fill_mode,
+                    mow_height=mow_height,
+                    file_name=file_name,
                 )
 
         # Example coordinates for checking without DEIMS.iDs
@@ -1130,11 +1109,12 @@ def prep_management_data(
 
         for location in locations:
             data_processing(
-                map_key,
-                fill_missing_data,
-                mow_height,
+                location,
                 years,
-                coordinates=location,
+                map_key,
+                fill_mode=fill_mode,
+                mow_height=mow_height,
+                file_name=file_name,
             )
 
 
@@ -1148,6 +1128,12 @@ def main():
 
     # Define command-line arguments
     parser.add_argument(
+        "--coordinates",
+        type=lambda s: dict(lat=float(s.split(",")[0]), lon=float(s.split(",")[1])),
+        help="Coordinates as 'lat,lon'",
+    )
+    parser.add_argument("--years", nargs="*", type=int, help="List of years")
+    parser.add_argument(
         "--map_key",
         type=str,
         default="GER_Lange",
@@ -1155,7 +1141,7 @@ def main():
         help="Options: 'GER_Lange', 'GER_Schwieder'. (Can be extended.)",
     )
     parser.add_argument(
-        "--fill_missing_data",
+        "--fill_mode",
         type=str,
         default="mean",
         choices=["mean", "default", "none"],
@@ -1167,21 +1153,15 @@ def main():
         default=0.05,
         help="Height of mowing (in meters).",
     )
-    parser.add_argument("--years", nargs="*", type=int, help="List of years")
-    parser.add_argument(
-        "--coordinates",
-        type=lambda s: dict(lat=float(s.split(",")[0]), lon=float(s.split(",")[1])),
-        help="Coordinates as 'lat,lon'",
-    )
     parser.add_argument("--deims_id", type=int, help="DEIMS.iD")
     parser.add_argument("--file_name", help="File name to save final management data")
     args = parser.parse_args()
     prep_management_data(
-        map_key=args.map_key,
-        fill_missing_data=args.fill_missing_data,
-        mow_height=args.mow_height,
-        years=args.years,
         coordinates=args.coordinates,
+        years=args.years,
+        map_key=args.map_key,
+        fill_mode=args.fill_mode,
+        mow_height=args.mow_height,
         deims_id=args.deims_id,
         file_name=args.file_name,
     )

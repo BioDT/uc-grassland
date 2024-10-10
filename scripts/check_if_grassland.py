@@ -89,6 +89,7 @@ import copy
 import warnings
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
+from pathlib import Path
 
 import deims
 import pandas as pd
@@ -108,28 +109,30 @@ def get_map_specs(map_key):
             'file_stem': Stem of the file names.
             'map_ext': File extension for the map.
             'leg_ext': File extension for the legend (may extend the stem).
-            'url_folder': URL to folder containing the files.
+            'folder': Folder name for local files or files on opendap server.
             'subfolder': Subfolder name for local files or files on opendap server.
+            'url_folder': URL to folder containing the files.
     """
+    folder = "landCoverMaps"
+    url_opendap = "http://opendap.biodt.eu/grasslands-pdt/"
+
     if map_key == "GER_Preidl":
         map_specs = {
             "file_stem": "preidl-etal-RSE-2020_land-cover-classification-germany-2016",
             "map_ext": ".tif",
             "leg_ext": ".tif.aux.xml",
-            "url_folder": "http://opendap.biodt.eu/grasslands-pdt/landCoverMaps/"
-            + map_key
-            + "/",
-            "subfolder": "landCoverMaps",
+            "folder": folder,
+            "subfolder": map_key,
+            "url_folder": f"{url_opendap}{folder}/{map_key}/",
         }
     elif map_key == "EUR_Pflugmacher":
         map_specs = {
             "file_stem": "europe_landcover_2015_RSE-Full3",
             "map_ext": ".tif",
             "leg_ext": "_legend.xlsx",
-            "url_folder": "http://opendap.biodt.eu/grasslands-pdt/landCoverMaps/"
-            + map_key
-            + "/",  # "https://hs.pangaea.de/Maps/EuropeLandcover/" not working anymore,
-            "subfolder": "landCoverMaps",
+            "folder": folder,
+            "subfolder": map_key,
+            "url_folder": f"{url_opendap}{folder}/{map_key}/",  # "https://hs.pangaea.de/Maps/EuropeLandcover/" not working anymore,
         }
     elif map_key.startswith("GER_Schwieder_"):
         map_year = map_key.split("_")[-1]  # get year from map key
@@ -139,112 +142,107 @@ def get_map_specs(map_key):
                 "file_stem": "CTM_GER_",
                 "map_ext": map_year + "_rst_v202_COG.tif",
                 "leg_ext": "LegendEN_rst_v202.xlsx",
+                "folder": folder,
+                "subfolder": "GER_Schwieder",
                 "url_folder": "https://zenodo.org/records/10640528/files/",
-                "subfolder": "landCoverMaps",
             }
         else:
             warnings.warn(
                 f"Land cover map for key '{map_key}' not found!",
                 UserWarning,
             )
-
             return None
     elif map_key.startswith("GER_Lange_"):
         map_year = map_key.split("_")[-1]  # get year from map key
 
         if map_year in ["2017", "2018"]:
-            map_specs = {
-                "file_stem": "",  # "map_ext": ".tif",
-                "leg_ext": "GER_Lange_Legend.xlsx",
-                "url_folder": "https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/",
-                "subfolder": "landCoverMaps",
-            }
-            map_specs["map_ext"] = (
+            map_ext = (
                 "98d7c7ab-0a8f-4c2f-a78f-6c1739ee9354/file_downloaded"
                 if map_year == 2017
                 else "d871429a-b2a6-4592-b3e5-4650462a9ac3/file_downloaded"
             )
+            map_specs = {
+                "file_stem": "",
+                "map_ext": map_ext,
+                "leg_ext": "GER_Lange_Legend.xlsx",
+                "folder": folder,
+                "subfolder": "GER_Lange",
+                "url_folder": "https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/",
+            }
         else:
             warnings.warn(
                 f"Land cover map for key '{map_key}' not found!",
                 UserWarning,
             )
-
             return None
     else:
         warnings.warn(
             f"Land cover map for key '{map_key}' not found!",
             UserWarning,
         )
-
         return None
 
     return map_specs
 
 
-def get_map_and_legend(map_key, map_local=False):
+def get_map_and_legend(map_key, *, cache=None):
     """
     Check if TIF file and categories file are avaible, read categories from file.
 
     Parameters:
         map_key (str): Identifier of the map to be used.
-        map_local (bool): Look for map as local file (default is False).
+        cache (Path): Path for local map directory (optional).
 
     Returns:
         tuple: Tuple containing the following values:
             str: Full path or URL of TIF file.
             dict: Mapping of category indices to category names.
     """
-
     # Get map specifications and map file name
     map_specs = get_map_specs(map_key)
-    tif_file_name = map_specs["file_stem"] + map_specs["map_ext"]
+    file_name = f"{map_specs['file_stem']}{map_specs['map_ext']}"
+    map_found = False
 
-    if map_key.startswith("GER_Lange_"):
-        map_key_folder = "GER_Lange"
-    elif map_key.startswith("GER_Schwieder_"):
-        map_key_folder = "GER_Schwieder"
-    else:
-        map_key_folder = map_key
-
-    if map_local:
+    if cache is not None:
         # Get map from local file
-        tif_file = (
-            ut.get_package_root()
-            / map_specs["subfolder"]
-            / map_key_folder
-            / tif_file_name
-        )
+        map_file = Path(cache) / map_specs["subfolder"] / file_name
 
-        if tif_file.is_file():
-            print(f"Land cover map found. Using '{tif_file}'.")
+        if map_file.is_file():
+            print(f"Land cover map found. Using '{map_file}'.")
+            map_found = True
         else:
-            print(f"Land cover map file '{tif_file}' not found!")
+            print(f"Land cover map file '{map_file}' not found!")
             print("Trying to access via URL ...")
-            map_local = False
 
-    if not map_local:
+    if not map_found:
         # Get map directly from URL, no download
-        tif_file = map_specs["url_folder"] + tif_file_name
+        map_file = f"{map_specs['url_folder']}{file_name}"
 
-        if ut.check_url(tif_file):
-            print(f"Land cover map found. Using '{tif_file}'.")
+        if ut.check_url(map_file):
+            print(f"Land cover map found. Using '{map_file}'.")
         else:
-            raise FileNotFoundError(f"Land cover map file '{tif_file}' not found!")
+            raise FileNotFoundError(f"Land cover map file '{map_file}' not found!")
 
     # Get categories, files are very small and can be downloaded if not exisiting
-    leg_file_name = map_specs["file_stem"] + map_specs["leg_ext"]
-    leg_file = (
-        ut.get_package_root() / map_specs["subfolder"] / map_key_folder / leg_file_name
-    )
+    file_name = f"{map_specs['file_stem']}{map_specs['leg_ext']}"
+
+    if cache is None:
+        leg_file = (
+            ut.get_package_root()
+            / map_specs["folder"]
+            / map_specs["subfolder"]
+            / file_name
+        )
+    else:
+        leg_file = Path(cache) / map_specs["subfolder"] / file_name
 
     if not leg_file.is_file():
         # Get categories file from opendap server
         print(f"Land cover categories file '{leg_file}' not found!")
-        print("Trying to access via URL ...")
+        print("Trying to download from URL ...")
         ut.download_file_opendap(
-            leg_file_name,
-            map_specs["subfolder"] + "/" + map_key_folder,
+            file_name,
+            f"{map_specs['folder']}/{map_specs['subfolder']}",
             leg_file.parent,
         )
 
@@ -253,11 +251,9 @@ def get_map_and_legend(map_key, map_local=False):
         print(f"Land cover categories found. Using '{leg_file}'.")
         category_mapping = create_category_mapping(leg_file)
     else:
-        raise FileNotFoundError(
-            f"Land cover categories file '{leg_file_name}' not found!"
-        )
+        raise FileNotFoundError(f"Land cover categories file '{file_name}' not found!")
 
-    return tif_file, category_mapping
+    return map_file, category_mapping
 
 
 def create_category_mapping(leg_file):
@@ -300,12 +296,12 @@ def create_category_mapping(leg_file):
     return category_mapping
 
 
-def get_category_tif(tif_file, category_mapping, location):
+def get_category_tif(map_file, category_mapping, location):
     """
     Get the category based on the raster value at the specified location.
 
     Parameters:
-        tif_file (Path): Path to the raster file.
+        map_file (Path): Path to the raster file.
         category_mapping (dict): Mapping of raster values to categories.
         location (dict): Dictionary with 'lat' and 'lon' keys for extracting raster value.
 
@@ -313,7 +309,7 @@ def get_category_tif(tif_file, category_mapping, location):
          tuple: Category (str) corresponding to the raster value at the specified location,
              or "Unknown Category" if the value is not found in the mapping, and time stamp.
     """
-    value, time_stamp = ut.extract_raster_value(tif_file, location)
+    value, time_stamp = ut.extract_raster_value(map_file, location)
     category = category_mapping.get(value, "Unknown Category")
 
     if category == "Unknown Category":
@@ -424,7 +420,6 @@ def get_category_hrl_grassland(location):
                 f"Unknown value for specified location: {value}.",
                 UserWarning,
             )
-
             return value, time_stamp
         else:
             warnings.warn(
@@ -516,32 +511,7 @@ def check_if_grassland(category, location, map_key):
     return is_grassland
 
 
-def get_intial_site_check(location):
-    """
-    Create initial site check dictionary with latitude and longitude as entries.
-
-    Args:
-        location (dict): Dictionary containing location information. It can have:
-            - 'lat' and 'lon' keys for latitude and longitude coordinates.
-            - 'coordinates' key containing a dictionary with 'lat' and 'lon'.
-            - 'deims_id' key for retrieving coordinates via DEIMS.iD.
-
-    Returns:
-        dict: Site data containing at least 'lat' and 'lon' as entries.
-    """
-    if ("lat" in location) and ("lon" in location):
-        return copy.deepcopy(location)
-    elif "coordinates" in location:
-        return copy.deepcopy(location["coordinates"])
-    elif "deims_id" in location:
-        return ut.get_deims_coordinates(location["deims_id"])
-    else:
-        raise ValueError(
-            "No location defined. Please provide coordinates ('lat', 'lon') or DEIMS.iD!"
-        )
-
-
-def check_results_to_file(grassland_check, file_name=None, map_key=None):
+def check_results_to_file(grassland_check, *, file_name=None, map_key=None):
     """
     Save grassland check results to file.
 
@@ -559,8 +529,9 @@ def check_results_to_file(grassland_check, file_name=None, map_key=None):
         file_name = (
             ut.get_package_root()
             / "landCoverCheckResults"
-            / ("grasslandCheck_" + map_key + ".txt")
+            / f"grasslandCheck_{map_key}.txt"
         )
+
     column_names = ut.get_unique_keys(grassland_check)
     ut.list_to_file(grassland_check, column_names, file_name)
 
@@ -570,7 +541,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
     Check if given locations correspond to grassland areas based on the provided land cover map.
 
     Parameters:
-        locations (list): List of location dictionaries containing coordinates ('lat', 'lon') or DEIMS.iD.
+        locations (list): List of location dictionaries containing coordinates ('lat', 'lon'), may also contain DEIMS.iD ('deims_id').
         map_key (str): Identifier of the map to be used.
         file_name (str or Path): File name to save check results (no file will be created otherwise).
     Returns:
@@ -605,124 +576,105 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
     }
     grassland_check = []
 
-    if map_key in deims_keys:
-        for location in locations:
-            if "deims_id" in location:
-                deims_location_info = ut.get_deims_coordinates(location["deims_id"])
+    for location in locations:
+        if "lat" in location and "lon" in location:
+            site_check = copy.deepcopy(location)
+            site_check.update(map_year=map_years[map_key], map_key=map_key)
 
-                if deims_location_info["found"]:
-                    site_check = deims_location_info
-                    site_check["map_year"] = map_years[map_key]
-                    site_check["map_key"] = map_key
-                    site_check["map_source"] = (
-                        "https://deims.org/api/sites/"
-                        + deims._normaliseDeimsID(location["deims_id"])
-                    )
-                    all_categories, site_check["map_query_time_stamp"] = (
-                        get_category_deims(site_check)
-                    )
-                    site_check["is_grass"] = False
-
-                    for index, category in enumerate(all_categories):
-                        # Check only needed if grass not found yet
-                        site_check["is_grass"] = site_check[
-                            "is_grass"
-                        ] or check_if_grassland(category, site_check, map_key)
-                        site_check[f"category{index + 1:03d}"] = category
-
-                    # Print check results
-                    if site_check["is_grass"]:
-                        print(
-                            "Confirmed: Site with centroid Lat.",
-                            f"{site_check['lat']}, Lon. {site_check['lon']}",
-                            "contains habitat classified as grassland",
-                            f"according to '{map_key}' land cover classification.",
+            if map_key in deims_keys:
+                if "deims_id" in site_check:
+                    if site_check["found"]:
+                        # Get DEIMS centroid coordinates, can differ from original location coordinates
+                        deims_info = ut.get_deims_coordinates(site_check["deims_id"])
+                        map_source = (
+                            f"https://deims.org/api/sites/{site_check['deims_id']}"
                         )
+                        all_categories, time_stamp = get_category_deims(site_check)
+                        is_grass = False
+
+                        for category in all_categories:
+                            is_grass = check_if_grassland(category, site_check, map_key)
+
+                            if is_grass:
+                                break
+
+                        site_check.update(
+                            lat=deims_info["lat"],  # replace with deims coord.
+                            lon=deims_info["lon"],  # replace with deims coord.
+                            map_source=map_source,
+                            map_query_time_stamp=time_stamp,
+                            is_grass=is_grass,
+                            category=all_categories,
+                        )
+
+                        # Print check results
+                        if is_grass:
+                            print(
+                                "Confirmed: Site with centroid Lat.",
+                                f"{site_check['lat']}, Lon. {site_check['lon']}",
+                                "contains habitat classified as grassland",
+                                f"according to '{map_key}' land cover classification.",
+                            )
+                        else:
+                            print(
+                                "Not in target categories: Site with centroid Lat.",
+                                f"{site_check['lat']}, Lon. {site_check['lon']}",
+                                "contains no habitat classified as grassland",
+                                f"according to '{map_key}' land cover classification.",
+                            )
                     else:
                         print(
-                            "Not in target categories: Site with centroid Lat.",
-                            f"{site_check['lat']}, Lon. {site_check['lon']}",
-                            "contains no habitat classified as grassland",
-                            f"according to '{map_key}' land cover classification.",
+                            f"Error: Valid DEIMS.iD needed with map key '{map_key}' for requesting land cover information!"
+                        )
+                        print("Habitat: Not found.")
+                        site_check.update(
+                            map_source="",
+                            map_query_time_stamp="",
+                            is_grass="",
+                            category="Not found.",
                         )
                 else:
-                    print(
-                        f"Error: Valid DEIMS.iD needed with map key '{map_key}' for requesting land cover information!"
+                    raise ValueError(
+                        f"No location DEIMS.iD provided, but needed with map key '{map_key}' for requesting land cover information!"
                     )
-                    print("Habitat: Not found.")
-                    site_check = {
-                        "lat": "",
-                        "lon": "",
-                        "deims_id": location["deims_id"],
-                        "found": False,
-                        "name": "",
-                        "map_year": map_years[map_key],
-                        "map_key": map_key,
-                        "map_source": "",
-                        "map_query_time_stamp": "",
-                        "is_grass": "",
-                        "category001": "Not found.",
-                    }
+
+                grassland_check.append(site_check)
+            elif map_key in tif_keys:
+                map_file, category_mapping = get_map_and_legend(map_key)
+                category, time_stamp = get_category_tif(
+                    map_file, category_mapping, site_check
+                )
+                is_grass = check_if_grassland(category, site_check, map_key)
+                site_check.update(
+                    map_source=map_file,
+                    map_query_time_stamp=time_stamp,
+                    is_grass=is_grass,
+                    category=category,
+                )
+                grassland_check.append(site_check)
+            elif map_key in hrl_keys:
+                map_source = "https://image.discomap.eea.europa.eu/arcgis/rest/services/GioLandPublic/HRL_Grassland_2018/ImageServer"
+                category, time_stamp = get_category_hrl_grassland(site_check)
+                is_grass = check_if_grassland(category, site_check, map_key)
+                site_check.update(
+                    map_source=map_source,
+                    map_query_time_stamp=time_stamp,
+                    is_grass=is_grass,
+                    category=category,
+                )
+                grassland_check.append(site_check)
             else:
                 raise ValueError(
-                    f"No location DEIMS.iD provided, but needed with map key '{map_key}' for requesting land cover information!"
+                    f"Map key '{map_key}' not found. Please provide valid map key!"
                 )
-
-            grassland_check.append(site_check)
-    elif map_key in tif_keys:
-        # Get TIF map and categories from legend file (local file or download from server)
-        tif_file, category_mapping = get_map_and_legend(map_key)
-
-        for location in locations:
-            site_check = get_intial_site_check(location)
-            site_check["map_year"] = map_years[map_key]
-            site_check["map_key"] = map_key
-            site_check["map_source"] = tif_file
-
-            # Check for grassland if coordinates present
-            if ("lat" in site_check) and ("lon" in site_check):
-                category, site_check["map_query_time_stamp"] = get_category_tif(
-                    tif_file, category_mapping, site_check
-                )
-                site_check["is_grass"] = check_if_grassland(
-                    category,
-                    site_check,
-                    map_key,
-                )
-                site_check["category001"] = category
-            grassland_check.append(site_check)
-    elif map_key in hrl_keys:
-        for location in locations:
-            site_check = get_intial_site_check(location)
-            site_check["map_year"] = map_years[map_key]
-            site_check["map_key"] = map_key
-            site_check["map_source"] = (
-                "https://image.discomap.eea.europa.eu/arcgis/rest/services/GioLandPublic/HRL_Grassland_2018/ImageServer"
+        else:
+            raise ValueError(
+                "Location not correctly defined. Please provide as dictionary containing ({'lat': float, 'lon': float})!"
             )
-
-            # Check for grassland if coordinates present
-            if ("lat" in site_check) and ("lon" in site_check):
-                category, site_check["map_query_time_stamp"] = (
-                    get_category_hrl_grassland(site_check)
-                )
-                site_check["is_grass"] = check_if_grassland(
-                    category,
-                    site_check,
-                    map_key,
-                )
-                site_check["category001"] = category
-            grassland_check.append(site_check)
-    else:
-        raise ValueError(
-            f"Map key '{map_key}' not found. Please provide valid map key!"
-        )
 
     # Save results to file
     if file_name:
-        check_results_to_file(grassland_check, file_name, map_key)
-
-    # # Final confirmation statement.
-    # print("Grassland check completed.")
+        check_results_to_file(grassland_check, file_name=file_name, map_key=map_key)
 
     return grassland_check
 
@@ -783,17 +735,22 @@ def main():
         # Example to get coordinates from DEIMS.iDs from XLS file
         file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
         country_code = "DE"  # "DE" "AT"
-        args.locations = ut.get_deims_ids_from_xls(
+        sites_ids = ut.get_deims_ids_from_xls(
             file_name, header_row=1, country=country_code
         )
-        args.file_name = file_name.parent / (
-            file_name.stem
-            + "_"
-            + country_code
-            + "__grasslandCheck_"
-            + args.map_key
-            + ".txt"
-        )  # ".txt" or ".xlsx"
+        args.locations = []
+
+        for deims_id in sites_ids:
+            location = ut.get_deims_coordinates(deims_id)
+
+            if location["found"]:
+                args.locations.append(location)
+
+        args.file_name = ut.add_string_to_file_name(
+            file_name,
+            f"_{country_code}__grasslandCheck_{args.map_key}",
+            new_suffix=".txt",  # ".txt" or ".xlsx"
+        )
 
         # # Example coordinates for checking without DEIMS.iDs
         # args.locations = [
