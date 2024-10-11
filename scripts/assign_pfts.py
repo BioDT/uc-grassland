@@ -7,9 +7,12 @@ Description: Assign PFTs to species with the following options:
 
     For any option, species names can (and should) be adjusted by GBIF taxonomic backbone.
 
+Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ)
+and Tuomas Rossi (CSC).
+
 Copyright (C) 2024
-- Thomas Banitz, Franziska Taubert, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
-- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
+- Helmholtz Centre for Environmental Research GmbH - UFZ, Germany
+- CSC - IT Center for Science Ltd., Finland
 
 Licensed under the EUPL, Version 1.2 or - as soon they will be approved
 by the European Commission - subsequent versions of the EUPL (the "Licence").
@@ -20,27 +23,27 @@ https://joinup.ec.europa.eu/software/page/eupl
 
 This project has received funding from the European Union's Horizon Europe Research and Innovation
 Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
-The authors acknowledge the EuroHPC Joint Undertaking and CSC – IT Center for Science Ltd., Finland
-for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC – IT Center for
+The authors acknowledge the EuroHPC Joint Undertaking and CSC - IT Center for Science Ltd., Finland
+for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC - IT Center for
 Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
 
 Data sources:
     TRY categorical traits table:
     - Kattge J., Díaz S., Lavorel S., Prentice I., Leadley P., et al. (2011):
       TRY - a global database of plant traits.
-      Global Change Biology 17: 2905‑2935. https://doi.org/10.1111/j.1365-2486.2011.02451.x
-    - table provided upon personal request
+      Global Change Biology 17: 2905-2935. https://doi.org/10.1111/j.1365-2486.2011.02451.x
+    - Table provided upon personal request and used without changes
 
     GBIF taxonomic backbone:
     - GBIF Secretariat (2023):
       GBIF Backbone Taxonomy. Checklist dataset.
-      URL: https://doi.org/10.15468/39omei
+    - Website: https://doi.org/10.15468/39omei
 
      Growth form table (woodiness):
     - Zanne A.E., Tank D.C., Cornwell W.K., Eastman J.M., Smith S.A., et al. (2014):
       Three keys to the radiation of angiosperms into freezing environments.
-      Nature 506: 89‑92. https://doi.org/10.1038/nature12872
-    - table available at: https://github.com/traitecoevo/growthform
+      Nature 506: 89-92. https://doi.org/10.1038/nature12872
+    - Table available at: https://github.com/traitecoevo/growthform
 """
 
 from pathlib import Path

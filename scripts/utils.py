@@ -2,9 +2,12 @@
 Module Name: utils.py
 Description: Utility functions for uc-grassland building block.
 
+Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ)
+and Tuomas Rossi (CSC).
+
 Copyright (C) 2024
-- Thomas Banitz, Franziska Taubert, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
-- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
+- Helmholtz Centre for Environmental Research GmbH - UFZ, Germany
+- CSC - IT Center for Science Ltd., Finland
 
 Licensed under the EUPL, Version 1.2 or - as soon they will be approved
 by the European Commission - subsequent versions of the EUPL (the "Licence").
@@ -15,8 +18,8 @@ https://joinup.ec.europa.eu/software/page/eupl
 
 This project has received funding from the European Union's Horizon Europe Research and Innovation
 Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
-The authors acknowledge the EuroHPC Joint Undertaking and CSC – IT Center for Science Ltd., Finland
-for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC – IT Center for
+The authors acknowledge the EuroHPC Joint Undertaking and CSC - IT Center for Science Ltd., Finland
+for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC - IT Center for
 Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
 """
 
@@ -95,6 +98,7 @@ def replace_substrings(
     # For list of input strings, replace list of substrings with replacement string
     if isinstance(input_data, list):
         modified_list = []
+
         for original_string in input_data:
             modified_string = original_string
 
@@ -680,15 +684,15 @@ def reproject_coordinates(lat, lon, target_crs):
     return east, north
 
 
-def extract_raster_value(tif_file, location, band_number=1, attempts=5, delay=2):
+def extract_raster_value(tif_file, location, *, band_number=1, attempts=5, delay=2):
     """
     Extract value from raster file at specified coordinates.
 
     Parameters:
         tif_file (str): TIF file path or URL.
-        location (dict): Dictionary with 'lat' and 'lon' keys.
+        coordinates (dict): Dictionary with 'lat' and 'lon' keys ({'lat': float, 'lon': float}).
         band_number (int): Band number for which the value shall be extracted (default is 1).
-        attempts (int): Number of attempts to open TIF file in case of errors (default is 5).
+        attempts (int): Number of attempts to open the TIF file in case of errors (default is 5).
         delay (int): Number of seconds to wait between attempts (default is 2).
 
     Returns:
@@ -703,7 +707,7 @@ def extract_raster_value(tif_file, location, band_number=1, attempts=5, delay=2)
                 target_crs = src.crs.to_wkt()
 
                 # Reproject coordinates to target CRS
-                (east, north) = reproject_coordinates(
+                east, north = reproject_coordinates(
                     location["lat"], location["lon"], target_crs
                 )
 
@@ -719,7 +723,7 @@ def extract_raster_value(tif_file, location, band_number=1, attempts=5, delay=2)
                 print(f"Retrying in {delay} seconds ...")
                 time.sleep(delay)
             else:
-                return (None, time_stamp)
+                return None, time_stamp
 
 
 def check_url(url, attempts=5, delay=2):

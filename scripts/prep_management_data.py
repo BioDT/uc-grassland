@@ -4,9 +4,12 @@ Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
 Date: April, 2024
 Description: Download management data and prepare as needed for grassland model input.
 
+Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
+Tuomas Rossi (CSC) and Taimur Haider Khan (UFZ).
+
 Copyright (C) 2024
-- Thomas Banitz, Franziska Taubert, Taimur Haider Khan, Helmholtz Centre for Environmental Research GmbH - UFZ, Leipzig, Germany
-- Tuomas Rossi, CSC – IT Center for Science Ltd., Espoo, Finland
+- Helmholtz Centre for Environmental Research GmbH - UFZ, Germany
+- CSC - IT Center for Science Ltd., Finland
 
 Licensed under the EUPL, Version 1.2 or - as soon they will be approved
 by the European Commission - subsequent versions of the EUPL (the "Licence").
@@ -17,38 +20,34 @@ https://joinup.ec.europa.eu/software/page/eupl
 
 This project has received funding from the European Union's Horizon Europe Research and Innovation
 Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
-The authors acknowledge the EuroHPC Joint Undertaking and CSC – IT Center for Science Ltd., Finland
-for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC – IT Center for
+The authors acknowledge the EuroHPC Joint Undertaking and CSC - IT Center for Science Ltd., Finland
+for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC - IT Center for
 Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
 
 Data sources:
-    Management data source 'GER_Lange' map:
-        Lange, M., Feilhauer, H., Kühn, I., Doktor, D. (2022).
-        Mapping land-use intensity of grasslands in Germany with machine learning and Sentinel-2 time series,
-        Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2022.112888
+    "GER_Lange" map:
+    - Lange, M., Feilhauer, H., Kühn, I., Doktor, D. (2022).
+      Mapping land-use intensity of grasslands in Germany with machine learning and Sentinel-2 time series,
+      Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2022.112888
+    - Based on grassland classifaction according to: German ATKIS digital landscape model 2015.
 
-        Based on grassland classifaction according to:
-            German ATKIS digital landscape model 2015.
+    "GER_Schwieder" map:
+    - Schwieder, M., Wesemeyer, M., Frantz, D., Pfoch, K., Erasmi, S., Pickert, J., Nendel, C., Hostert, P. (2022).
+      Mapping grassland mowing events across Germany based on combined Sentinel-2 and Landsat 8 time series,
+      Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2021.112795
+    - Based on grassland classification according to:
+      Blickensdörfer, L., Schwieder, M., Pflugmacher, D., Nendel, C., Erasmi, S., Hostert, P. (2021).
+      National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and
+      Landsat 8 data (2017, 2018 and 2019), https://zenodo.org/records/5153047.
 
-    Management data source 'GER_Schwieder' map:
-        Schwieder, M., Wesemeyer, M., Frantz, D., Pfoch, K., Erasmi, S., Pickert, J., Nendel, C., Hostert, P. (2022).
-        Mapping grassland mowing events across Germany based on combined Sentinel-2 and Landsat 8 time series,
-        Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2021.112795
-
-        Based on grassland classification according to:
-            Blickensdörfer, L., Schwieder, M., Pflugmacher, D., Nendel, C., Erasmi, S., Hostert, P. (2021).
-            National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and
-            Landsat 8 data (2017, 2018 and 2019), https://zenodo.org/records/5153047.
-
-    Mowing default dates according to:
-        Filipiak, M., Gabriel, D., Kuka, K. (2022).
-        Simulation-based assessment of the soil organic carbon sequestration in grasslands in relation to
-        management and climate change scenarios, https://doi.org/10.1016/j.heliyon.2023.e17287
-
-        See also:
-            Schmid, J. (2022).
-            Modeling species-rich ecosystems to understand community dynamics and structures emerging from
-            individual plant interactions, PhD thesis, Chapter 4, Table C.7, https://doi.org/10.48693/160
+    Mowing default dates:
+    - Filipiak, M., Gabriel, D., Kuka, K. (2022).
+      Simulation-based assessment of the soil organic carbon sequestration in grasslands in relation to
+      management and climate change scenarios, https://doi.org/10.1016/j.heliyon.2023.e17287
+    - See also:
+      Schmid, J. (2022).
+      Modeling species-rich ecosystems to understand community dynamics and structures emerging from
+      individual plant interactions, PhD thesis, Chapter 4, Table C.7, https://doi.org/10.48693/160
 """
 
 import argparse
