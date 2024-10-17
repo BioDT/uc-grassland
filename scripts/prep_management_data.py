@@ -256,9 +256,7 @@ def get_management_map_file(
         try:
             file_name = file_names[year][applicability][property]
         except KeyError:
-            warnings.warn(
-                f"'{map_key}' {property} map not available for {year}!", UserWarning
-            )
+            warnings.warn(f"'{map_key}' {property} map not available for {year}!")
             return None
 
         map_file = (
@@ -269,9 +267,7 @@ def get_management_map_file(
         if year in [2017, 2018, 2019, 2020, 2021]:
             file_name = f"GLU_GER_{year}_SUM_DOY_COG.tif"
         else:
-            warnings.warn(
-                f"'{map_key}' {property} map not available for {year}!", UserWarning
-            )
+            warnings.warn(f"'{map_key}' {property} map not available for {year}!")
             return None
 
         if cache is not None:
@@ -360,8 +356,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                     if within_aoa == -1:
                         if warn_no_grassland:
                             warnings.warn(
-                                f"Location not classified as grassland in '{map_key}' map.",
-                                UserWarning,
+                                f"Location not classified as grassland in '{map_key}' map."
                             )
                             warn_no_grassland = False
                         break
@@ -435,8 +430,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
             if band_value == -9999:
                 if warn_no_grassland:
                     warnings.warn(
-                        f"Location not classified as grassland in '{map_key}' map.",
-                        UserWarning,
+                        f"Location not classified as grassland in '{map_key}' map."
                     )
                     warn_no_grassland = False
             else:
@@ -520,7 +514,7 @@ def get_mow_schedule(year, mow_count, data_source, mow_height=0.05):
     """
     # Check if mow_count is NaN
     if np.isnan(mow_count):
-        warnings.warn("mow_count is NaN. No schedule will be generated.", UserWarning)
+        warnings.warn("mow_count is NaN. No schedule will be generated.")
 
         return np.array([])
 
@@ -528,14 +522,12 @@ def get_mow_schedule(year, mow_count, data_source, mow_height=0.05):
     if mow_count < 1:
         mow_count = 1
         warnings.warn(
-            "'mow_count' is smaller than 1! Value between 1 and 5 expected. Set to 1.",
-            UserWarning,
+            "'mow_count' is smaller than 1! Value between 1 and 5 expected. Set to 1."
         )
     elif mow_count > 5:
         mow_count = 5
         warnings.warn(
-            "'mow_count' is greater than 5! Value between 1 and 5 expected. Set to 5.",
-            UserWarning,
+            "'mow_count' is greater than 5! Value between 1 and 5 expected. Set to 5."
         )
 
     # Convert mow_count to int
@@ -603,9 +595,9 @@ def get_fert_days(mow_days, year):
         fert_day = mow_day - deltas[idx]
 
         if fert_day < earliest_fert_day:
-            print(
-                "Warning: Calculated fertilisation date"
-                f" {ut.day_of_year_to_date(year, fert_day).strftime("%Y-%m-%d")}"
+            warnings.warn(
+                "Calculated fertilisation date"
+                f" {ut.day_of_year_to_date(year, fert_day).strftime('%Y-%m-%d')}"
                 f" is before earliest date allowed! Set to {earliest_fert_date_str}."
             )
             fert_day = earliest_fert_day
@@ -658,7 +650,7 @@ def get_fert_schedule(year, fert_count, data_source, fert_days=None):
     """
     # Check if fert_count is NaN
     if np.isnan(fert_count):
-        warnings.warn("fert_count is NaN. No schedule will be generated.", UserWarning)
+        warnings.warn("fert_count is NaN. No schedule will be generated.")
 
         return np.array([])
 
@@ -666,14 +658,12 @@ def get_fert_schedule(year, fert_count, data_source, fert_days=None):
     if fert_count < 1:
         fert_count = 1
         warnings.warn(
-            "'fert_count' is smaller than 1! Value between 1 and 5 expected. Set to 1.",
-            UserWarning,
+            "'fert_count' is smaller than 1! Value between 1 and 5 expected. Set to 1."
         )
     elif fert_count > 5:
         fert_count = 5
         warnings.warn(
-            "'fert_count' is greater than 5! Value between 1 and 5 expected. Set to 5.",
-            UserWarning,
+            "'fert_count' is greater than 5! Value between 1 and 5 expected. Set to 5."
         )
 
     # Convert fert_count to int
@@ -684,14 +674,12 @@ def get_fert_schedule(year, fert_count, data_source, fert_days=None):
         if len(fert_days) > fert_count:
             warnings.warn(
                 f"List of fertilisation days for {year} has more entries than 'fert_count'."
-                f" Only first {fert_count} days will be used!",
-                UserWarning,
+                f" Only first {fert_count} days will be used!"
             )
         elif len(fert_days) < fert_count:
             warnings.warn(
                 f"List of fertilisation days for {year} has fewer entries than expected for 'fert_count' = {fert_count}."
-                " List not used, replaced by standard schedule!",
-                UserWarning,
+                " List not used, replaced by standard schedule!"
             )
             fert_days = None
 

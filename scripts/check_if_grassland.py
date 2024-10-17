@@ -150,10 +150,7 @@ def get_map_specs(map_key):
                 "url_folder": "https://zenodo.org/records/10640528/files/",
             }
         else:
-            warnings.warn(
-                f"Land cover map for key '{map_key}' not found!",
-                UserWarning,
-            )
+            warnings.warn(f"Land cover map for key '{map_key}' not found!")
             return None
     elif map_key.startswith("GER_Lange_"):
         map_year = map_key.split("_")[-1]  # get year from map key
@@ -173,16 +170,10 @@ def get_map_specs(map_key):
                 "url_folder": "https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/",
             }
         else:
-            warnings.warn(
-                f"Land cover map for key '{map_key}' not found!",
-                UserWarning,
-            )
+            warnings.warn(f"Land cover map for key '{map_key}' not found!")
             return None
     else:
-        warnings.warn(
-            f"Land cover map for key '{map_key}' not found!",
-            UserWarning,
-        )
+        warnings.warn(f"Land cover map for key '{map_key}' not found!")
         return None
 
     return map_specs
@@ -419,16 +410,10 @@ def get_category_hrl_grassland(location):
                 return "outside area", time_stamp
 
             # Handle unknown values
-            warnings.warn(
-                f"Unknown value for specified location: {value}.",
-                UserWarning,
-            )
+            warnings.warn(f"Unknown value for specified location: {value}.")
             return value, time_stamp
         else:
-            warnings.warn(
-                "No value for specified location.",
-                UserWarning,
-            )
+            warnings.warn("No value for specified location.")
     else:
         print(f"Error: {response.status_code}")
 
@@ -699,7 +684,7 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="EUR_eunis_habitat",
+        default="GER_Preidl",
         choices=[
             "EUR_eunis_habitat",
             "EUR_hrl_grassland",

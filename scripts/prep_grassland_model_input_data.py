@@ -124,9 +124,8 @@ def data_processing(coordinates, years):
         )
     else:
         warnings.warn(
-            "Coordinates not correctly defined. Please provide as dictionary ",
-            "({'lat': float, 'lon': float})! No input data generated.",
-            UserWarning,
+            "Coordinates not correctly defined. Please provide as dictionary "
+            "({'lat': float, 'lon': float})! No input data generated."
         )
 
 

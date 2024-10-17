@@ -27,7 +27,7 @@ import argparse
 import csv
 import time
 import warnings
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -50,16 +50,22 @@ def add_string_to_file_name(file_name, string_to_add, *, new_suffix=None):
     Returns:
         new_file_name (Path): New file path with added string.
     """
-    if new_suffix is None:
-        new_suffix = file_name.suffix
+    if file_name:
+        file_name = Path(file_name)
 
-    return file_name.with_name(file_name.stem + string_to_add + new_suffix)
+        if new_suffix is None:
+            new_suffix = file_name.suffix
+
+        return file_name.with_name(file_name.stem + string_to_add + new_suffix)
+
+    return ""
 
 
 def replace_substrings(
     input_data,
     substrings_to_replace,
     replacement_string,
+    *,
     at_end=False,
     warning_no_string=False,
 ):
@@ -92,35 +98,62 @@ def replace_substrings(
     if isinstance(substrings_to_replace, str):
         substrings_to_replace = [substrings_to_replace]
 
-    if isinstance(input_data, str):
-        input_data = [input_data]
-
-    # For list of input strings, replace list of substrings with replacement string
-    if isinstance(input_data, list):
-        modified_list = []
-
-        for original_string in input_data:
-            modified_string = original_string
-
-            if isinstance(modified_string, str):
-                for substring in substrings_to_replace:
-                    modified_string = (
-                        replace_substring_at_end(modified_string, substring)
-                        if at_end
-                        else replace_substring(modified_string, substring)
-                    )
-            elif warning_no_string:
-                warnings.warn(
-                    f"{modified_string} is not a string. No replacements performed.",
-                    UserWarning,
+    # Recursive function to handle strings and nested lists
+    def process_item(item):
+        if isinstance(item, str):
+            modified_string = item
+            for substring in substrings_to_replace:
+                modified_string = (
+                    replace_substring_at_end(modified_string, substring)
+                    if at_end
+                    else replace_substring(modified_string, substring)
                 )
+            return modified_string
+        elif isinstance(item, list):
+            return [process_item(sub_item) for sub_item in item]
+        elif warning_no_string:
+            warnings.warn(f"{item} is not a string. No replacements performed.")
+        return item  # If it's not a string or list, return as is
 
-            modified_list.append(modified_string)
+    # Process input_data, which can be a string, list, or list of lists
+    if isinstance(input_data, (str, list)):
+        return process_item(
+            input_data
+        )  # Process both string and list of strings or list of lists
     else:
-        raise ValueError("Input data must be a string or a list of strings.")
+        raise ValueError(
+            "Input data must be a string, a list of strings, or a list of lists."
+        )
 
-    # Return only string if input data was just a string, list of strings otherwise
-    return modified_list[0] if len(modified_list) == 1 else modified_list
+    # if isinstance(input_data, str):
+    #     input_data = [input_data]
+
+    # # For list of input strings, replace list of substrings with replacement string
+    # if isinstance(input_data, list):
+    #     modified_list = []
+
+    #     for original_string in input_data:
+    #         modified_string = original_string
+
+    #         if isinstance(modified_string, str):
+    #             for substring in substrings_to_replace:
+    #                 modified_string = (
+    #                     replace_substring_at_end(modified_string, substring)
+    #                     if at_end
+    #                     else replace_substring(modified_string, substring)
+    #                 )
+    #         elif warning_no_string:
+    #             warnings.warn(
+    #                 f"{modified_string} is not a string. No replacements performed.",
+    #
+    #             )
+
+    #         modified_list.append(modified_string)
+    # else:
+    #     raise ValueError("Input data must be a string or a list of strings.")
+
+    # # Return only string if input data was just a string, list of strings otherwise
+    # return modified_list[0] if len(modified_list) == 1 else modified_list
 
 
 def count_duplicates(lst):
@@ -166,40 +199,93 @@ def dict_to_file(dict_to_write, column_names, file_name):
         column_names (list): List of all column names (strings, includes first column for dict_to_write keys).
         file_name (str or Path): Path of output file (suffix determines file type).
     """
-    file_path = Path(file_name)
-    file_suffix = file_path.suffix.lower()
+    if file_name:
+        file_path = Path(file_name)
+        file_suffix = file_path.suffix.lower()
 
-    # Create data directory if missing
-    Path(file_name).parent.mkdir(parents=True, exist_ok=True)
+        # Create data directory if missing
+        Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
-    if file_suffix in [".txt", ".csv"]:
-        with open(file_path, "w", newline="", encoding="utf-8") as file:
-            writer = (
-                csv.writer(file, delimiter="\t")
-                if file_suffix == ".txt"
-                else csv.writer(file, delimiter=";")
-            )
-            header = column_names
-            writer.writerow(header)  # Header row
+        if file_suffix in [".txt", ".csv"]:
+            with open(file_path, "w", newline="", encoding="utf-8") as file:
+                writer = (
+                    csv.writer(file, delimiter="\t")
+                    if file_suffix == ".txt"
+                    else csv.writer(file, delimiter=";")
+                )
+                header = column_names
+                writer.writerow(header)  # Header row
+
+                for key, values in dict_to_write.items():
+                    writer.writerow(get_row_values(key, values))
+        elif file_suffix == ".xlsx":
+            df = pd.DataFrame(columns=column_names)
 
             for key, values in dict_to_write.items():
-                writer.writerow(get_row_values(key, values))
-    elif file_suffix == ".xlsx":
-        df = pd.DataFrame(columns=column_names)
+                df = pd.concat(
+                    [
+                        df,
+                        pd.DataFrame(
+                            [get_row_values(key, values)], columns=column_names
+                        ),
+                    ],
+                    ignore_index=True,
+                )
 
-        for key, values in dict_to_write.items():
-            df = pd.concat(
-                [df, pd.DataFrame([get_row_values(key, values)], columns=column_names)],
-                ignore_index=True,
+            df.to_excel(file_path, index=False)
+        else:
+            print(
+                "Error: Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
             )
 
-        df.to_excel(file_path, index=False)
-    else:
-        print(
-            "Error: Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
-        )
+        print(f"Dictionary written to file '{file_name}'.")
 
-    print(f"Dictionary written to file '{file_name}'.")
+
+def find_column_index(raw_data, column_id, *, header_lines=1):
+    """
+    Find index of specified column in data frame or list of lists.
+
+    Parameters:
+        raw_data (pd.DataFrame or list): Data frame or list of lists to find column.
+        column_id (str or int): Column identifier (name as string or index).
+        header_lines (int): Number of header lines in list of lists (default is 1).
+
+    Returns:
+        int: Index of specified column, if found.
+
+    Raises:
+        KeyError: If column name is not found in the data frame or list of lists.
+        ValueError: If column identifier is not a string or integer.
+        TypeError: If raw_data is not a pandas DataFrame or a list of lists.
+    """
+    if isinstance(raw_data, pd.DataFrame):
+        if isinstance(column_id, str):
+            try:
+                return raw_data.columns.get_loc(column_id)
+            except KeyError:
+                raise KeyError(f"Column '{column_id}' not found in the data frame.")
+        elif isinstance(column_id, int):
+            return column_id
+        else:
+            raise ValueError(
+                "Invalid column identifier. Please provide a column name (str) or column number (int).",
+            )
+    elif isinstance(raw_data, list):
+        if isinstance(column_id, str):
+            if column_id in raw_data[header_lines - 1]:
+                return raw_data[header_lines - 1].index(column_id)
+            else:
+                raise ValueError(
+                    f"Column '{column_id}' not found in header line of .txt file."
+                )
+        elif isinstance(column_id, int):
+            return column_id
+        else:
+            raise ValueError(
+                "Invalid column identifier. Please provide a column name (str) or column number (int)."
+            )
+    else:
+        raise TypeError("Input data must be a pandas DataFrame or a list of lists.")
 
 
 def list_to_file(list_to_write, column_names, file_name):
@@ -361,6 +447,8 @@ def add_info_to_list(list_to_lookup, info_dict):
     for entry in list_to_lookup:
         if isinstance(entry, tuple):
             info_list.append(entry + (lookup_info_in_dict(entry[0], info_dict),))
+        elif isinstance(entry, list):
+            info_list.append(entry + [lookup_info_in_dict(entry[0], info_dict)])
         else:
             info_list.append((entry, lookup_info_in_dict(entry, info_dict)))
 
@@ -405,6 +493,79 @@ def reduce_dict_to_single_info(info_lookup, info_name):
                 )
 
     return info_lookup
+
+
+def sort_and_cleanup_list(input_list):
+    """
+    Sort a list to remove duplicates and handle warnings based on criteria.
+
+    Parameters:
+        input_list (list): List of strings or a list of lists.
+
+    Returns:
+        list: A processed list with sorted and unique entries.
+    """
+
+    # Check if the input is a list of strings or a list of lists
+    if not isinstance(input_list, list):
+        raise ValueError("Input must be a list of strings or a list of lists.")
+
+    # Convert all entries to strings
+    input_list = [
+        [str(entry) for entry in sublist] if isinstance(sublist, list) else str(sublist)
+        for sublist in input_list
+    ]
+
+    # Replace nan (also "#NV" for absence of species? ["nan", "#NV"])
+    input_list = replace_substrings(
+        input_list, ["nan", "#NV"], "", at_end=True, warning_no_string=True
+    )
+
+    # # Replace entries with 2 values separated by " / " with default format
+    # for entry in input_list:
+    #     if isinstance(entry, list):
+    #         for idx, item in enumerate(entry):
+    #             if " / " in item:
+    #                 entry[idx] = (
+    #                     f"conflicting ({item.split(' / ')[0]} vs. {item.split(' / ')[1]})"
+    #                 )
+
+    # If input is a list of strings, return unique entries
+    if all(isinstance(item, str) for item in input_list):
+        return sorted(set(input_list))
+
+    # If input is a list of lists
+    unique_entries = defaultdict(list)
+
+    # Collect all unique rows, rows with same entry in column 0 assigned to same key
+    for entry in input_list:
+        if isinstance(entry, list):
+            unique_entries[entry[0]].append(entry)
+        else:
+            warnings.warn(f"{entry} is not a list. Skipping this entry.")
+
+    unique_entries = {key: unique_entries[key] for key in sorted(unique_entries)}
+    processed_list = []
+
+    for key, group in unique_entries.items():
+        if len(group) == 1:
+            # Only one entry with this key, keep it
+            processed_list.append(group[0])
+        else:
+            # Check if all entries are identical
+            first_entry = group[0]
+            processed_list.append(first_entry)
+            differing_entries = [entry for entry in group if entry != first_entry]
+
+            if differing_entries:
+                # If there are differing entries, keep all of them
+                processed_list.extend(differing_entries)
+                warnings.warn(
+                    f"Entries with the same first column value '{key}' differ in other columns."
+                    "Keeping all unique entries."
+                )
+
+    return processed_list
 
 
 def get_package_root():
@@ -491,9 +652,7 @@ def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
         df = df[df["Country"] == country]
 
         if df.empty:
-            warnings.warn(
-                f"No entries found for country code '{country}'.", UserWarning
-            )
+            warnings.warn(f"No entries found for country code '{country}'.")
 
     # Extract column containing list of DEIMS.iDs and return as list of dicts
     return df["DEIMS.ID"].tolist()
@@ -520,8 +679,7 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
 
     if df.empty:
         warnings.warn(
-            f"No entries found in file '{csv_file}'. Returning empty plot locations list.",
-            UserWarning,
+            f"No entries found in file '{csv_file}'. Returning empty plot locations list."
         )
         return []
     else:
@@ -545,8 +703,7 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
             for item in entries_required:
                 if item not in entries_raw:
                     warnings.warn(
-                        f"No '{item}' entry found. Skipping plot location row.",
-                        UserWarning,
+                        f"No '{item}' entry found. Skipping plot location row."
                     )
                     entries_missing = True
                     break
