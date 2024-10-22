@@ -125,36 +125,6 @@ def replace_substrings(
             "Input data must be a string, a list of strings, or a list of lists."
         )
 
-    # if isinstance(input_data, str):
-    #     input_data = [input_data]
-
-    # # For list of input strings, replace list of substrings with replacement string
-    # if isinstance(input_data, list):
-    #     modified_list = []
-
-    #     for original_string in input_data:
-    #         modified_string = original_string
-
-    #         if isinstance(modified_string, str):
-    #             for substring in substrings_to_replace:
-    #                 modified_string = (
-    #                     replace_substring_at_end(modified_string, substring)
-    #                     if at_end
-    #                     else replace_substring(modified_string, substring)
-    #                 )
-    #         elif warning_no_string:
-    #             warnings.warn(
-    #                 f"{modified_string} is not a string. No replacements performed.",
-    #
-    #             )
-
-    #         modified_list.append(modified_string)
-    # else:
-    #     raise ValueError("Input data must be a string or a list of strings.")
-
-    # # Return only string if input data was just a string, list of strings otherwise
-    # return modified_list[0] if len(modified_list) == 1 else modified_list
-
 
 def count_duplicates(lst):
     """
@@ -166,8 +136,23 @@ def count_duplicates(lst):
     Returns:
         dict: Dictionary where (sorted) keys are duplicate items and values are their counts.
     """
-    counter = Counter(lst)
-    duplicates = {item: count for item, count in sorted(counter.items()) if count > 1}
+    # Convert each sublist to a tuple, if not already
+    tuple_lst = []
+
+    for entry in lst:
+        if isinstance(entry, list):
+            tuple_lst.append(tuple(entry))
+        elif isinstance(entry, tuple):
+            tuple_lst.append(entry)
+        elif isinstance(entry, str):
+            tuple_lst.append((entry,))
+        else:
+            warnings.warn(f"List entry '{entry}' is not a list, tuple, or string.")
+
+    counter = Counter(tuple_lst)
+    duplicates = {
+        item[0]: count for item, count in sorted(counter.items()) if count > 1
+    }
     return duplicates
 
 
@@ -258,14 +243,27 @@ def find_column_index(raw_data, column_id, *, header_lines=1):
         ValueError: If column identifier is not a string or integer.
         TypeError: If raw_data is not a pandas DataFrame or a list of lists.
     """
+
     if isinstance(raw_data, pd.DataFrame):
         if isinstance(column_id, str):
             try:
                 return raw_data.columns.get_loc(column_id)
             except KeyError:
-                raise KeyError(f"Column '{column_id}' not found in the data frame.")
+                # If exact match not found, try lowercase match
+                lower_column_id = column_id.lower()
+
+                for col in raw_data.columns:
+                    if col.lower() == lower_column_id:
+                        return raw_data.columns.get_loc(col)
+
+                raise KeyError(f"Column '{column_id}' not found in DataFrame.")
         elif isinstance(column_id, int):
-            return column_id
+            if column_id in range(len(raw_data.columns)):
+                return column_id
+            else:
+                raise ValueError(
+                    f"Column number '{column_id}' out of range in DataFrame."
+                )
         else:
             raise ValueError(
                 "Invalid column identifier. Please provide a column name (str) or column number (int).",
@@ -274,12 +272,20 @@ def find_column_index(raw_data, column_id, *, header_lines=1):
         if isinstance(column_id, str):
             if column_id in raw_data[header_lines - 1]:
                 return raw_data[header_lines - 1].index(column_id)
+            elif column_id.lower() in raw_data[header_lines - 1]:
+                # If exact match not found, try lowercase match
+                return raw_data[header_lines - 1].index(column_id.lower())
             else:
                 raise ValueError(
-                    f"Column '{column_id}' not found in header line of .txt file."
+                    f"Column '{column_id}' not found in header line of list."
                 )
         elif isinstance(column_id, int):
-            return column_id
+            if column_id in range(len(raw_data[header_lines - 1])):
+                return column_id
+            else:
+                raise ValueError(
+                    f"Column number '{column_id}' out of range in header line of list."
+                )
         else:
             raise ValueError(
                 "Invalid column identifier. Please provide a column name (str) or column number (int)."
@@ -431,16 +437,45 @@ def lookup_info_in_dict(key, info_lookup):
     return "not found"
 
 
+def add_columns_to_list(input_list, columns_to_add):
+    """
+    Add items from columns_to_add to each sublist in input_list.
+
+    Parameters:
+        input_list (list of lists): List of sublists to which items will be added.
+        columns_to_add (list): List of items or sublists to add to each sublist in input_list.
+
+    Returns:
+        list: Combined list with items added to each sublist.
+    """
+    # Ensure both lists have the same length
+    if len(input_list) != len(columns_to_add):
+        raise ValueError("Both lists must have the same length!")
+
+    # Ensure each entry in input_list is a sublist
+    normalized_input_list = [
+        sublist if isinstance(sublist, list) else [sublist] for sublist in input_list
+    ]
+
+    # Add the item(s) to each sublist
+    combined_list = [
+        sublist + (item if isinstance(item, list) else [item])
+        for sublist, item in zip(normalized_input_list, columns_to_add)
+    ]
+
+    return combined_list
+
+
 def add_info_to_list(list_to_lookup, info_dict):
     """
     Extend a list with information looked up from a dictionary.
 
     Parameters:
-        list_to_lookup (list or list of tuples): List or list of tuples with keys to look up in first column.
+        list_to_lookup (list or list of tuples list of lists): List with keys to look up in first column.
         info_lookup (dict): Dictionary containing key-value pairs.
 
     Returns:
-        list: List of tuples (original entries with info looked up added as last entry).
+        list: List of tuples or list of lists (original entries with info looked up added as last entry).
     """
     info_list = []
 
@@ -495,12 +530,56 @@ def reduce_dict_to_single_info(info_lookup, info_name):
     return info_lookup
 
 
-def sort_and_cleanup_list(input_list):
+def combine_info_strings(info_1, info_2):
+    """
+    Combine infos for a species.
+
+    Parameters:
+        info_1 (str): First info entry.
+        info_2 (str): Second info entry.
+
+    Returns:
+        str: Combined info entry.
+    """
+    info_1_core = replace_substrings(info_1, ["(", ")", "conflicting "], "")
+    info_2_core = replace_substrings(info_2, ["(", ")", "conflicting "], "")
+
+    # Allow combination without conflict of infos that can be woody
+    woody_infos = [
+        "woody",
+        "tree",
+        "shrub",
+        "shrub/tree",
+        "legume?",
+        "legume?/tree",
+        "legume?/shrub",
+        "legume?/shrub/tree",
+    ]
+
+    # Return one info, if it already contains the other info
+    if info_1_core in info_2_core:
+        return info_2
+    elif info_2_core in info_1_core:
+        return info_1
+    else:
+        info_both = sorted((info_1_core, info_2_core))
+
+        # Combine without conflict, if both infos are woody (PFT or Woodiness)
+        if info_1_core in woody_infos and info_2_core in woody_infos:
+            return f"({info_both[0]}/{info_both[1]})"
+        # Combine as conflicting otherwise
+        else:
+            return f"conflicting ({info_both[0]} vs. {info_both[1]})"
+
+
+def sort_and_cleanup_list(input_list, *, combine_differing_entries=False):
     """
     Sort a list to remove duplicates and handle warnings based on criteria.
 
     Parameters:
         input_list (list): List of strings or a list of lists.
+        combine_differing_entries (bool): Combine differing entries (with same info in first
+            column) into one (default is False).
 
     Returns:
         list: A processed list with sorted and unique entries.
@@ -521,28 +600,22 @@ def sort_and_cleanup_list(input_list):
         input_list, ["nan", "#NV"], "", at_end=True, warning_no_string=True
     )
 
-    # # Replace entries with 2 values separated by " / " with default format
-    # for entry in input_list:
-    #     if isinstance(entry, list):
-    #         for idx, item in enumerate(entry):
-    #             if " / " in item:
-    #                 entry[idx] = (
-    #                     f"conflicting ({item.split(' / ')[0]} vs. {item.split(' / ')[1]})"
-    #                 )
-
     # If input is a list of strings, return unique entries
-    if all(isinstance(item, str) for item in input_list):
+    if all(isinstance(entry, str) for entry in input_list):
         return sorted(set(input_list))
 
-    # If input is a list of lists
-    unique_entries = defaultdict(list)
+    # If input is a list of lists, check for entries with same first column value but differing other columns
+    if all(isinstance(entry, list) for entry in input_list):
+        # Replace tabs within strings
+        input_list = replace_substrings(input_list, "\t", " ")
 
-    # Collect all unique rows, rows with same entry in column 0 assigned to same key
-    for entry in input_list:
-        if isinstance(entry, list):
+        # Collect all unique rows, rows with same entry in column 0 assigned to same key
+        unique_entries = defaultdict(list)
+
+        for entry in input_list:
             unique_entries[entry[0]].append(entry)
-        else:
-            warnings.warn(f"{entry} is not a list. Skipping this entry.")
+    else:
+        raise ValueError("Input list entries must be all strings or all lists.")
 
     unique_entries = {key: unique_entries[key] for key in sorted(unique_entries)}
     processed_list = []
@@ -554,33 +627,59 @@ def sort_and_cleanup_list(input_list):
         else:
             # Check if all entries are identical
             first_entry = group[0]
-            processed_list.append(first_entry)
             differing_entries = [entry for entry in group if entry != first_entry]
 
             if differing_entries:
-                # If there are differing entries, keep all of them
-                processed_list.extend(differing_entries)
                 warnings.warn(
                     f"Entries with the same first column value '{key}' differ in other columns."
-                    "Keeping all unique entries."
                 )
+
+                if combine_differing_entries:
+                    # If there are differing entries, combine them into one entry
+                    combined_entry = first_entry
+
+                    for entry in differing_entries:
+                        for idx, item in enumerate(entry, start=1):
+                            if item != combined_entry[idx]:
+                                combined_entry[idx] = combine_info_strings(
+                                    combined_entry[idx], item
+                                )
+
+                    processed_list.append(combined_entry)
+                    print(f"Combining all unique entries for '{key}'.")
+                else:
+                    # If there are differing entries, keep all of them as separate entries
+                    processed_list.append(first_entry)
+                    processed_list.extend(differing_entries)
+                    print("Keeping all unique entries.")
+            else:
+                # warnings.warn(
+                #     f"{len(group)} entries with the same first column value '{key}' are identical. Keeping only one."
+                # )
+                processed_list.append(first_entry)
 
     return processed_list
 
 
-def get_package_root():
+def get_package_root(markers=None):
     """
     Get root directory of the package containing the current module.
+
+    Parameters:
+        markers (list of str): List of marker files or directories to identify the package root.
 
     Returns:
         Path: Path to package root directory.
     """
+    if markers is None:
+        markers = ["setup.py", ".git", "requirements.txt"]
+
     # Get file path of current module
     module_path = Path(__file__).resolve()
 
     # Navigate up from module directory until package root is found
     for parent in module_path.parents:
-        if (parent / "setup.py").is_file():
+        if all((parent / marker).exists() for marker in markers):
             return parent
 
     raise FileNotFoundError("Could not find package root.")
@@ -883,7 +982,7 @@ def extract_raster_value(tif_file, location, *, band_number=1, attempts=5, delay
                 return None, time_stamp
 
 
-def check_url(url, attempts=5, delay=2):
+def check_url(url, *, attempts=5, delay=2):
     """
     Check if a file exists at specified URL and retrieve its content type.
 
@@ -922,7 +1021,9 @@ def check_url(url, attempts=5, delay=2):
     return None
 
 
-def download_file_opendap(file_name, source_folder, target_folder):
+def download_file_opendap(
+    file_name, source_folder, target_folder, *, new_file_name=None, attempts=5, delay=2
+):
     """
     Download a file from OPeNDAP server 'grasslands-pdt'.
 
@@ -930,31 +1031,54 @@ def download_file_opendap(file_name, source_folder, target_folder):
         file_name (str): Name of file to download.
         source_folder (str): Folder where file is expected on OPeNDAP server.
         target_folder (str): Folder where file will be saved.
+        new_file_name (str): New name for downloaded file (default is None, file_name will be used).
+        attempts (int): Number of attempts to download the file (default is 5).
+        delay (int): Number of seconds to wait between attempts (default is 2).
 
     Returns:
         None
     """
     # will be "https://opendap.biodt.eu"
     url = f"http://opendap.biodt.eu/grasslands-pdt/{source_folder}/{file_name}"
-    print(f"Downloading '{url}' ...")
-    response = requests.get(url)
+    print(f"Trying to download '{url}' ...")
 
-    # # Variant with authentication using OPeNDAP credentials from .env file.
-    # dotenv_config = dotenv_values(".env")
-    # session = requests.Session()
-    # session.auth = (dotenv_config["opendap_user"], dotenv_config["opendap_pw"])
-    # response = session.get(url)
+    while attempts > 0:
+        try:
+            response = requests.get(url)
 
-    if response.status_code == 404:
-        print(f"Error: Specified file '{url}' not found!")
-        return None
+            # # Variant with authentication using OPeNDAP credentials from .env file.
+            # dotenv_config = dotenv_values(".env")
+            # session = requests.Session()
+            # session.auth = (dotenv_config["opendap_user"], dotenv_config["opendap_pw"])
+            # response = session.get(url)
 
-    # Specify target file, create directory if missing, save target file
-    target_file = target_folder / file_name
-    Path(target_file).parent.mkdir(parents=True, exist_ok=True)
+            if response.status_code == 200:
+                if not new_file_name:
+                    new_file_name = file_name
 
-    with open(target_file, "wb") as file:
-        file.write(response.content)
+                target_file = target_folder / new_file_name
+                Path(target_file).parent.mkdir(parents=True, exist_ok=True)
+
+                with open(target_file, "wb") as file:
+                    file.write(response.content)
+
+                print(f"File downloaded successfully to '{target_file}'.")
+                return
+            elif response.status_code == 404:
+                warnings.warn(f"File '{file_name}' not found on OPeNDAP server.")
+                return
+            else:
+                attempts -= 1
+
+                if attempts > 0:
+                    time.sleep(delay)
+        except requests.ConnectionError:
+            attempts -= 1
+
+            if attempts > 0:
+                time.sleep(delay)
+
+    warnings.warn(f"File '{file_name}' download failed repeatedly.")
 
 
 def day_of_year_to_date(year, day_of_year, leap_year_considered=True):

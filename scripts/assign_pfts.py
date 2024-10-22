@@ -29,23 +29,41 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 
 Data sources:
     TRY categorical traits table:
-    - Kattge J., Díaz S., Lavorel S., Prentice I., Leadley P., et al. (2011):
+    - Kattge J., Bönisch G., Günther A., Wright I., Zanne A., Wirth C., Reich P.B. and the TRY Consortium (2012):
+      TRY - Categorical Traits Dataset. Data from: TRY - a global database of plant traits.
+      TRY File Archive https://www.try-db.org/TryWeb/Data.php#3.
+    - Website: https://doi.org/10.17871/TRY.3
+    - Publication:
+      Kattge J., Díaz S., Lavorel S., Prentice I., Leadley P., et al. (2011):
       TRY - a global database of plant traits.
       Global Change Biology 17: 2905-2935. https://doi.org/10.1111/j.1365-2486.2011.02451.x
-    - Table provided upon personal request and used without changes
+    - Table redistributed without changes at:
+      http://opendap.biodt.eu/grasslands-pdt/speciesMappingLookupTables/
 
     GBIF taxonomic backbone:
     - GBIF Secretariat (2023):
       GBIF Backbone Taxonomy. Checklist dataset.
     - Website: https://doi.org/10.15468/39omei
+    - Access via GBIF Application Program Interface (API):
+        - URL: https://api.gbif.org/
+        - Documentation: https://techdocs.gbif.org/en/openapi/
+        - Python package 'pygbif': https://github.com/gbif/pygbif
 
-     Growth form table (woodiness):
-    - Zanne A.E., Tank D.C., Cornwell W.K., Eastman J.M., Smith S.A., et al. (2014):
+    Growth form table:
+    - Will Cornwell (2019).
+      traitecoevo/growthform v0.2.3 (v0.2.3).
+      Zenodo. https://doi.org/10.5281/zenodo.2543013
+    - Supplement to: https://github.com/traitecoevo/growthform/tree/v0.2.3
+    - Table redistributed without changes at:
+      http://opendap.biodt.eu/grasslands-pdt/speciesMappingLookupTables/
+    - Source of "woodiness" column (the information used in this script):
+      Zanne A.E., Tank D.C., Cornwell W.K., Eastman J.M., Smith S.A., et al. (2014):
       Three keys to the radiation of angiosperms into freezing environments.
       Nature 506: 89-92. https://doi.org/10.1038/nature12872
-    - Table available at: https://github.com/traitecoevo/growthform
 """
 
+import shutil
+import time
 import warnings
 from pathlib import Path
 
@@ -53,50 +71,51 @@ import pandas as pd
 import utils as ut
 from pygbif import species
 
+# def combine_info_strings(info_1, info_2):
+#     """
+#     Combine infos for a species.
 
-def combine_info_strings(info_1, info_2):
-    """
-    Combine infos for a species.
+#     Parameters:
+#         info_1 (str): First info entry.
+#         info_2 (str): Second info entry.
 
-    Parameters:
-        info_1 (str): First info entry.
-        info_2 (str): Second info entry.
+#     Returns:
+#         str: Combined info entry.
+#     """
+#     info_1_core = ut.replace_substrings(info_1, ["(", ")", "conflicting "], "")
+#     info_2_core = ut.replace_substrings(info_2, ["(", ")", "conflicting "], "")
 
-    Returns:
-        str: Combined info entry.
-    """
-    info_1_core = ut.replace_substrings(info_1, ["(", ")", "conflicting "], "")
-    info_2_core = ut.replace_substrings(info_2, ["(", ")", "conflicting "], "")
+#     # Allow combination without conflict of infos that can be woody
+#     woody_infos = [
+#         "woody",
+#         "tree",
+#         "shrub",
+#         "shrub/tree",
+#         "legume?",
+#         "legume?/tree",
+#         "legume?/shrub",
+#         "legume?/shrub/tree",
+#     ]
 
-    # Allow combination without conflict of infos that can be woody
-    woody_infos = [
-        "woody",
-        "tree",
-        "shrub",
-        "shrub/tree",
-        "legume?",
-        "legume?/tree",
-        "legume?/shrub",
-        "legume?/shrub/tree",
-    ]
+#     # Return one info, if it already contains the other info
+#     if info_1_core in info_2_core:
+#         return info_2
+#     elif info_2_core in info_1_core:
+#         return info_1
+#     else:
+#         info_both = sorted((info_1_core, info_2_core))
 
-    # Return one info, if it already contains the other info
-    if info_1_core in info_2_core:
-        return info_2
-    elif info_2_core in info_1_core:
-        return info_1
-    else:
-        info_both = sorted((info_1_core, info_2_core))
-
-        # Combine without conflict, if both infos are woody (PFT or Woodiness)
-        if info_1_core in woody_infos and info_2_core in woody_infos:
-            return f"({info_both[0]}/{info_both[1]})"
-        # Combine as conflicting otherwise
-        else:
-            return f"conflicting ({info_both[0]} vs. {info_both[1]})"
+#         # Combine without conflict, if both infos are woody (PFT or Woodiness)
+#         if info_1_core in woody_infos and info_2_core in woody_infos:
+#             return f"({info_both[0]}/{info_both[1]})"
+#         # Combine as conflicting otherwise
+#         else:
+#             return f"conflicting ({info_both[0]} vs. {info_both[1]})"
 
 
-def resolve_species_infos(spec, info_name, info_1, info_2, *, warning_duplicates=True):
+def resolve_species_infos(
+    spec, info_name, info_1, info_2, *, warn_duplicates=False, warn_conflict=True
+):
     """
     Resolve conflicting infos for a species.
 
@@ -105,20 +124,21 @@ def resolve_species_infos(spec, info_name, info_1, info_2, *, warning_duplicates
         info_name (str): Information name ('PFT' or 'Woodiness' or 'Family').
         info_1 (str): First info entry.
         info_2 (str): Second info entry.
-        warning_duplicates (bool): Throw warnings for resolving duplicate entries (default is True).
+        warn_duplicates (bool): Throw warnings for resolving duplicate entries (default is False).
+        warn_conflict (bool): Throw warnings for conflicting entries (default is True).
 
     Returns:
         str: Resolved info entry.
     """
     # Warning for duplicate species
-    if warning_duplicates:
+    if warn_duplicates:
         warnings.warn(f"Duplicate species entry found for species '{spec}'.")
 
     # Check if the infos are the same, no need to change the info
     if info_1 == info_2:
         info_resolved = info_1
 
-        if warning_duplicates:
+        if warn_duplicates:
             print(f"{info_name} is equal. Keeping the {info_name} '{info_resolved}'.")
     # Check if infos start with "not ", keep other one
     else:
@@ -133,14 +153,15 @@ def resolve_species_infos(spec, info_name, info_1, info_2, *, warning_duplicates
         elif f"({info_2}?)" == info_1:
             info_resolved = info_2
         else:
-            info_resolved = combine_info_strings(info_1, info_2)
+            info_resolved = ut.combine_info_strings(info_1, info_2)
 
-            # Raise an error for two conflicting assigned infos
-            if info_resolved.startswith("conflicting "):
-                print(
-                    f"CONFLICT: Different assigned {info_name} found for species {spec}!"
+            # Warn for two conflicting assigned infos
+            if warn_conflict and info_resolved.startswith("conflicting "):
+                warnings.warn(
+                    f"Assigned {info_name} for species {spec} from duplicate entries is {info_resolved}."
                 )
-        if warning_duplicates:
+                warn_duplicates = False
+        if warn_duplicates:
             print(
                 f"{info_name} differs: '{info_1}' vs. '{info_2}'. Keeping the {info_name} '{info_resolved}'."
             )
@@ -149,7 +170,13 @@ def resolve_species_infos(spec, info_name, info_1, info_2, *, warning_duplicates
 
 
 def resolve_species_info_dicts(
-    info_name, info_dict_1, info_dict_2, *, ask_user_input=False
+    info_name,
+    info_dict_1,
+    info_dict_2,
+    *,
+    ask_user_input=False,
+    info_source_1="source 1 not specied",
+    info_source_2="source 2 not specied",
 ):
     """
     Resolve conflicting info entries for all species from two dictionaries.
@@ -163,7 +190,9 @@ def resolve_species_info_dicts(
     Returns:
         dict: Dictionary with resolved information entries for each species.
     """
-    print(f"Combining {info_name} information from two dictionaries ...")
+    print(
+        f"Combining {info_name} information from '{info_source_1}' and '{info_source_2}' dictionaries ..."
+    )
     resolved_dict = {}
 
     # Iterate over keys present in both dictionaries and resolve infos
@@ -175,7 +204,7 @@ def resolve_species_info_dicts(
             info_name,
             info_dict_1[spec],
             info_dict_2[spec],
-            warning_duplicates=False,
+            warn_duplicates=False,
         )
 
     # Add entries present only in one of the dictionaries
@@ -222,7 +251,7 @@ def get_valid_infos(info_name):
         ]
     elif info_name == "Woodiness":
         # Set valid Woodiness entries
-        return ["woody", "herbaceous", "variable", "(fern)", "(lichen)", "(moss)"]
+        return ["woody", "herbaceous", "(fern)", "(lichen)", "(moss)"]
     elif info_name == "Family":
         return ["any"]
     else:
@@ -262,9 +291,11 @@ def replace_info_strings(info, info_name):
             info, ["W", "shrub", "shrub/tree", "tree"], "woody", at_end=True
         )
         info = ut.replace_substrings(
-            info, ["H", "herb", "graminoid"], "herbaceous", at_end=True
+            info, ["H", "herb", "graminoid", "non-woody"], "herbaceous", at_end=True
         )
-        info = ut.replace_substrings(info, "NA", "not assigned", at_end=True)
+        info = ut.replace_substrings(
+            info, ["NA", "non-woody/woody", "variable"], "not assigned", at_end=True
+        )
         info = ut.replace_substrings(info, "fern", "(fern)", at_end=True)
         info = ut.replace_substrings(info, "lichen", "(lichen)", at_end=True)
         info = ut.replace_substrings(info, "moss", "(moss)", at_end=True)
@@ -280,20 +311,21 @@ def read_species_info_dict(
     info_name,
     *,
     species_column=0,
-    info_column=1,
+    info_column=None,
     header_lines=1,
-    save_new_file=False,
+    new_file="",
 ):
     """
     Read a dictionary from a text file containing species and a corresponding information (PFT or Woodiness).
 
     Parameters:
         file_name (str): Path to the text file.
-        info_name (str): Information name ('PFT' or 'Woodiness', default is 'PFT').
-        species_column(int): Species column number (0-based index, default is 0).
-        info_column (int): Information column number (0-based index, default is 1).
+        info_name (str): Information name ('PFT' or 'Woodiness' or 'Family').
+        species_column(str or int): Species column identifier (name as string or index)
+        info_column (int): Information column identifier (name as string or index, default is None for using info_name).
         header_lines (int): Number of header lines to skip (default is 1).
-        save_new_file (bool): Save result dictionary to new file (default is False).
+        new_file (str): Path of new file to save the dictionary (default is "", to not save).
+        lookup_source (str): Source of the lookup table for new file name (default is "Original").
 
     Returns:
         dict: Dictionary where species names are keys, and infos are values.
@@ -302,20 +334,30 @@ def read_species_info_dict(
         ValueError: If unsupported species info_name is used.
     """
     valid_infos = get_valid_infos(info_name)
-    print(f"Reading species-{info_name} lookup table from '.\\{file_name}' ...")
+    print(f"Reading {info_name} lookup table from '{file_name}' ...")
 
-    # Open the file for reading
+    # Search for 'info_name' as column name if not specified otherwise
+    if info_column is None:
+        info_column = info_name
+
+    # Open file for reading
     with open(file_name, "r") as file:
         species_info_dict = {}
         processed_lines = 0
+        last_header_line = None
 
         # Skip header lines
         for _ in range(header_lines):
-            next(file)
+            last_header_line = next(file)
+
+        # Get column names from last header line, find species and info columns
+        column_names = [last_header_line.rstrip("\n").split("\t", -1)]
+        species_column = ut.find_column_index(column_names, species_column)
+        info_column = ut.find_column_index(column_names, info_column)
 
         # Split each line into columns (tab as delimiter), get species and info from columns
         for line_number, line in enumerate(file, start=header_lines + 1):
-            columns = line.strip().split("\t")
+            columns = line.rstrip("\n").split("\t", -1)
             spec, info = (columns[species_column], columns[info_column])
             info = replace_info_strings(info, info_name)
 
@@ -323,7 +365,7 @@ def read_species_info_dict(
             if (
                 not (valid_infos == ["any"] and info != "")
                 and info not in valid_infos
-                and not info.startswith("not assigned")
+                and not info.startswith(("not assigned", "conflicting"))
             ):
                 warnings.warn(
                     f"Invalid {info_name} found on line {line_number} for {spec}: '{info}'."
@@ -341,19 +383,45 @@ def read_species_info_dict(
 
             processed_lines += 1
 
+    # Sort dictionary by species keys
+    species_info_dict = dict(sorted(species_info_dict.items()))
     print(f"Processed {processed_lines} lines.")
-    print(
-        f"Final species-{info_name} lookup table has {len(species_info_dict)} entries."
-    )
+    print(f"Final {info_name} lookup table has {len(species_info_dict)} entries.")
 
-    # Save created dictionary to new file
-    if save_new_file:
-        file_name = ut.add_string_to_file_name(
-            file_name, f"__{info_name}__UserDictionary"
-        )
-        ut.dict_to_file(species_info_dict, ["Species", info_name], file_name)
+    # Save created dictionary to new file if file is provided
+    if new_file:
+        ut.dict_to_file(species_info_dict, ["Species", info_name], new_file)
 
     return species_info_dict
+
+
+def gbif_request(spec, *, kingdom="plants", attempts=5, delay=2):
+    """
+    Request species information from GBIF taxonomic backbone.
+
+    Parameters:
+        spec (str): Species name to look up in the GBIF taxonomic backbone.
+        kingdom (str): Kingdom to search for (default is "plants").
+        attempts (int): Number of attempts to make (default is 5).
+        delay (int): Delay between attempts in seconds (default is 2).
+    """
+    while attempts > 0:
+        attempts -= 1
+        try:
+            spec_gbif_dict = species.name_backbone(name=spec, kingdom=kingdom)
+            return spec_gbif_dict
+        except Exception as e:
+            print(f"GBIF request failed {e}.")
+
+            if attempts > 0:
+                print(f"Retrying in {delay} seconds ...")
+                time.sleep(delay)
+
+    # After exhausting all attempts
+    warnings.warn(
+        f"GBIF request for species '{spec}' failed repeatedly. Returning 'not found'."
+    )
+    return "not found"
 
 
 def get_gbif_species(spec, accepted_ranks=["GENUS"]):
@@ -367,11 +435,14 @@ def get_gbif_species(spec, accepted_ranks=["GENUS"]):
     Returns:
         str: Matched or suggested species name from GBIF, or the original species name if no match is found.
     """
-    spec_gbif_dict = species.name_backbone(name=spec, kingdom="plants")
+    spec_gbif_dict = gbif_request(spec)
 
-    if spec_gbif_dict["matchType"] == "NONE":
+    if spec_gbif_dict == "not found":
+        return spec
+    elif spec_gbif_dict["matchType"] == "NONE":
         # No match, return input species
         warnings.warn(f"'{spec}' not found.")
+
         return spec
     elif spec_gbif_dict["rank"] == "SPECIES":
         if "species" in spec_gbif_dict:
@@ -468,7 +539,7 @@ def get_gbif_family(spec):
     Returns:
         str: Family information or "not found."
     """
-    spec_gbif_dict = species.name_backbone(name=spec, kingdom="plants")
+    spec_gbif_dict = gbif_request(spec)
 
     if "family" in spec_gbif_dict:
         return spec_gbif_dict["family"]
@@ -477,67 +548,65 @@ def get_gbif_family(spec):
         return "not found"
 
 
-def get_gbif_dict(species_info_dict, file_name="", info_name="PFT"):
-    """
-    Screen and correct species-info lookup table with GBIF taxonomic backbone.
+# def get_gbif_dict(species_info_dict, file_name="", info_name="PFT"):
+#     """
+#     Screen and correct species-info lookup table with GBIF taxonomic backbone.
 
-    Parameters:
-        species_info_dict (dict): Dictionary where species names are keys, and infos are values.
-        info_name (str): Information name ('PFT' or 'Woodiness', default is 'PFT').
+#     Parameters:
+#         species_info_dict (dict): Dictionary where species names are keys, and infos are values.
+#         info_name (str): Information name ('PFT' or 'Woodiness', default is 'PFT').
 
-    Returns:
-        dict: Processed dictionary where species names are keys, and values are dictionaries with keys:
-            info_name('PFT' or 'Woodiness'): corresponding species info.
-            'originalNames': List of species names from input dictionary (that were replaced or not).
-    """
-    print("Searching for species in GBIF taxonomic backbone ...")
-    species_info_dict_gbif = {}
-    processed_lines = 0
+#     Returns:
+#         dict: Processed dictionary where species names are keys, and values are dictionaries with keys:
+#             info_name('PFT' or 'Woodiness'): corresponding species info.
+#             'originalNames': List of species names from input dictionary (that were replaced or not).
+#     """
+#     print("Searching for species in GBIF taxonomic backbone ...")
+#     species_info_dict_gbif = {}
+#     processed_lines = 0
 
-    for spec, info in species_info_dict.items():
-        spec_match = get_gbif_species(spec, accepted_ranks=["GENUS", "FAMILY"])
+#     for spec, info in species_info_dict.items():
+#         spec_match = get_gbif_species(spec, accepted_ranks=["GENUS", "FAMILY"])
 
-        if (
-            spec_match != spec
-            and not info_name == "Family"  # Keep family infos
-            and spec_match.endswith(" species")
-            and "grass" not in info  # Keep all infos with "grass", also conflicts
-        ):
-            info = "not assigned"
+#         if (
+#             spec_match != spec
+#             and not info_name == "Family"  # Keep family infos
+#             and spec_match.endswith(" species")
+#             and "grass" not in info  # Keep all infos with "grass", also conflicts
+#         ):
+#             info = "not assigned"
 
-        # Check if (replaced) species name is already in lookup table
-        if spec_match in species_info_dict_gbif:
-            # Check info for existing species
-            species_info_dict_gbif[spec_match][info_name] = resolve_species_infos(
-                spec_match,
-                info_name,
-                info,
-                species_info_dict_gbif[spec_match][info_name],
-            )
-            species_info_dict_gbif[spec_match]["originalNames"].append(spec)
-        else:
-            # Add new species, info and replaced species name to lookup table
-            species_info_dict_gbif[spec_match] = {
-                info_name: info,
-                "originalNames": [spec],
-            }
+#         # Check if (replaced) species name is already in lookup table
+#         if spec_match in species_info_dict_gbif:
+#             # Check info for existing species
+#             species_info_dict_gbif[spec_match][info_name] = resolve_species_infos(
+#                 spec_match,
+#                 info_name,
+#                 info,
+#                 species_info_dict_gbif[spec_match][info_name],
+#             )
+#             species_info_dict_gbif[spec_match]["originalNames"].append(spec)
+#         else:
+#             # Add new species, info and replaced species name to lookup table
+#             species_info_dict_gbif[spec_match] = {
+#                 info_name: info,
+#                 "originalNames": [spec],
+#             }
 
-        processed_lines += 1
+#         processed_lines += 1
 
-    # Sort dictionary by species keys
-    species_info_dict_gbif = dict(sorted(species_info_dict_gbif.items()))
-    print(f"Processed {processed_lines} lines.")
-    print(
-        f"Final species-{info_name} lookup table has {len(species_info_dict_gbif)} entries."
-    )
+#     # Sort dictionary by species keys
+#     species_info_dict_gbif = dict(sorted(species_info_dict_gbif.items()))
+#     print(f"Processed {processed_lines} lines.")
+#     print(f"Final {info_name} lookup table has {len(species_info_dict_gbif)} entries.")
 
-    # Save created dictionary to new file
-    if file_name:
-        ut.dict_to_file(
-            species_info_dict_gbif, ["Species", info_name, "Original names"], file_name
-        )
+#     # Save created dictionary to new file
+#     if file_name:
+#         ut.dict_to_file(
+#             species_info_dict_gbif, ["Species", info_name, "Original names"], file_name
+#         )
 
-    return species_info_dict_gbif
+#     return species_info_dict_gbif
 
 
 def get_pft_from_family_woodiness(spec, family_dict, woodiness_dict):
@@ -587,17 +656,33 @@ def get_pft_from_family_woodiness(spec, family_dict, woodiness_dict):
 
 
 def read_species_list(
-    file_name, *, species_column=0, extra_columns=[], header_lines=1, check_gbif=True
+    file_name,
+    *,
+    species_column=0,
+    extra_columns=[],
+    header_lines=1,
+    check_gbif=True,
+    save_new_file=True,
+    new_suffix=None,
+    add_species_column_copy=True,
+    combine_differing_entries=False,
+    csv_delimiter=";",
 ):
     """
-    Read species names from a file and, optionally, additional info.
+    Read species names and, optionally, additional info from a file, and, optionally,
+    check/correct species names with GBIF taxonomic backbone
 
     Parameters:
         file_name (str): Name of the file containing the species names.
         species_column (str or int): Species name column name or number (0-based index, default is 0).
         extra_columns (list of str or int): Additional columns to include in the list (default is empty list).
         header_lines (int): Number of header line, lines before will be skipped (default is 1).
-        check_gbif (bool): Check/correct species name with GBIF taxonomic backbone (default is True).
+        check_gbif (bool): Check/correct species names with GBIF taxonomic backbone (default is True).
+        save_new_file (bool): Save species names (and info) retrieved to new file (default is True).
+        new_suffix (str): Suffix for new file type (default is None for keeping the original file type).
+        add_species_column_copy (bool): Add a copy of the original species column as a new first column to the output file (default is True).
+        combine_differing_entries (bool): Combine differing entries (with same info in first column) into one (default is False).
+        csv_delimiter (str): Delimiter for CSV files (default is ',').
 
     Returns:
         list: List of unique species names, and additional info if requested and found.
@@ -633,7 +718,7 @@ def read_species_list(
                 file_name,
                 header=header_lines - 1,
                 encoding="ISO-8859-1",
-                delimiter=";",
+                delimiter=csv_delimiter,
             )
         except Exception as e:
             print(f"Error reading .csv file: {e}.")
@@ -683,7 +768,9 @@ def read_species_list(
         raise ValueError("Unsupported file format! Must be '.xlsx', '.txt', or '.csv'.")
 
     # Reduce list to unique entries only
-    species_list = ut.sort_and_cleanup_list(species_list)
+    species_list = ut.sort_and_cleanup_list(
+        species_list, combine_differing_entries=combine_differing_entries
+    )
 
     # GBIF check and correction if selected
     if check_gbif:
@@ -698,32 +785,54 @@ def read_species_list(
             )
 
         # Save GBIF corrected species list to file
-        file_name = ut.add_string_to_file_name(file_name, "__GBIFList")
-        ut.list_to_file(
-            species_list_renamed,
-            ["Species GBIF", "Species Original"] + extra_columns,
-            file_name,
-        )
+        if save_new_file:
+            file_name = ut.add_string_to_file_name(
+                file_name, "__Species__GBIF_corrected", new_suffix=new_suffix
+            )
+            ut.list_to_file(
+                species_list_renamed,
+                ["Species GBIF", "Species Original"] + extra_columns,
+                file_name,
+            )
 
         # Overwrite species_list with GBIF correction for empty/duplicate count below
         species_list = [entry[0] for entry in species_list_renamed]
     else:
-        # No renaming, just add identical column
-        species_list_renamed = [
-            [entry[0]] + entry if isinstance(entry, list) else [entry, entry]
-            for entry in species_list
-        ]
+        if add_species_column_copy:
+            # No renaming, just add identical column
+            species_list_renamed = [
+                [entry[0]] + entry if isinstance(entry, list) else [entry, entry]
+                for entry in species_list
+            ]
+            first_columns = ["Species (uncorrected)", "Species Original"]
+        else:
+            species_list_renamed = species_list
+            first_columns = ["Species Original"]
+
+        if save_new_file:
+            file_name = ut.add_string_to_file_name(
+                file_name, "__Species__Original", new_suffix=new_suffix
+            )
+            ut.list_to_file(
+                species_list_renamed,
+                first_columns + extra_columns,
+                file_name,
+            )
 
     # No removal of 'nan' or duplicate species entries in renamed list, assigned infos to be matched with original list later
     empty_strings = species_list.count("")
     print(
         f"Species list has {len(species_list)} entries, including {empty_strings} empty entries."
     )
-    duplicates = ut.count_duplicates(species_list)
 
-    if len(duplicates) > 0:
-        print("Duplicates: ", end="")
-        print(", ".join([f"'{spec}' ({count})" for spec, count in duplicates.items()]))
+    if not combine_differing_entries:
+        duplicates = ut.count_duplicates(species_list)
+
+        if len(duplicates) > 0:
+            print("Duplicates: ", end="")
+            print(
+                ", ".join([f"'{spec}' ({count})" for spec, count in duplicates.items()])
+            )
 
     return species_list_renamed
 
@@ -845,7 +954,7 @@ def get_species_info(
     info_name,
     *,
     file_name="",
-    file_name_extension="",
+    lookup_source="source not specified",
     return_as_list=False,
     ask_user_input=False,
 ):
@@ -864,7 +973,9 @@ def get_species_info(
     Returns:
         dict or list: Dict or list of pairs of the species names and corresponding infos.
     """
-    print(f"Searching for species' {info_name} in species-{info_name} lookup table ...")
+    print(
+        f"Searching for species' {info_name} in '{lookup_source}' lookup table ..." f" "
+    )
 
     # Convert info_lookup to dictionary of only infos if not already
     info_lookup = ut.reduce_dict_to_single_info(info_lookup, info_name)
@@ -883,14 +994,14 @@ def get_species_info(
         species_list,
         info_dict,
         return_as_list=return_as_list,
-        file_name=ut.add_string_to_file_name(file_name, file_name_extension),
+        file_name=ut.add_string_to_file_name(
+            file_name, f"__{info_name.lower()}_{lookup_source}"
+        ),
     )
     return species_info_result
 
 
-def get_species_family(
-    species_list, *, file_name="", file_name_extension="", return_as_list=False
-):
+def get_species_family_gbif(species_list, *, file_name="", return_as_list=False):
     """
     Retrieve families for a list of species using GBIF taxonomic backbone.
 
@@ -916,7 +1027,7 @@ def get_species_family(
         species_list,
         info_dict,
         return_as_list=return_as_list,
-        file_name=ut.add_string_to_file_name(file_name, file_name_extension),
+        file_name=ut.add_string_to_file_name(file_name, "__family_GBIF"),
     )
     return species_info_result
 
@@ -927,7 +1038,8 @@ def get_species_pft_from_family_woodiness(
     woodiness_dict,
     *,
     file_name="",
-    file_name_extension="",
+    lookup_source_family="family source not specified",
+    lookup_source_woodiness="woodiness source not specified",
     return_as_list=False,
     ask_user_input=False,
 ):
@@ -947,7 +1059,8 @@ def get_species_pft_from_family_woodiness(
     """
     info_name = "PFT"
     print(
-        f"Searching for species' {info_name} in species-Family and species-Woodiness lookup tables ..."
+        f"Obtaining species' {info_name} from lookup tables, "
+        f"Family: '{lookup_source_family}' and Woodiness: '{lookup_source_woodiness}' ..."
     )
     info_dict = {}
 
@@ -964,18 +1077,140 @@ def get_species_pft_from_family_woodiness(
         species_list,
         info_dict,
         return_as_list=return_as_list,
-        file_name=ut.add_string_to_file_name(file_name, file_name_extension),
+        file_name=ut.add_string_to_file_name(
+            file_name,
+            f"__{info_name}_family_{lookup_source_family}_woodiness_{lookup_source_woodiness}",
+        ),
     )
     return species_info_result
+
+
+def get_lookup_tables(lookup_folder_name, *, force_create=False, cache=None):
+    """
+    Get lookup tables from cache or opendap, create if not found.
+
+    Parameters:
+        lookup_folder_name (str): Name of subfolder containing and/or receiving lookup tables.
+        force_create (bool): Force creation of new lookup tables (default is False).
+        cache (str): Path to local folder containing and/or receiving lookup tables (default is None).
+    """
+    lookup_tables = {}
+    lookup_table_specs = {
+        "TRY_Family": {
+            "file_name": "TRY_Categorical_traits__Family__GBIF_corrected.txt",
+            "info_name": "Family",
+            "found": False,
+            "raw_file_opendap": "TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx",
+            "raw_file": "TRY_Categorical_traits.xlsx",
+            "raw_species_column": "AccSpeciesName",
+            "raw_info_columns": ["Family", "Woodiness"],
+        },
+        "TRY_Woodiness": {
+            "file_name": "TRY_Categorical_traits__Woodiness__GBIF_corrected.txt",
+            "info_name": "Woodiness",
+            "found": False,
+            "raw_file_opendap": "TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx",
+            "raw_file": "TRY_Categorical_traits.xlsx",
+            "raw_species_column": "AccSpeciesName",
+            "raw_info_columns": ["Family", "Woodiness"],
+        },
+        "Zanne_Woodiness": {
+            "file_name": "Zanne_Growth_form__Woodiness__GBIF_corrected.txt",
+            "info_name": "Woodiness",
+            "found": False,
+            "raw_file_opendap": "growth_form.csv",
+            "raw_file": "Zanne_Growth_form.csv",
+            "raw_species_column": "sp",
+            "raw_info_columns": ["Woodiness"],
+        },
+    }
+
+    # Define folder where lookup tables are expected, and will be stored
+    lookup_folder = (
+        ut.get_package_root() / lookup_folder_name if cache is None else Path(cache)
+    )
+
+    if not force_create:
+        for table_name, table_info in lookup_table_specs.items():
+            table_file = lookup_folder / table_info["file_name"]
+
+            if not table_file.is_file():
+                ut.download_file_opendap(
+                    table_info["file_name"], lookup_folder_name, lookup_folder
+                )
+
+            if table_file.is_file():
+                # Use local lookup tables, if found
+                lookup_tables[table_name] = read_species_info_dict(
+                    table_file, table_info["info_name"]
+                )
+                lookup_table_specs[table_name]["found"] = True
+
+    # Create missing lookup tables (i.e. all in case of force_create) from raw tables
+    for table_name, table_info in lookup_table_specs.items():
+        if not table_info["found"]:
+            # Create lookup table from raw file
+            raw_file = lookup_folder / table_info["raw_file"]
+            raw_list_file = ut.add_string_to_file_name(
+                raw_file, "__Species__GBIF_corrected", new_suffix=".txt"
+            )
+
+            if not raw_list_file.is_file():
+                if not raw_file.is_file():
+                    # Download raw file from opendap, rename to standard name
+                    ut.download_file_opendap(
+                        table_info["raw_file_opendap"],
+                        lookup_folder_name,
+                        lookup_folder,
+                        new_file_name=table_info["raw_file"],
+                    )
+
+                if raw_file.is_file():
+                    print(
+                        f"'{table_name}' source file found. Reading species infos from '{raw_file}' ..."
+                    )
+                else:
+                    raise FileNotFoundError(
+                        f"'{table_name}' source file '{table_info['raw_file']}' not found!"
+                    )
+
+                # Process raw source file with info column(s) to .txt file
+                read_species_list(
+                    raw_file,
+                    species_column=table_info["raw_species_column"],
+                    extra_columns=table_info["raw_info_columns"],
+                    check_gbif=True,
+                    save_new_file=True,
+                    new_suffix=".txt",
+                    add_species_column_copy=False,
+                    combine_differing_entries=True,
+                    csv_delimiter=",",
+                )
+
+            if raw_list_file.is_file():
+                # Get lookup table from raw list in .txt file, and save to file
+                lookup_tables[table_name] = read_species_info_dict(
+                    raw_list_file,
+                    table_info["info_name"],
+                    species_column=0,
+                    new_file=lookup_folder / table_info["file_name"],
+                )
+            else:
+                raise FileNotFoundError(
+                    f"File '{raw_list_file}' not found. Cannot retrieve '{table_name}'!"
+                )
+
+    return lookup_tables
 
 
 def get_all_infos_and_pft(
     input_file,
     species_column,
+    lookup_tables,
     *,
     extra_columns=[],
-    folder=Path("speciesMappingLookupTables"),
     save_single_files=True,
+    csv_delimiter=";",
 ):
     """
     Get and combine Family and Woodiness information for a list of species, from various lookup tables and sources,
@@ -985,49 +1220,38 @@ def get_all_infos_and_pft(
         input_file (str or Path): Path to the input file containing species list.
         species_column (str): The column name in the input file that contains species names.
         extra_columns (list, optional): Additional columns to include from the input file (default is empty list).
-        folder (Path, optional): Path to the folder containing lookup tables (default is "speciesMappingLookupTables").
+        lookup_folder (Path, optional): Path to the folder containing lookup tables (relative to package root, default is 'speciesMappingLookupTables').
         save_single_files (bool, optional): Whether to save intermediate results to separate files (default is False).
 
     Returns:
-        list: A list of species information combined with family, woodiness, and PFT data from various sources.
+        list: List of processed species information, with family, woodiness, and derived PFT from various sources.
+        dict: Dictionary of species PFT, as derived and combined from various sources.
     """
-    # Read lookup tables, table creation in old code below
-    family_lookup_try = read_species_info_dict(
-        folder / "TRY_Categorical_traits__Family__GBIF_corrected.txt", "Family"
-    )
-    woodiness_lookup_try = read_species_info_dict(
-        folder / "TRY_Categorical_traits__Woodiness__GBIF_corrected.txt", "Woodiness"
-    )
-    woodiness_lookup_zanne = read_species_info_dict(
-        folder / "Zanne_Growth_form__Woodiness__GBIF_corrected.txt", "Woodiness"
-    )
-
-    # TODO:
-    # function for getting lookup tables, cache or opendap, create if not found
-
     # Read species list
     input_file = Path(input_file)
     species_list = read_species_list(
-        input_file, species_column=species_column, extra_columns=extra_columns
+        input_file,
+        species_column=species_column,
+        extra_columns=extra_columns,
+        save_new_file=save_single_files,
+        csv_delimiter=csv_delimiter,
     )
 
     # Use first column of renamed list only for subsequent lookup of infos
     # (list can have original species names and more infos in additional columns)
     species_to_lookup = [entry[0] for entry in species_list]
-    # species_original = [entry[1] for entry in species_list]
+    species_original = [entry[1] for entry in species_list]
 
     # Find Family infos based on sources, write to files if requested
     file_name = input_file if save_single_files else None
     family_try = get_species_info(
         species_to_lookup,
-        family_lookup_try,
+        lookup_tables["TRY_Family"],
         "Family",
         file_name=file_name,
-        file_name_extension="__Family_TRY",
+        lookup_source="TRY",
     )
-    family_gbif = get_species_family(
-        species_to_lookup, file_name=file_name, file_name_extension="__Family_GBIF"
-    )
+    family_gbif = get_species_family_gbif(species_to_lookup, file_name=file_name)
     family_extra_found = False
 
     # Scan extra columns if they contain family information
@@ -1038,7 +1262,7 @@ def get_all_infos_and_pft(
             # the extra column can contain different family information for them
             print(f"Extra column found with family information: '{col_name}'.")
             family_extra_found = True
-            family_extra = {entry[0]: entry[col_index + 2] for entry in species_list}
+            family_extra = {entry[1]: entry[col_index + 2] for entry in species_list}
 
             # Replace empty entries and entries of several terms separated by " / " with std format
             for key, value in family_extra.items():
@@ -1063,27 +1287,33 @@ def get_all_infos_and_pft(
             )
 
     # Combine and resolve Family from both sources (TRY & GBIF)
-    family_combined = resolve_species_info_dicts("Family", family_try, family_gbif)
+    family_combined = resolve_species_info_dicts(
+        "Family", family_try, family_gbif, info_source_1="TRY", info_source_2="GBIF"
+    )
 
     # Find Woodiness infos based on sources, write to files if requested
     woodiness_try = get_species_info(
         species_to_lookup,
-        woodiness_lookup_try,
+        lookup_tables["TRY_Woodiness"],
         "Woodiness",
         file_name=file_name,
-        file_name_extension="__Woodiness_TRY",
+        lookup_source="TRY",
     )
     woodiness_zanne = get_species_info(
         species_to_lookup,
-        woodiness_lookup_zanne,
+        lookup_tables["Zanne_Woodiness"],
         "Woodiness",
         file_name=file_name,
-        file_name_extension="__Woodiness_Zanne",
+        lookup_source="Zanne",
     )
 
     # Combine and resolve Woodiness from both sources (TRY & Zanne)
     woodiness_combined = resolve_species_info_dicts(
-        "Woodiness", woodiness_try, woodiness_zanne
+        "Woodiness",
+        woodiness_try,
+        woodiness_zanne,
+        info_source_1="TRY",
+        info_source_2="Zanne",
     )
 
     # Find PFT based on differnt combinations of Family and Woodiness sources
@@ -1092,74 +1322,105 @@ def get_all_infos_and_pft(
         family_try,
         woodiness_try,
         file_name=file_name,
-        file_name_extension="__PFT_Family_TRY_Woodiness_TRY",
+        lookup_source_family="TRY",
+        lookup_source_woodiness="TRY",
     )
     pft_family_gbif_woodiness_try = get_species_pft_from_family_woodiness(
         species_to_lookup,
         family_gbif,
         woodiness_try,
         file_name=file_name,
-        file_name_extension="__PFT_Family_GBIF_Woodiness_TRY",
+        lookup_source_family="GBIF",
+        lookup_source_woodiness="TRY",
     )
     pft_family_gbif_woodiness_zanne = get_species_pft_from_family_woodiness(
         species_to_lookup,
         family_gbif,
         woodiness_zanne,
         file_name=file_name,
-        file_name_extension="__PFT_Family_GBIF_Woodiness_Zanne",
+        lookup_source_family="GBIF",
+        lookup_source_woodiness="Zanne",
     )
     pft_family_gbif_woodiness_combined = get_species_pft_from_family_woodiness(
         species_to_lookup,
         family_gbif,
         woodiness_combined,
         file_name=file_name,
-        file_name_extension="__PFT_Family_GBIF_Woodiness_Combined",
-    )
-
-    if not family_extra_found:
-        # Creamte empty dict for family_extra if not found
-        family_extra = {key: "not found" for key in species_to_lookup}
-
-    pft_family_extra_woodiness_combined = get_species_pft_from_family_woodiness(
-        species_to_lookup,
-        family_extra,
-        woodiness_combined,
-        file_name=file_name,
-        file_name_extension="__PFT_Family_Extra_Woodiness_Combined",
+        lookup_source_family="GBIF",
+        lookup_source_woodiness="Combined",
     )
 
     # Combine and resolve PFT from multiple sources
     pft_combined = resolve_species_info_dicts(
-        "PFT", pft_family_try_woodiness_try, pft_family_gbif_woodiness_try
+        "PFT",
+        pft_family_try_woodiness_try,
+        pft_family_gbif_woodiness_try,
+        info_source_1="family_TRY_woodiness_TRY",
+        info_source_2="family_GBIF_woodiness_TRY",
     )
     pft_combined = resolve_species_info_dicts(
-        "PFT", pft_combined, pft_family_gbif_woodiness_zanne
+        "PFT",
+        pft_combined,
+        pft_family_gbif_woodiness_zanne,
+        info_source_1="Combined",
+        info_source_2="family_GBIF_woodiness_Zanne",
+    )
+
+    # Treat extra family infos as additional source if found
+    if not family_extra_found:
+        # Create empty dict family_extra if not found
+        family_extra = {key: "not found" for key in species_original}
+
+    woodiness_combined_original_keys = {
+        species_original[i]: woodiness_combined[species_to_lookup[i]]
+        for i in range(len(species_to_lookup))
+    }
+    pft_combined_original_keys = {
+        species_original[i]: pft_combined[species_to_lookup[i]]
+        for i in range(len(species_to_lookup))
+    }
+    pft_family_extra_woodiness_combined = get_species_pft_from_family_woodiness(
+        species_original,
+        family_extra,
+        woodiness_combined_original_keys,
+        file_name=file_name,
+        lookup_source_family="Extra",
+        lookup_source_woodiness="Combined",
     )
     pft_combined_extra = resolve_species_info_dicts(
-        "PFT", pft_combined, pft_family_extra_woodiness_combined
+        "PFT",
+        pft_combined_original_keys,
+        pft_family_extra_woodiness_combined,
+        info_source_1="Combined",
+        info_source_2="family_Extra_woodiness_Combined",
     )
 
     if file_name:
         ut.dict_to_file(
             family_combined,
             ["Species", "Family Combined"],
-            ut.add_string_to_file_name(file_name, "__Family_Combined"),
+            ut.add_string_to_file_name(file_name, "__family_Combined"),
         )
         ut.dict_to_file(
             woodiness_combined,
             ["Species", "Woodiness Combined"],
-            ut.add_string_to_file_name(file_name, "__Woodiness_Combined"),
+            ut.add_string_to_file_name(file_name, "__woodiness_Combined"),
         )
         ut.dict_to_file(
             pft_combined,
             ["Species", "PFT Combined"],
             ut.add_string_to_file_name(file_name, "__PFT_Combined"),
         )
+        ut.dict_to_file(
+            pft_combined_extra,
+            ["Species", "PFT Combined incl. Extra"],
+            ut.add_string_to_file_name(file_name, "__PFT_Combined_Extra"),
+        )
 
     # Combine all infos to one list, and write to file
+    all_infos = ut.add_columns_to_list(species_list, family_extra.values())
     all_infos = ut.add_infos_to_list(
-        species_list,
-        family_extra,
+        all_infos,
         family_try,
         family_gbif,
         family_combined,
@@ -1171,13 +1432,14 @@ def get_all_infos_and_pft(
         pft_family_gbif_woodiness_zanne,
         pft_family_gbif_woodiness_combined,
         pft_combined,
-        pft_family_extra_woodiness_combined,
-        pft_combined_extra,
     )
+    all_infos = ut.add_columns_to_list(
+        all_infos, pft_family_extra_woodiness_combined.values()
+    )
+    all_infos = ut.add_columns_to_list(all_infos, pft_combined_extra.values())
     file_name = ut.add_string_to_file_name(
-        file_name_species_list, "__PFT_all_infos", new_suffix=".csv"
+        input_file, "__PFT_all_infos", new_suffix=".csv"
     )
-
     column_headers = (
         ["Species", "Species Original"]
         + extra_columns
@@ -1193,123 +1455,169 @@ def get_all_infos_and_pft(
             "PFT Family GBIF Woodiness TRY",
             "PFT Family GBIF Woodiness Zanne",
             "PFT Family GBIF Woodiness Combined",
-            "PFT Combined",
+            "PFT Combined (excl. Extra)",
             "PFT Family Extra Woodiness Combined",
             "PFT Combined incl. Extra",
         ]
     )
     ut.list_to_file(all_infos, column_headers, file_name)
 
-    return all_infos
+    return all_infos, pft_combined
+
+
+def get_species_data_specs():
+    """
+    Get species data specifications for different sites with grassland observation data.
+
+    Returns:
+        dict: Dictionary with site IDs as keys and corresponding species data specifications:
+            'name' (str): Site name.
+            'species_file_names' (list): Files containing species lists.
+            'species_columns' (list): Column names for species list in each file.
+            'extra_columns' (list of lists): Additional columns to retrieve from the files.
+    """
+
+    species_data_specs_per_site = {
+        "11696de6-0ab9-4c94-a06b-7ce40f56c964": {
+            "name": "IT25 - Val Mazia/Matschertal",
+            "species_file_names": ["IT_Matschertal_data_abund.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
+            "name": "LTSER Zone Atelier Armorique",
+            "species_file_names": ["FR_AtelierArmorique_reference.csv"],
+            "species_columns": ["NAME"],
+            "extra_columns": [["CODE", "FAMILY_NAME"]],
+        },
+        "324f92a3-5940-4790-9738-5aa21992511c": {
+            "name": "Stubai (combination of Neustift meadows and Kaserstattalm)",
+            "species_file_names": ["AT_Stubai_data_abund.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "3de1057c-a364-44f2-8a2a-350d21b58ea0": {
+            "name": "Obergurgl",
+            "species_file_names": [
+                "AT_Obergurgl_reference.csv",
+                "AT_Obergurgl_data.csv",
+            ],
+            "species_columns": ["NAME", "TAXA"],
+            "extra_columns": [[], []],
+        },
+        "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d": {
+            "name": "Hochschwab (AT-HSW) GLORIA",
+            "species_file_names": [
+                "AT_Hochschwab_reference.csv",
+                "AT_Hochschwab_data_cover.csv",
+                "AT_Hochschwab_data_abund.csv",
+            ],
+            "species_columns": ["NAME", "TAXA", "TAXA"],
+            "extra_columns": [["CODE"], [], []],
+        },
+        "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1": {
+            "name": "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen",
+            "species_file_names": [
+                "AT_Schrankogel_reference.csv",
+                "AT_Schrankogel_data_cover.csv",
+            ],
+            "species_columns": ["NAME", "TAXA"],
+            "extra_columns": [["CODE"], []],
+        },
+        "9f9ba137-342d-4813-ae58-a60911c3abc1": {
+            "name": "Rhine-Main-Observatory",
+            "species_file_names": ["DE_RhineMainObservatory_abund_data.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
+            "name": "Appennino centro-meridionale: Majella-Matese",
+            "species_file_names": ["IT_AppenninoCentroMeridionale_data_cover.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+    }
+
+    return species_data_specs_per_site
+
+
+def data_processing(
+    location, species_data_specs, folder, lookup_tables, *, save_single_files=True
+):
+    """
+    Process species data for a site based on the species data specifications.
+
+    Parameters:
+        location (dict): Dictionary with 'lat' and 'lon' keys.
+        species_data_specs (dict): Dictionary with species data specifications for the site.
+        folder (Path): Path to the folder containing species data files.
+        save_single_files (bool): Save intermediate results to separate files (default is True).
+    """
+    if location["name"] == species_data_specs["name"]:
+        # Create location subfolder
+        location_folder = folder / location["deims_id"]
+        Path(location_folder).mkdir(parents=True, exist_ok=True)
+        all_species_infos = []
+        all_species_pfts = {}
+
+        for i, file_name in enumerate(species_data_specs["species_file_names"]):
+            if Path(folder / file_name).exists():
+                # Copy file with species list to location subfolder, allow overwriting
+                shutil.copyfile(folder / file_name, location_folder / file_name)
+                species_column = species_data_specs["species_columns"][i]
+                extra_columns = species_data_specs["extra_columns"][i]
+                species_infos, species_pfts = get_all_infos_and_pft(
+                    location_folder / file_name,
+                    species_column,
+                    lookup_tables,
+                    extra_columns=extra_columns,
+                    save_single_files=save_single_files,
+                )
+
+                if all_species_pfts:
+                    all_species_pfts = resolve_species_info_dicts(
+                        "PFT",
+                        all_species_pfts,
+                        species_pfts,
+                        info_source_1="previous files",
+                        info_source_2=file_name,
+                    )
+                else:
+                    all_species_pfts = species_pfts
+            else:
+                warnings.warn(
+                    f"File '{file_name}' not found in '{folder}'. Skipping file."
+                )
+    else:
+        raise ValueError(
+            f"Site name mismatch for DEIMS ID '{location['deims_id']}': "
+            f"'{location['name']}' vs. '{species_data_specs['name']}'."
+        )
 
 
 ##########################################################################################################################
 # Example usage:
 
-# folder = Path("speciesMappingLookupTables")
+lookup_tables = get_lookup_tables("speciesMappingLookupTables", force_create=True)
+folder = Path(ut.get_package_root() / "grasslandSites")
+species_data_specs = get_species_data_specs()
+site_ids = list(species_data_specs.keys())
+# Or directly specify selected site IDs here, but these need to be in species_data_specs
+# site_ids = ["3de1057c-a364-44f2-8a2a-350d21b58ea0"]  # Obergurgl
 
-# # # Get PFT dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
-# # info_name = "PFT"
-# # # file_name = folder / "TRY_Categorical_traits.txt"
-# # # pft_try_lookup = read_species_info_dict(
-# # #     file_name, info_name, info_column=5, save_new_file=True
-# # # )
-# # file_name = folder / "TRY_Categorical_traits__PFT__GBIF_corrected.txt"
-# # pft_try_lookup = read_species_info_dict(
-# #     file_name, info_name, info_column=1, save_new_file=False
-# # )
-# # # # Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
-# # # file_name = ut.add_string_to_file_name(file_name, f"__{info_name}__GBIF_corrected")
-# # # pft_try_lookup = get_gbif_dict(pft_try_lookup, file_name, info_name)
+for deims_id in site_ids:
+    if deims_id in species_data_specs.keys():
+        location = ut.get_deims_coordinates(deims_id)
 
-# # Get Family dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
-# info_name = "Family"
-# # file_name = folder / "TRY_Categorical_traits.txt"
-# # family_lookup_try = read_species_info_dict(
-# #     file_name, info_name, info_column=3, save_new_file=True
-# # )
-# file_name = folder / "TRY_Categorical_traits__Family__GBIF_corrected.txt"
-# family_lookup_try = read_species_info_dict(
-#     file_name, info_name, info_column=1, save_new_file=False
-# )
-# # # Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
-# # file_name = ut.add_string_to_file_name(file_name, f"__{info_name}__GBIF_corrected")
-# # family_lookup_try = get_gbif_dict(
-# #     family_lookup_try, file_name, info_name
-# # )
-
-# # Get Woodiness dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
-# info_name = "Woodiness"
-# # file_name = folder / "TRY_Categorical_traits.txt"
-# # file_name = folder / "TRY_Categorical_traits__test.txt"
-# # woodiness_lookup_try = read_species_info_dict(
-# #     file_name, info_name, info_column=4, save_new_file=True
-# # )
-# file_name = folder / "TRY_Categorical_traits__Woodiness__GBIF_corrected.txt"
-# woodiness_lookup_try = read_species_info_dict(
-#     file_name, info_name, info_column=1, save_new_file=False
-# )
-# # # Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
-# # file_name = ut.add_string_to_file_name(file_name, f"__{info_name}__GBIF_corrected")
-# # woodiness_lookup_try = get_gbif_dict(
-# #     woodiness_lookup_try, file_name, info_name
-# # )
-
-# # Get Woodiness dictionary from lookup table, and store to file (once created, this file can also be used to get the dictionary)
-# info_name = "Woodiness"
-# # file_name = folder / "Zanne_Growth_form.txt"
-# # woodiness_lookup_zanne = read_species_info_dict(
-# #     file_name, info_name, info_column=2, save_new_file=True
-# # )
-# file_name = folder / "Zanne_Growth_form__Woodiness__GBIF_corrected.txt"
-# info_name = "Woodiness"
-# woodiness_lookup_zanne = read_species_info_dict(
-#     file_name, info_name, info_column=1, save_new_file=False
-# )
-# # # Check dictionary against GBIF taxonomic backbone, and store to file (once created, this file can also be used to get the dictionary)
-# # file_name = ut.add_string_to_file_name(file_name, f"__{info_name}__GBIF_corrected")
-# # woodiness_lookup = get_gbif_dict(
-# #     woodiness_lookup_zanne, file_name, info_name="Woodiness"
-# # )
-
-# Get example list, here from GCEF site
-folder = Path("speciesMappingExampleLists")
-extra_columns = []
-# file_name_species_list = folder / "102ae489-04e3-481d-97df-45905837dc1a_Species.xlsx"
-# species_list_renamed = read_species_list(
-#     file_name_species_list, species_column="Name", check_gbif=True
-# )
-# file_name_species_list = folder / "IT_AppenninoCentroMeridionale_data_cover.csv"
-species_column = "NAME"
-extra_columns = ["CODE", "FAMILY_NAME"]
-file_name_species_list = folder / "AT_Hochschwab_reference.csv"
-file_name_species_list = folder / "AT_Obergurgl_reference.csv"
-file_name_species_list = folder / "AT_Schrankogel_reference.csv"
-file_name_species_list = folder / "FR_AtelierArmorique_reference.csv"
-
-# species_column = "TAXA"
-
-# file_name_species_list = folder / "IT_Matschertal_data_abund.csv"
-# file_name_species_list = folder / "AT_Stubai_data_abund.csv"
-# file_name_species_list = folder / "DE_RhineMainObservatory_abund_data.csv"
-# file_name_species_list = folder / "IT_AppenninoCentroMeridionale_data_cover.csv"
-# file_name_species_list = (
-#     folder / "FR_AtelierArmorique_data_cover.csv"
-# )  # has species codes, come from reference
-
-all_species_infos = get_all_infos_and_pft(
-    file_name_species_list, species_column=species_column, extra_columns=extra_columns
-)
-
-
-# # would also work for different folder location: file_name_species_list = Path("c:/.../AT_Schrankogel_reference.xlsx")
-# species_list_renamed = read_species_list(
-#     file_name_species_list,
-#     species_column=species_column,
-#     extra_columns=extra_columns,
-#     check_gbif=True,
-# )
-# file_name_species_list = (
-#     folder / "102ae489-04e3-481d-97df-45905837dc1a_Species__GBIFList.xlsx"
-# )
-# species_list_renamed = read_species_list(file_name_species_list, check_gbif=False)
+        if location["found"]:
+            data_processing(
+                location, species_data_specs[deims_id], folder, lookup_tables
+            )
+        else:
+            warnings.warn(
+                f"Coordinates not found for DEIMS ID '{deims_id}'. Skipping site."
+            )
+    else:
+        warnings.warn(
+            f"DEIMS ID '{deims_id}' not found in species data specifications. Skipping site."
+        )

@@ -184,6 +184,7 @@ cython_debug/
 # assign_pfts example lists
 speciesMappingExampleLists
 speciesMappingLookupTables
+speciesMappingLookupTables__
 
 # copernicus downloaded / processed weather data
 weatherDataPrepared
