@@ -291,10 +291,10 @@ def replace_info_strings(info, info_name):
             info, ["W", "shrub", "shrub/tree", "tree"], "woody", at_end=True
         )
         info = ut.replace_substrings(
-            info, ["H", "herb", "graminoid", "non-woody"], "herbaceous", at_end=True
+            info, ["H", "herb", "graminoid"], "herbaceous", at_end=True
         )
         info = ut.replace_substrings(
-            info, ["NA", "non-woody/woody", "variable"], "not assigned", at_end=True
+            info, ["NA", "variable"], "not assigned", at_end=True
         )
         info = ut.replace_substrings(info, "fern", "(fern)", at_end=True)
         info = ut.replace_substrings(info, "lichen", "(lichen)", at_end=True)
@@ -995,7 +995,8 @@ def get_species_info(
         info_dict,
         return_as_list=return_as_list,
         file_name=ut.add_string_to_file_name(
-            file_name, f"__{info_name.lower()}_{lookup_source}"
+            file_name,
+            f"__{info_name}__{lookup_source}",  # .lower()
         ),
     )
     return species_info_result
@@ -1027,7 +1028,7 @@ def get_species_family_gbif(species_list, *, file_name="", return_as_list=False)
         species_list,
         info_dict,
         return_as_list=return_as_list,
-        file_name=ut.add_string_to_file_name(file_name, "__family_GBIF"),
+        file_name=ut.add_string_to_file_name(file_name, "__Family__GBIF"),
     )
     return species_info_result
 
@@ -1079,20 +1080,22 @@ def get_species_pft_from_family_woodiness(
         return_as_list=return_as_list,
         file_name=ut.add_string_to_file_name(
             file_name,
-            f"__{info_name}_family_{lookup_source_family}_woodiness_{lookup_source_woodiness}",
+            f"__{info_name}__family_{lookup_source_family}_woodiness_{lookup_source_woodiness}",
         ),
     )
     return species_info_result
 
 
-def get_lookup_tables(lookup_folder_name, *, force_create=False, cache=None):
+def get_lookup_tables(
+    *, lookup_folder_name="speciesMappingLookupTables", force_create=False, cache=None
+):
     """
     Get lookup tables from cache or opendap, create if not found.
 
     Parameters:
-        lookup_folder_name (str): Name of subfolder containing and/or receiving lookup tables.
+        lookup_folder_name (str): Name of subfolder containing and/or receiving lookup tables (default is 'speciesMappingLookupTables').
         force_create (bool): Force creation of new lookup tables (default is False).
-        cache (str): Path to local folder containing and/or receiving lookup tables (default is None).
+        cache (str): Path to local folder containing and/or receiving lookup tables and/or raw source files (default is None).
     """
     lookup_tables = {}
     lookup_table_specs = {
@@ -1103,7 +1106,7 @@ def get_lookup_tables(lookup_folder_name, *, force_create=False, cache=None):
             "raw_file_opendap": "TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx",
             "raw_file": "TRY_Categorical_traits.xlsx",
             "raw_species_column": "AccSpeciesName",
-            "raw_info_columns": ["Family", "Woodiness"],
+            "raw_info_columns": ["Family", "PlantGrowthForm"],
         },
         "TRY_Woodiness": {
             "file_name": "TRY_Categorical_traits__Woodiness__GBIF_corrected.txt",
@@ -1112,7 +1115,7 @@ def get_lookup_tables(lookup_folder_name, *, force_create=False, cache=None):
             "raw_file_opendap": "TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx",
             "raw_file": "TRY_Categorical_traits.xlsx",
             "raw_species_column": "AccSpeciesName",
-            "raw_info_columns": ["Family", "Woodiness"],
+            "raw_info_columns": ["Family", "PlantGrowthForm"],
         },
         "Zanne_Woodiness": {
             "file_name": "Zanne_Growth_form__Woodiness__GBIF_corrected.txt",
@@ -1283,7 +1286,7 @@ def get_all_infos_and_pft(
             ut.dict_to_file(
                 family_extra,
                 ["Species", "Family"],
-                ut.add_string_to_file_name(file_name, "__Family_Extra"),
+                ut.add_string_to_file_name(file_name, "__Family__Extra"),
             )
 
     # Combine and resolve Family from both sources (TRY & GBIF)
@@ -1347,7 +1350,7 @@ def get_all_infos_and_pft(
         woodiness_combined,
         file_name=file_name,
         lookup_source_family="GBIF",
-        lookup_source_woodiness="Combined",
+        lookup_source_woodiness="combined",
     )
 
     # Combine and resolve PFT from multiple sources
@@ -1362,7 +1365,7 @@ def get_all_infos_and_pft(
         "PFT",
         pft_combined,
         pft_family_gbif_woodiness_zanne,
-        info_source_1="Combined",
+        info_source_1="combined",
         info_source_2="family_GBIF_woodiness_Zanne",
     )
 
@@ -1385,37 +1388,40 @@ def get_all_infos_and_pft(
         woodiness_combined_original_keys,
         file_name=file_name,
         lookup_source_family="Extra",
-        lookup_source_woodiness="Combined",
+        lookup_source_woodiness="combined",
     )
     pft_combined_extra = resolve_species_info_dicts(
         "PFT",
         pft_combined_original_keys,
         pft_family_extra_woodiness_combined,
-        info_source_1="Combined",
-        info_source_2="family_Extra_woodiness_Combined",
+        info_source_1="combined",
+        info_source_2="family_Extra_woodiness_combined",
     )
 
     if file_name:
         ut.dict_to_file(
             family_combined,
             ["Species", "Family Combined"],
-            ut.add_string_to_file_name(file_name, "__family_Combined"),
+            ut.add_string_to_file_name(file_name, "__Family__combined"),
         )
         ut.dict_to_file(
             woodiness_combined,
             ["Species", "Woodiness Combined"],
-            ut.add_string_to_file_name(file_name, "__woodiness_Combined"),
+            ut.add_string_to_file_name(file_name, "__Woodiness__combined"),
         )
         ut.dict_to_file(
             pft_combined,
             ["Species", "PFT Combined"],
-            ut.add_string_to_file_name(file_name, "__PFT_Combined"),
+            ut.add_string_to_file_name(file_name, "__PFT__combined"),
         )
         ut.dict_to_file(
             pft_combined_extra,
             ["Species", "PFT Combined incl. Extra"],
-            ut.add_string_to_file_name(file_name, "__PFT_Combined_Extra"),
+            ut.add_string_to_file_name(file_name, "__PFT__combined_Extra"),
         )
+
+    # Add PFT combined column to species list
+    pft_infos = ut.add_infos_to_list(species_list, pft_combined)
 
     # Combine all infos to one list, and write to file
     all_infos = ut.add_columns_to_list(species_list, family_extra.values())
@@ -1437,9 +1443,7 @@ def get_all_infos_and_pft(
         all_infos, pft_family_extra_woodiness_combined.values()
     )
     all_infos = ut.add_columns_to_list(all_infos, pft_combined_extra.values())
-    file_name = ut.add_string_to_file_name(
-        input_file, "__PFT_all_infos", new_suffix=".csv"
-    )
+    file_name = ut.add_string_to_file_name(input_file, "__AllInfos", new_suffix=".csv")
     column_headers = (
         ["Species", "Species Original"]
         + extra_columns
@@ -1462,7 +1466,7 @@ def get_all_infos_and_pft(
     )
     ut.list_to_file(all_infos, column_headers, file_name)
 
-    return all_infos, pft_combined
+    return pft_infos, pft_combined
 
 
 def get_species_data_specs():
@@ -1545,7 +1549,7 @@ def data_processing(
     location, species_data_specs, folder, lookup_tables, *, save_single_files=True
 ):
     """
-    Process species data for a site based on the species data specifications.
+    Process species data for a site based on species data specifications.
 
     Parameters:
         location (dict): Dictionary with 'lat' and 'lon' keys.
@@ -1556,17 +1560,18 @@ def data_processing(
     if location["name"] == species_data_specs["name"]:
         # Create location subfolder
         location_folder = folder / location["deims_id"]
-        Path(location_folder).mkdir(parents=True, exist_ok=True)
-        all_species_infos = []
-        all_species_pfts = {}
+        location_folder.mkdir(parents=True, exist_ok=True)
+        formatted_lat = f"lat{location['lat']:.6f}"
+        formatted_lon = f"lon{location['lon']:.6f}"
+        collect_species_pfts = {}
 
         for i, file_name in enumerate(species_data_specs["species_file_names"]):
-            if Path(folder / file_name).exists():
+            if (folder / file_name).exists():
                 # Copy file with species list to location subfolder, allow overwriting
                 shutil.copyfile(folder / file_name, location_folder / file_name)
                 species_column = species_data_specs["species_columns"][i]
                 extra_columns = species_data_specs["extra_columns"][i]
-                species_infos, species_pfts = get_all_infos_and_pft(
+                infos_pft, pft_lookup = get_all_infos_and_pft(
                     location_folder / file_name,
                     species_column,
                     lookup_tables,
@@ -1574,20 +1579,44 @@ def data_processing(
                     save_single_files=save_single_files,
                 )
 
-                if all_species_pfts:
-                    all_species_pfts = resolve_species_info_dicts(
+                # Save species infos to location specific files
+                species_source = "_".join(
+                    file_name.split(".")[:-1]
+                )  # Remove file extension, replace dots with underscores
+                species_source = "_".join(
+                    species_source.split("_")[2:]
+                )  # Remove country code and site short name (first two items in string)
+                target_file = (
+                    location_folder
+                    / f"{formatted_lat}_{formatted_lon}__PFT__{species_source}.txt"
+                )
+                ut.list_to_file(
+                    infos_pft,
+                    ["Species", "Species Original"] + extra_columns + ["PFT combined"],
+                    target_file,
+                )
+
+                # Combine PFT lookup dictionaries retrieved from different source files
+                if collect_species_pfts:
+                    collect_species_pfts = resolve_species_info_dicts(
                         "PFT",
-                        all_species_pfts,
-                        species_pfts,
+                        collect_species_pfts,
+                        pft_lookup,
                         info_source_1="previous files",
                         info_source_2=file_name,
                     )
                 else:
-                    all_species_pfts = species_pfts
+                    collect_species_pfts = pft_lookup
             else:
                 warnings.warn(
                     f"File '{file_name}' not found in '{folder}'. Skipping file."
                 )
+
+        # Save combined PFTs to file
+        file_name = (
+            location_folder / f"{formatted_lat}_{formatted_lon}__PFT__allSources.txt"
+        )
+        ut.dict_to_file(collect_species_pfts, ["Species", "PFT combined"], file_name)
     else:
         raise ValueError(
             f"Site name mismatch for DEIMS ID '{location['deims_id']}': "
@@ -1598,11 +1627,11 @@ def data_processing(
 ##########################################################################################################################
 # Example usage:
 
-lookup_tables = get_lookup_tables("speciesMappingLookupTables", force_create=True)
-folder = Path(ut.get_package_root() / "grasslandSites")
+lookup_tables = get_lookup_tables(force_create=False)
+folder = ut.get_package_root() / "grasslandSites"
 species_data_specs = get_species_data_specs()
 site_ids = list(species_data_specs.keys())
-# Or directly specify selected site IDs here, but these need to be in species_data_specs
+# # Or directly specify selected site IDs here, but these need to be in species_data_specs
 # site_ids = ["3de1057c-a364-44f2-8a2a-350d21b58ea0"]  # Obergurgl
 
 for deims_id in site_ids:
@@ -1611,7 +1640,11 @@ for deims_id in site_ids:
 
         if location["found"]:
             data_processing(
-                location, species_data_specs[deims_id], folder, lookup_tables
+                location,
+                species_data_specs[deims_id],
+                folder,
+                lookup_tables,
+                save_single_files=True,  # False to skip saving intermediate files
             )
         else:
             warnings.warn(

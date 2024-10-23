@@ -572,12 +572,15 @@ def combine_info_strings(info_1, info_2):
             return f"conflicting ({info_both[0]} vs. {info_both[1]})"
 
 
-def sort_and_cleanup_list(input_list, *, combine_differing_entries=False):
+def sort_and_cleanup_list(
+    input_list, *, unique_entry_column=0, combine_differing_entries=False
+):
     """
     Sort a list to remove duplicates and handle warnings based on criteria.
 
     Parameters:
         input_list (list): List of strings or a list of lists.
+        unique_entry_column (int): Index of column to use for keeping unique entries (default is 0).
         combine_differing_entries (bool): Combine differing entries (with same info in first
             column) into one (default is False).
 
@@ -604,16 +607,16 @@ def sort_and_cleanup_list(input_list, *, combine_differing_entries=False):
     if all(isinstance(entry, str) for entry in input_list):
         return sorted(set(input_list))
 
-    # If input is a list of lists, check for entries with same first column value but differing other columns
+    # If input is a list of lists, check for entries with same unique_entry_column value but differing other columns
     if all(isinstance(entry, list) for entry in input_list):
-        # Replace tabs within strings
+        # Replace tabs within strings (e.g. resulting from heterogeneous input format)
         input_list = replace_substrings(input_list, "\t", " ")
 
-        # Collect all unique rows, rows with same entry in column 0 assigned to same key
+        # Collect all unique rows, rows with same entry in unique_entry_column assigned to same key
         unique_entries = defaultdict(list)
 
         for entry in input_list:
-            unique_entries[entry[0]].append(entry)
+            unique_entries[entry[unique_entry_column]].append(entry)
     else:
         raise ValueError("Input list entries must be all strings or all lists.")
 
@@ -631,7 +634,7 @@ def sort_and_cleanup_list(input_list, *, combine_differing_entries=False):
 
             if differing_entries:
                 warnings.warn(
-                    f"Entries with the same first column value '{key}' differ in other columns."
+                    f"Entries with the same unique column value '{key}' differ in other columns."
                 )
 
                 if combine_differing_entries:
@@ -639,7 +642,7 @@ def sort_and_cleanup_list(input_list, *, combine_differing_entries=False):
                     combined_entry = first_entry
 
                     for entry in differing_entries:
-                        for idx, item in enumerate(entry, start=1):
+                        for idx, item in enumerate(entry):
                             if item != combined_entry[idx]:
                                 combined_entry[idx] = combine_info_strings(
                                     combined_entry[idx], item
