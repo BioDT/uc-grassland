@@ -229,23 +229,23 @@ def prep_grassland_model_input_data(
         sites_file_name = (
             ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
         )
-        sites_ids = ut.get_deims_ids_from_xls(
+        site_ids = ut.get_deims_ids_from_xls(
             sites_file_name,
             header_row=1,
             country="ALL",  # "DE" "AT"
         )
-        sites_ids = [
-            "11696de6-0ab9-4c94-a06b-7ce40f56c964",
-            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",
-            "324f92a3-5940-4790-9738-5aa21992511c",
-            "3de1057c-a364-44f2-8a2a-350d21b58ea0",
-            "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",
-            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",
-            "9f9ba137-342d-4813-ae58-a60911c3abc1",
-            "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",
+        site_ids = [
+            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
+            "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
+            "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
+            "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
+            "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+            "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
         ]
 
-        for deims_id in sites_ids:
+        for deims_id in site_ids:
             location = ut.get_deims_coordinates(deims_id)
             # print(location)
 

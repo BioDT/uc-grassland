@@ -521,7 +521,7 @@ def check_results_to_file(grassland_check, *, file_name=None, map_key=None):
         )
 
     column_names = ut.get_unique_keys(grassland_check)
-    ut.list_to_file(grassland_check, column_names, file_name)
+    ut.list_to_file(grassland_check, file_name, column_names=column_names)
 
 
 def check_locations_for_grassland(locations, map_key, file_name=None):

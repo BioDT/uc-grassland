@@ -186,7 +186,9 @@ def management_data_to_txt_file(
 
     if data_query_protocol:
         file_name = ut.add_string_to_file_name(file_name, "__data_query_protocol")
-        ut.list_to_file(data_query_protocol, ["data_source", "time_stamp"], file_name)
+        ut.list_to_file(
+            data_query_protocol, file_name, column_names=["data_source", "time_stamp"]
+        )
 
 
 def get_management_map_file(

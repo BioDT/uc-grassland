@@ -62,6 +62,7 @@ Data sources:
       Nature 506: 89-92. https://doi.org/10.1038/nature12872
 """
 
+import argparse
 import shutil
 import time
 import warnings
@@ -71,57 +72,16 @@ import pandas as pd
 import utils as ut
 from pygbif import species
 
-# def combine_info_strings(info_1, info_2):
-#     """
-#     Combine infos for a species.
 
-#     Parameters:
-#         info_1 (str): First info entry.
-#         info_2 (str): Second info entry.
-
-#     Returns:
-#         str: Combined info entry.
-#     """
-#     info_1_core = ut.replace_substrings(info_1, ["(", ")", "conflicting "], "")
-#     info_2_core = ut.replace_substrings(info_2, ["(", ")", "conflicting "], "")
-
-#     # Allow combination without conflict of infos that can be woody
-#     woody_infos = [
-#         "woody",
-#         "tree",
-#         "shrub",
-#         "shrub/tree",
-#         "legume?",
-#         "legume?/tree",
-#         "legume?/shrub",
-#         "legume?/shrub/tree",
-#     ]
-
-#     # Return one info, if it already contains the other info
-#     if info_1_core in info_2_core:
-#         return info_2
-#     elif info_2_core in info_1_core:
-#         return info_1
-#     else:
-#         info_both = sorted((info_1_core, info_2_core))
-
-#         # Combine without conflict, if both infos are woody (PFT or Woodiness)
-#         if info_1_core in woody_infos and info_2_core in woody_infos:
-#             return f"({info_both[0]}/{info_both[1]})"
-#         # Combine as conflicting otherwise
-#         else:
-#             return f"conflicting ({info_both[0]} vs. {info_both[1]})"
-
-
-def resolve_species_infos(
-    spec, info_name, info_1, info_2, *, warn_duplicates=False, warn_conflict=True
+def resolve_infos(
+    key, info_name, info_1, info_2, *, warn_duplicates=False, warn_conflict=True
 ):
     """
-    Resolve conflicting infos for a species.
+    Resolve conflicting infos for a key.
 
     Parameters:
-        spec (str): Species for which infos are being resolved.
-        info_name (str): Information name ('PFT' or 'Woodiness' or 'Family').
+        key (str): Key for which infos are being resolved (e.g. a species name).
+        info_name (str): Information name (e.g. 'PFT' or 'Woodiness' or 'Family').
         info_1 (str): First info entry.
         info_2 (str): Second info entry.
         warn_duplicates (bool): Throw warnings for resolving duplicate entries (default is False).
@@ -129,10 +89,13 @@ def resolve_species_infos(
 
     Returns:
         str: Resolved info entry.
+
+    Raises:
+        UserWarning: If duplicate or conflicting entries are found.
     """
-    # Warning for duplicate species
+    # Warning for duplicate keys
     if warn_duplicates:
-        warnings.warn(f"Duplicate species entry found for species '{spec}'.")
+        warnings.warn(f"Duplicate entry found for key '{key}'.")
 
     # Check if the infos are the same, no need to change the info
     if info_1 == info_2:
@@ -158,7 +121,7 @@ def resolve_species_infos(
             # Warn for two conflicting assigned infos
             if warn_conflict and info_resolved.startswith("conflicting "):
                 warnings.warn(
-                    f"Assigned {info_name} for species {spec} from duplicate entries is {info_resolved}."
+                    f"Assigned {info_name} for key '{key}' from duplicate entries is {info_resolved}."
                 )
                 warn_duplicates = False
         if warn_duplicates:
@@ -186,6 +149,8 @@ def resolve_species_info_dicts(
         info_dict_1 (dict): First dictionary mapping species to information entries.
         info_dict_2 (dict): Second dictionary mapping species to information entries.
         ask_user_input (bool): Ask user for manual input of unclear infos (default is False).
+        info_source_1 (str): Name of the first source of information (default is "source 1 not specied").
+        info_source_2 (str): Name of the second source of information (default is "source 2 not specied").
 
     Returns:
         dict: Dictionary with resolved information entries for each species.
@@ -199,7 +164,7 @@ def resolve_species_info_dicts(
     common_keys = set(info_dict_1.keys()) & set(info_dict_2.keys())
 
     for spec in common_keys:
-        resolved_dict[spec] = resolve_species_infos(
+        resolved_dict[spec] = resolve_infos(
             spec,
             info_name,
             info_dict_1[spec],
@@ -222,6 +187,33 @@ def resolve_species_info_dicts(
     return resolved_dict
 
 
+def reduce_pft_info(info):
+    """
+    Reduce PFT information to coarse category.
+
+    Parameters:
+        info (str): PFT information entry.
+
+    Returns:
+        str: Reduced PFT information entry.
+    """
+    if info in ["not assigned", "not found"] or info.startswith("conflicting"):
+        return "not assigned"
+    elif info in [
+        "(tree)",
+        "(shrub)",
+        "(shrub/tree)",
+        "(fern)",
+        "(moss)",
+        "(lichen)",
+        "(legume?)",
+        "(woody)",
+    ]:
+        return "other"
+    else:
+        return info
+
+
 def get_valid_infos(info_name):
     """
     Get valid information entries based on the specified information type.
@@ -231,9 +223,6 @@ def get_valid_infos(info_name):
 
     Returns:
         list: List of valid information entries for the specified type.
-
-    Raises:
-        ValueError: If an unsupported species information type is provided.
     """
     if info_name == "PFT":
         # Set valid grassland PFT entries
@@ -248,16 +237,14 @@ def get_valid_infos(info_name):
             "(moss)",
             "(lichen)",
             "(legume?)",
+            "(woody)",
         ]
     elif info_name == "Woodiness":
         # Set valid Woodiness entries
         return ["woody", "herbaceous", "(fern)", "(lichen)", "(moss)"]
-    elif info_name == "Family":
-        return ["any"]
     else:
-        raise ValueError(
-            "Unsupported species information type. Supported types are 'PFT' and 'Woodiness'."
-        )
+        # No specific limitations for other information types
+        return ["any"]
 
 
 def replace_info_strings(info, info_name):
@@ -306,93 +293,99 @@ def replace_info_strings(info, info_name):
     return info
 
 
-def read_species_info_dict(
+def read_info_dict(
     file_name,
     info_name,
     *,
-    species_column=0,
+    key_column=0,
+    key_name="Species",
     info_column=None,
     header_lines=1,
     new_file="",
 ):
     """
-    Read a dictionary from a text file containing species and a corresponding information (PFT or Woodiness).
+    Read a dictionary from a text file containing keys and a corresponding information.
 
     Parameters:
         file_name (str): Path to the text file.
-        info_name (str): Information name ('PFT' or 'Woodiness' or 'Family').
-        species_column(str or int): Species column identifier (name as string or index)
+        info_name (str): Information name (e.g. 'PFT' or 'Woodiness' or 'Family').
+        key_column (str or int): Key column identifier (name as string or index).
+        key_name (str): Key name for the dictionary (default is 'Species').
         info_column (int): Information column identifier (name as string or index, default is None for using info_name).
         header_lines (int): Number of header lines to skip (default is 1).
         new_file (str): Path of new file to save the dictionary (default is "", to not save).
-        lookup_source (str): Source of the lookup table for new file name (default is "Original").
 
     Returns:
-        dict: Dictionary where species names are keys, and infos are values.
+        dict: Dictionary where key_column entries are keys, and infos are values.
 
     Raises:
-        ValueError: If unsupported species info_name is used.
+        ValueError: If unsupported info_name is used.
     """
-    valid_infos = get_valid_infos(info_name)
-    print(f"Reading {info_name} lookup table from '{file_name}' ...")
+    if file_name.is_file():
+        valid_infos = get_valid_infos(info_name)
+        print(f"Reading {info_name} lookup table from '{file_name}' ...")
 
-    # Search for 'info_name' as column name if not specified otherwise
-    if info_column is None:
-        info_column = info_name
+        # Search for 'info_name' as column name if not specified otherwise
+        if info_column is None:
+            info_column = info_name
 
-    # Open file for reading
-    with open(file_name, "r") as file:
-        species_info_dict = {}
-        processed_lines = 0
-        last_header_line = None
+        # Open file for reading
+        with open(file_name, "r", encoding="utf-8", errors="replace") as file:
+            info_dict = {}
+            processed_lines = 0
+            last_header_line = None
 
-        # Skip header lines
-        for _ in range(header_lines):
-            last_header_line = next(file)
+            # Skip header lines
+            for _ in range(header_lines):
+                last_header_line = next(file)
 
-        # Get column names from last header line, find species and info columns
-        column_names = [last_header_line.rstrip("\n").split("\t", -1)]
-        species_column = ut.find_column_index(column_names, species_column)
-        info_column = ut.find_column_index(column_names, info_column)
+            # Get column names from last header line, find key and info columns
+            column_names = [last_header_line.rstrip("\n").split("\t", -1)]
+            key_column = ut.find_column_index(column_names, key_column)
+            info_column = ut.find_column_index(column_names, info_column)
 
-        # Split each line into columns (tab as delimiter), get species and info from columns
-        for line_number, line in enumerate(file, start=header_lines + 1):
-            columns = line.rstrip("\n").split("\t", -1)
-            spec, info = (columns[species_column], columns[info_column])
-            info = replace_info_strings(info, info_name)
+            # Split each line into columns (tab as delimiter), get key and info from columns
+            for line_number, line in enumerate(file, start=header_lines + 1):
+                columns = line.rstrip("\n").split("\t", -1)
+                key, info = (columns[key_column], columns[info_column])
+                info = replace_info_strings(info, info_name)
 
-            # Warning if info is not valid and not "not assigned"
-            if (
-                not (valid_infos == ["any"] and info != "")
-                and info not in valid_infos
-                and not info.startswith(("not assigned", "conflicting"))
-            ):
-                warnings.warn(
-                    f"Invalid {info_name} found on line {line_number} for {spec}: '{info}'."
-                )
+                # Warning if info is not valid and not "not assigned"
+                if (
+                    not (valid_infos == ["any"] and info != "")
+                    and info not in valid_infos
+                    and not info.startswith(
+                        ("not assigned", "conflicting", "not found")
+                    )
+                ):
+                    warnings.warn(
+                        f"Invalid {info_name} found on line {line_number} for {key}: '{info}'."
+                    )
 
-            # Check if (replaced) species name is already in lookup table
-            if spec in species_info_dict:
-                # Check info for existing species
-                species_info_dict[spec] = resolve_species_infos(
-                    spec, info_name, info, species_info_dict[spec]
-                )
-            else:
-                # Add new species and info to lookup table
-                species_info_dict[spec] = info
+                # Check if (replaced) key name is already in lookup table
+                if key in info_dict:
+                    # Resolve infos for existing key
+                    info_dict[key] = resolve_infos(key, info_name, info, info_dict[key])
+                else:
+                    # Add new key and info to lookup table
+                    info_dict[key] = info
 
-            processed_lines += 1
+                processed_lines += 1
 
-    # Sort dictionary by species keys
-    species_info_dict = dict(sorted(species_info_dict.items()))
-    print(f"Processed {processed_lines} lines.")
-    print(f"Final {info_name} lookup table has {len(species_info_dict)} entries.")
+        # Sort dictionary by keys
+        info_dict = dict(sorted(info_dict.items()))
+        print(f"Processed {processed_lines} lines.")
+        print(f"Final {info_name} lookup table has {len(info_dict)} entries.")
 
-    # Save created dictionary to new file if file is provided
-    if new_file:
-        ut.dict_to_file(species_info_dict, ["Species", info_name], new_file)
+        # Save created dictionary to new file if file is provided
+        if new_file:
+            ut.dict_to_file(info_dict, [key_name, info_name], new_file)
 
-    return species_info_dict
+        return info_dict
+    else:
+        raise FileNotFoundError(
+            f"File '{file_name}' not found. Cannot read lookup table."
+        )
 
 
 def gbif_request(spec, *, kingdom="plants", attempts=5, delay=2):
@@ -424,7 +417,7 @@ def gbif_request(spec, *, kingdom="plants", attempts=5, delay=2):
     return "not found"
 
 
-def get_gbif_species(spec, accepted_ranks=["GENUS"]):
+def get_gbif_species(spec, *, accepted_ranks=["GENUS"]):
     """
     Retrieve a species name or higher rank from the GBIF taxonomic backbone.
 
@@ -579,7 +572,7 @@ def get_gbif_family(spec):
 #         # Check if (replaced) species name is already in lookup table
 #         if spec_match in species_info_dict_gbif:
 #             # Check info for existing species
-#             species_info_dict_gbif[spec_match][info_name] = resolve_species_infos(
+#             species_info_dict_gbif[spec_match][info_name] = resolve_infos(
 #                 spec_match,
 #                 info_name,
 #                 info,
@@ -673,7 +666,7 @@ def read_species_list(
     check/correct species names with GBIF taxonomic backbone
 
     Parameters:
-        file_name (str): Name of the file containing the species names.
+        file_name (Path): Path to the file containing the species.
         species_column (str or int): Species name column name or number (0-based index, default is 0).
         extra_columns (list of str or int): Additional columns to include in the list (default is empty list).
         header_lines (int): Number of header line, lines before will be skipped (default is 1).
@@ -686,9 +679,10 @@ def read_species_list(
 
     Returns:
         list: List of unique species names, and additional info if requested and found.
+
+    Raises:
+        ValueError: If unsupported file format is used.
     """
-    # Convert file_path to a Path object if it is not already
-    file_name = Path(file_name)
     file_extension = file_name.suffix.lower()
     print(f"Reading species list from '{file_name}' ...")
 
@@ -696,7 +690,7 @@ def read_species_list(
         try:
             df = pd.read_excel(file_name, header=header_lines - 1)
         except Exception as e:
-            print(f"Error reading .xlsx file: {e}.")
+            warnings.warn(f"Error reading .xlsx file: {e}.")
             return []
 
         # Determine species name column index
@@ -721,7 +715,7 @@ def read_species_list(
                 delimiter=csv_delimiter,
             )
         except Exception as e:
-            print(f"Error reading .csv file: {e}.")
+            warnings.warn(f"Error reading .csv file: {e}.")
             return []
 
         # Determine species name column index
@@ -739,10 +733,10 @@ def read_species_list(
         species_list = df.iloc[:, column_indexes].values.tolist()
     elif file_extension == ".txt":
         try:
-            with open(file_name, "r") as file:
+            with open(file_name, "r", encoding="utf-8", errors="replace") as file:
                 species_data = [line.strip().split("\t") for line in file]
         except Exception as e:
-            print(f"Error reading text file: {e}.")
+            warnings.warn(f"Error reading text file: {e}.")
             return []
 
         # Determine species name column index
@@ -762,7 +756,7 @@ def read_species_list(
                 for line in species_data[header_lines:]
             ]
         except IndexError as e:
-            print(f"Error processing line: {e}. Returning empty list.")
+            warnings.warn(f"Error processing line: {e}. Returning empty list.")
             return []
     else:
         raise ValueError("Unsupported file format! Must be '.xlsx', '.txt', or '.csv'.")
@@ -791,8 +785,8 @@ def read_species_list(
             )
             ut.list_to_file(
                 species_list_renamed,
-                ["Species GBIF", "Species Original"] + extra_columns,
                 file_name,
+                column_names=["Species GBIF", "Species Original"] + extra_columns,
             )
 
         # Overwrite species_list with GBIF correction for empty/duplicate count below
@@ -815,8 +809,8 @@ def read_species_list(
             )
             ut.list_to_file(
                 species_list_renamed,
-                first_columns + extra_columns,
                 file_name,
+                column_names=first_columns + extra_columns,
             )
 
     # No removal of 'nan' or duplicate species entries in renamed list, assigned infos to be matched with original list later
@@ -837,14 +831,14 @@ def read_species_list(
     return species_list_renamed
 
 
-def user_input_info(info_dict, info_name, start_string):
+def user_input_info(info_dict, info_name, *, start_string="not "):
     """
     Iterate through species without info assigned and prompt user to select a new info.
 
     Parameters:
         info_dict (dict): Dictionary with species names as keys and corresponding infos.
         info_name (str): Information name ('PFT' or 'Woodiness').
-        start_string (string): Beginning of infos that get suggested for reassignment.
+        start_string (string): Beginning of infos that get suggested for reassignment (default is "not ").
 
     Returns:
         dict: Modified dictionary with updated infos based on user input.
@@ -855,24 +849,24 @@ def user_input_info(info_dict, info_name, start_string):
     print(f"Going through species with {info_name} '{start_string}' ...")
     print(f"You can select the new {info_name} from the following options:")
 
-    for index, info in enumerate(valid_choices, start=1):
-        print(f"{index}. '{info}'")
-        choice_string += f"{index} '{info}' "
+    for idx, info in enumerate(valid_choices, start=1):
+        print(f"{idx}. '{info}'")
+        choice_string += f"{idx} '{info}' "
 
-    print(f"{index + 1}. Skip (leave {info_name} as is). ")
-    print(f"{index + 2}. Exit {info_name} assignment.")
+    print(f"{idx + 1}. Skip (leave {info_name} as is). ")
+    print(f"{idx + 2}. Exit {info_name} assignment.")
 
     for spec, info in info_dict.items():
         if bool(spec) and info.startswith(start_string):
             print(f"Species: {spec}. Current {info_name}: '{info}'.")
             user_choice = input(
-                f"Enter your choice ({choice_string}{index + 1} Skip {index + 2} Exit): "
+                f"Enter your choice ({choice_string}{idx + 1} Skip {idx + 2} Exit): "
             )
 
             try:
                 user_choice = int(user_choice)
             except ValueError:
-                print(f"Invalid choice. Leaving {info_name} as is.")
+                warnings.warn(f"Invalid choice. Leaving {info_name} as is.")
             else:
                 if 1 <= user_choice <= len(valid_choices):
                     user_info = f"{valid_choices[user_choice - 1]} (user input)"
@@ -886,7 +880,7 @@ def user_input_info(info_dict, info_name, start_string):
                     )
                     break  # Exit the loop
                 else:
-                    print(f"Invalid choice. Leaving {info_name} as is.")
+                    warnings.warn(f"Invalid choice. Leaving {info_name} as is.")
 
     return info_dict
 
@@ -922,30 +916,11 @@ def check_unclear_infos(info_name, info_dict, *, ask_user_input=True):
                 ).lower()
 
                 if manual_input == "y":
-                    info_dict = user_input_info(info_dict, info_name, unclear_info)
+                    info_dict = user_input_info(
+                        info_dict, info_name, start_string=unclear_info
+                    )
 
     return info_dict
-
-
-def return_as_list_or_dict(
-    info_name, species_list, info_dict, *, return_as_list=False, file_name=None
-):
-    if return_as_list:
-        # New list of species and infos, allowing for duplicates and preserving order
-        species_info_list = ut.add_info_to_list(species_list, info_dict)
-
-        if file_name:
-            ut.list_to_file(species_info_list, ["Species", info_name], file_name)
-
-        return species_info_list
-    else:
-        # Sort, save and return species info dictionary
-        info_dict = dict(sorted(info_dict.items()))
-
-        if file_name:
-            ut.dict_to_file(info_dict, ["Species", info_name], file_name)
-
-        return info_dict
 
 
 def get_species_info(
@@ -955,7 +930,6 @@ def get_species_info(
     *,
     file_name="",
     lookup_source="source not specified",
-    return_as_list=False,
     ask_user_input=False,
 ):
     """
@@ -967,7 +941,7 @@ def get_species_info(
         info_lookup (dict): Dictionary with species names as keys and corresponding infos.
         info_name (str): Information name ('PFT' or 'Woodiness').
         file_name (str): File name to save the result (empty string to skip saving).
-        return_as_list(bool): Return as a list, otherwise as a dict (default is False).
+        lookup_source (str): Name of the source of information (default is "source not specified").
         ask_user_input (bool): Ask user for manual input of unclear infos (default is False).
 
     Returns:
@@ -987,29 +961,26 @@ def get_species_info(
         if spec not in info_dict:
             info_dict[spec] = ut.lookup_info_in_dict(spec, info_lookup)
 
-    # Check for unclear infos and get result (list or dict)
+    # Check for unclear infos, sort, and save dictionary to file if specified
     info_dict = check_unclear_infos(info_name, info_dict, ask_user_input=ask_user_input)
-    species_info_result = return_as_list_or_dict(
-        info_name,
-        species_list,
-        info_dict,
-        return_as_list=return_as_list,
-        file_name=ut.add_string_to_file_name(
-            file_name,
-            f"__{info_name}__{lookup_source}",  # .lower()
-        ),
-    )
-    return species_info_result
+    info_dict = dict(sorted(info_dict.items()))
+
+    if file_name:
+        file_name = ut.add_string_to_file_name(
+            file_name, f"__{info_name}__{lookup_source}"
+        )
+        ut.dict_to_file(info_dict, ["Species", info_name], file_name)
+
+    return info_dict
 
 
-def get_species_family_gbif(species_list, *, file_name="", return_as_list=False):
+def get_species_family_gbif(species_list, *, file_name=""):
     """
     Retrieve families for a list of species using GBIF taxonomic backbone.
 
     Parameters:
         species_list (list): List of species names.
         file_name (str): File name to save the result (empty string to skip saving).
-        return_as_list(bool): Return as a list, otherwise as a dict (default is False).
 
     Returns:
         dict or list: Resulting dictionary or list with species and their Family information.
@@ -1022,15 +993,14 @@ def get_species_family_gbif(species_list, *, file_name="", return_as_list=False)
         if spec not in info_dict:
             info_dict[spec] = get_gbif_family(spec)
 
-    # Get result (list or dict)
-    species_info_result = return_as_list_or_dict(
-        info_name,
-        species_list,
-        info_dict,
-        return_as_list=return_as_list,
-        file_name=ut.add_string_to_file_name(file_name, "__Family__GBIF"),
-    )
-    return species_info_result
+    # Sort, and save dictionary to file if specified
+    info_dict = dict(sorted(info_dict.items()))
+
+    if file_name:
+        file_name = ut.add_string_to_file_name(file_name, "__Family__GBIF")
+        ut.dict_to_file(info_dict, ["Species", info_name], file_name)
+
+    return info_dict
 
 
 def get_species_pft_from_family_woodiness(
@@ -1041,7 +1011,6 @@ def get_species_pft_from_family_woodiness(
     file_name="",
     lookup_source_family="family source not specified",
     lookup_source_woodiness="woodiness source not specified",
-    return_as_list=False,
     ask_user_input=False,
 ):
     """
@@ -1052,7 +1021,6 @@ def get_species_pft_from_family_woodiness(
         family_dict (dict): Dictionary mapping species to their families.
         woodiness_dict (dict): Dictionary mapping species to their woodiness.
         file_name (str): File name to save the result (empty string to skip saving).
-        return_as_list(bool): Return as a list, otherwise as a dict (default is False).
         ask_user_input (bool): Ask user for manual input of unclear infos (default is False).
 
     Returns:
@@ -1071,19 +1039,18 @@ def get_species_pft_from_family_woodiness(
                 spec, family_dict, woodiness_dict
             )
 
-    # Check for unclear infos and get result (list or dict)
+    # Check for unclear infos, sort, and save dictionary to file if specified
     info_dict = check_unclear_infos(info_name, info_dict, ask_user_input=ask_user_input)
-    species_info_result = return_as_list_or_dict(
-        info_name,
-        species_list,
-        info_dict,
-        return_as_list=return_as_list,
-        file_name=ut.add_string_to_file_name(
+    info_dict = dict(sorted(info_dict.items()))
+
+    if file_name:
+        file_name = ut.add_string_to_file_name(
             file_name,
             f"__{info_name}__family_{lookup_source_family}_woodiness_{lookup_source_woodiness}",
-        ),
-    )
-    return species_info_result
+        )
+        ut.dict_to_file(info_dict, ["Species", info_name], file_name)
+
+    return info_dict
 
 
 def get_lookup_tables(
@@ -1144,13 +1111,13 @@ def get_lookup_tables(
 
             if table_file.is_file():
                 # Use local lookup tables, if found
-                lookup_tables[table_name] = read_species_info_dict(
+                lookup_tables[table_name] = read_info_dict(
                     table_file, table_info["info_name"]
                 )
                 lookup_table_specs[table_name]["found"] = True
 
     # Create missing lookup tables (i.e. all in case of force_create) from raw tables
-    for table_name, table_info in lookup_table_specs.items():
+    for idx, (table_name, table_info) in enumerate(lookup_table_specs.items()):
         if not table_info["found"]:
             # Create lookup table from raw file
             raw_file = lookup_folder / table_info["raw_file"]
@@ -1192,11 +1159,12 @@ def get_lookup_tables(
 
             if raw_list_file.is_file():
                 # Get lookup table from raw list in .txt file, and save to file
-                lookup_tables[table_name] = read_species_info_dict(
+                lookup_tables[table_name] = read_info_dict(
                     raw_list_file,
                     table_info["info_name"],
                     species_column=0,
                     new_file=lookup_folder / table_info["file_name"],
+                    info_column=table_info["raw_info_columns"][idx],
                 )
             else:
                 raise FileNotFoundError(
@@ -1258,14 +1226,14 @@ def get_all_infos_and_pft(
     family_extra_found = False
 
     # Scan extra columns if they contain family information
-    for col_index, col_name in enumerate(extra_columns):
+    for col_idx, col_name in enumerate(extra_columns):
         if "family" in col_name.lower():
             # Family extra dict needs to work with original species names as keys (entry[1]),
             # because GBIF names can be the same for different original species, but
             # the extra column can contain different family information for them
             print(f"Extra column found with family information: '{col_name}'.")
             family_extra_found = True
-            family_extra = {entry[1]: entry[col_index + 2] for entry in species_list}
+            family_extra = {entry[1]: entry[col_idx + 2] for entry in species_list}
 
             # Replace empty entries and entries of several terms separated by " / " with std format
             for key, value in family_extra.items():
@@ -1375,12 +1343,12 @@ def get_all_infos_and_pft(
         family_extra = {key: "not found" for key in species_original}
 
     woodiness_combined_original_keys = {
-        species_original[i]: woodiness_combined[species_to_lookup[i]]
-        for i in range(len(species_to_lookup))
+        species_original[idx]: woodiness_combined[species_to_lookup[idx]]
+        for idx in range(len(species_to_lookup))
     }
     pft_combined_original_keys = {
-        species_original[i]: pft_combined[species_to_lookup[i]]
-        for i in range(len(species_to_lookup))
+        species_original[idx]: pft_combined[species_to_lookup[idx]]
+        for idx in range(len(species_to_lookup))
     }
     pft_family_extra_woodiness_combined = get_species_pft_from_family_woodiness(
         species_original,
@@ -1464,45 +1432,53 @@ def get_all_infos_and_pft(
             "PFT Combined incl. Extra",
         ]
     )
-    ut.list_to_file(all_infos, column_headers, file_name)
+    ut.list_to_file(all_infos, file_name, column_names=column_headers)
 
     return pft_infos, pft_combined
 
 
-def get_species_data_specs():
+def get_species_data_specs(site_id):
     """
-    Get species data specifications for different sites with grassland observation data.
+    Get species data specifications for a specific site with grassland observation data.
+
+    Parameters:
+        site_id (str): DEIMS ID of the site.
 
     Returns:
-        dict: Dictionary with site IDs as keys and corresponding species data specifications:
+        dict: Dictionary with species data specifications for the site:
             'name' (str): Site name.
-            'species_file_names' (list): Files containing species lists.
+            'file_names' (list): Files containing species lists.
             'species_columns' (list): Column names for species list in each file.
             'extra_columns' (list of lists): Additional columns to retrieve from the files.
-    """
 
+    Raises:
+        ValueError: If site ID is not found in species data specifications.
+    """
     species_data_specs_per_site = {
         "11696de6-0ab9-4c94-a06b-7ce40f56c964": {
             "name": "IT25 - Val Mazia/Matschertal",
-            "species_file_names": ["IT_Matschertal_data_abund.csv"],
+            "file_names": ["IT_Matschertal_data_abund.csv"],
             "species_columns": ["TAXA"],
             "extra_columns": [[]],
         },
         "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
             "name": "LTSER Zone Atelier Armorique",
-            "species_file_names": ["FR_AtelierArmorique_reference.csv"],
-            "species_columns": ["NAME"],
-            "extra_columns": [["CODE", "FAMILY_NAME"]],
+            "file_names": [
+                "FR_AtelierArmorique_reference.csv",
+                "FR_AtelierArmorique_data_indices.csv",
+            ],
+            "species_columns": ["NAME", "Dominant species"],
+            "extra_columns": [["CODE", "FAMILY_NAME"], []],
         },
         "324f92a3-5940-4790-9738-5aa21992511c": {
             "name": "Stubai (combination of Neustift meadows and Kaserstattalm)",
-            "species_file_names": ["AT_Stubai_data_abund.csv"],
+            "file_names": ["AT_Stubai_data_abund.csv"],
             "species_columns": ["TAXA"],
             "extra_columns": [[]],
         },
         "3de1057c-a364-44f2-8a2a-350d21b58ea0": {
             "name": "Obergurgl",
-            "species_file_names": [
+            "file_names": [
                 "AT_Obergurgl_reference.csv",
                 "AT_Obergurgl_data.csv",
             ],
@@ -1511,7 +1487,7 @@ def get_species_data_specs():
         },
         "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d": {
             "name": "Hochschwab (AT-HSW) GLORIA",
-            "species_file_names": [
+            "file_names": [
                 "AT_Hochschwab_reference.csv",
                 "AT_Hochschwab_data_cover.csv",
                 "AT_Hochschwab_data_abund.csv",
@@ -1521,7 +1497,7 @@ def get_species_data_specs():
         },
         "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1": {
             "name": "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen",
-            "species_file_names": [
+            "file_names": [
                 "AT_Schrankogel_reference.csv",
                 "AT_Schrankogel_data_cover.csv",
             ],
@@ -1530,47 +1506,57 @@ def get_species_data_specs():
         },
         "9f9ba137-342d-4813-ae58-a60911c3abc1": {
             "name": "Rhine-Main-Observatory",
-            "species_file_names": ["DE_RhineMainObservatory_abund_data.csv"],
+            "file_names": ["DE_RhineMainObservatory_abund_data.csv"],
             "species_columns": ["TAXA"],
             "extra_columns": [[]],
         },
         "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
             "name": "Appennino centro-meridionale: Majella-Matese",
-            "species_file_names": ["IT_AppenninoCentroMeridionale_data_cover.csv"],
+            "file_names": ["IT_AppenninoCentroMeridionale_data_cover.csv"],
             "species_columns": ["TAXA"],
             "extra_columns": [[]],
         },
     }
 
-    return species_data_specs_per_site
+    if site_id in species_data_specs_per_site.keys():
+        return species_data_specs_per_site[site_id]
+    else:
+        raise ValueError(
+            f"Site ID '{site_id}' not found in species data specifications."
+        )
 
 
-def data_processing(
-    location, species_data_specs, folder, lookup_tables, *, save_single_files=True
+def get_pft_from_files(
+    location,
+    species_data_specs,
+    source_folder,
+    lookup_tables,
+    *,
+    save_single_files=True,
 ):
     """
-    Process species data for a site based on species data specifications.
+    Process species data for a site based on species data specifications (data can come from multiple files).
 
     Parameters:
-        location (dict): Dictionary with 'lat' and 'lon' keys.
+        location (dict): Dictionary with 'name', 'deims_id', 'lat' and 'lon' keys.
         species_data_specs (dict): Dictionary with species data specifications for the site.
-        folder (Path): Path to the folder containing species data files.
+        source_folder (Path): Path to the folder containing species data files.
         save_single_files (bool): Save intermediate results to separate files (default is True).
     """
     if location["name"] == species_data_specs["name"]:
         # Create location subfolder
-        location_folder = folder / location["deims_id"]
+        location_folder = source_folder / location["deims_id"] / "PFT_Mapping"
         location_folder.mkdir(parents=True, exist_ok=True)
         formatted_lat = f"lat{location['lat']:.6f}"
         formatted_lon = f"lon{location['lon']:.6f}"
         collect_species_pfts = {}
 
-        for i, file_name in enumerate(species_data_specs["species_file_names"]):
-            if (folder / file_name).exists():
+        for idx, file_name in enumerate(species_data_specs["file_names"]):
+            if (source_folder / file_name).exists():
                 # Copy file with species list to location subfolder, allow overwriting
-                shutil.copyfile(folder / file_name, location_folder / file_name)
-                species_column = species_data_specs["species_columns"][i]
-                extra_columns = species_data_specs["extra_columns"][i]
+                shutil.copyfile(source_folder / file_name, location_folder / file_name)
+                species_column = species_data_specs["species_columns"][idx]
+                extra_columns = species_data_specs["extra_columns"][idx]
                 infos_pft, pft_lookup = get_all_infos_and_pft(
                     location_folder / file_name,
                     species_column,
@@ -1580,20 +1566,17 @@ def data_processing(
                 )
 
                 # Save species infos to location specific files
-                species_source = "_".join(
-                    file_name.split(".")[:-1]
-                )  # Remove file extension, replace dots with underscores
-                species_source = "_".join(
-                    species_source.split("_")[2:]
-                )  # Remove country code and site short name (first two items in string)
+                species_source = ut.get_source_from_elter_data_file_name(file_name)
                 target_file = (
                     location_folder
                     / f"{formatted_lat}_{formatted_lon}__PFT__{species_source}.txt"
                 )
                 ut.list_to_file(
                     infos_pft,
-                    ["Species", "Species Original"] + extra_columns + ["PFT combined"],
                     target_file,
+                    column_names=["Species", "Species Original"]
+                    + extra_columns
+                    + ["PFT combined"],
                 )
 
                 # Combine PFT lookup dictionaries retrieved from different source files
@@ -1609,7 +1592,7 @@ def data_processing(
                     collect_species_pfts = pft_lookup
             else:
                 warnings.warn(
-                    f"File '{file_name}' not found in '{folder}'. Skipping file."
+                    f"File '{file_name}' not found in '{source_folder}'. Skipping file."
                 )
 
         # Save combined PFTs to file
@@ -1624,33 +1607,112 @@ def data_processing(
         )
 
 
-##########################################################################################################################
-# Example usage:
+def data_processing(deims_id, source_folder, *, lookup_tables=None):
+    """
+    Find and process species data for a site based on DEIMS ID.
 
-lookup_tables = get_lookup_tables(force_create=False)
-folder = ut.get_package_root() / "grasslandSites"
-species_data_specs = get_species_data_specs()
-site_ids = list(species_data_specs.keys())
-# # Or directly specify selected site IDs here, but these need to be in species_data_specs
-# site_ids = ["3de1057c-a364-44f2-8a2a-350d21b58ea0"]  # Obergurgl
-
-for deims_id in site_ids:
-    if deims_id in species_data_specs.keys():
-        location = ut.get_deims_coordinates(deims_id)
-
-        if location["found"]:
-            data_processing(
-                location,
-                species_data_specs[deims_id],
-                folder,
-                lookup_tables,
-                save_single_files=True,  # False to skip saving intermediate files
-            )
-        else:
-            warnings.warn(
-                f"Coordinates not found for DEIMS ID '{deims_id}'. Skipping site."
-            )
-    else:
+    Parameters:
+        deims_id (str): DEIMS ID of the site.
+        source_folder (Path): Path to the folder containing species data files.
+        lookup_tables (dict): Dictionary with lookup tables for species data (default is None, lookup tables will be created).
+    """
+    try:
+        species_data_specs = get_species_data_specs(deims_id)
+    except ValueError:
         warnings.warn(
             f"DEIMS ID '{deims_id}' not found in species data specifications. Skipping site."
         )
+        return
+
+    location = ut.get_deims_coordinates(deims_id)
+
+    if location["found"]:
+        if not lookup_tables:
+            lookup_tables = get_lookup_tables(force_create=False)
+
+        get_pft_from_files(
+            location,
+            species_data_specs,
+            source_folder,
+            lookup_tables,
+            save_single_files=True,  # False to skip saving intermediate files
+        )
+    else:
+        warnings.warn(
+            f"Coordinates not found for DEIMS ID '{deims_id}'. Skipping site."
+        )
+
+
+def assign_pfts_for_sites(site_ids=None, source_folder=None, lookup_tables=None):
+    """
+    Assign Plant Functional Types (PFT) to species for a list of sites.
+
+    Parameters:
+        site_ids (list): List of sites by DEIMS IDs (strings).
+        source_folder (Path): Path to the folder containing species data files.
+        lookup_tables (dict): Dictionary with lookup tables for species mapping to PFTs.
+    """
+    # Examples if not specified otherwise in function call
+    if site_ids is None:
+        # Specify selected site IDs, these need to be in species_data_specs
+        site_ids = [
+            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
+            "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
+            "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
+            "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
+            "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+            "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
+        ]
+        # site_ids = ["3de1057c-a364-44f2-8a2a-350d21b58ea0"]  # Obergurgl
+        site_ids = [
+            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6"
+        ]  # LTSER Zone Atelier Armorique
+
+    if source_folder is None:
+        source_folder = ut.get_package_root() / "grasslandSites"
+
+    if lookup_tables is None:
+        lookup_tables = get_lookup_tables(force_create=False)
+
+    for deims_id in site_ids:
+        data_processing(deims_id, source_folder, lookup_tables=lookup_tables)
+
+
+def main():
+    """
+    Runs the script with default arguments for calling the script.
+    """
+    parser = argparse.ArgumentParser(
+        description="Set default arguments for calling the script."
+    )
+
+    # Define command-line arguments
+    parser.add_argument(
+        "--locations",
+        type=ut.parse_locations,
+        help="List of location dictionaries containing coordinates ('lat', 'lon') or DEIMS IDs ('deims_id')",
+    )
+    parser.add_argument(
+        "--source_folder",
+        type=Path,
+        help="Path to the folder containing species data files",
+    )
+    parser.add_argument(
+        "--lookup_tables",
+        type=dict,
+        help="Dictionary with lookup tables for species data",
+    )
+    args = parser.parse_args()
+
+    assign_pfts_for_sites(
+        site_ids=args.locations,
+        source_folder=args.source_folder,
+        lookup_tables=args.lookup_tables,
+    )
+
+
+# Execute main function when the script is run directly
+if __name__ == "__main__":
+    main()

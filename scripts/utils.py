@@ -61,6 +61,35 @@ def add_string_to_file_name(file_name, string_to_add, *, new_suffix=None):
     return ""
 
 
+def get_source_from_elter_data_file_name(
+    file_name, *, split_delimiter="_", front_strings_to_remove=2
+):
+    """
+    Extract source name from an eLTER data file name.
+
+    Parameters:
+        file_name (str or Path): File name to extract source from.
+        split_delimiter (str): Delimiter to replace dots and split file name string (default is '_').
+        front_strings_to_remove (int): Number of front substrings to remove (default is 2 for country code and site short name).
+    """
+
+    if isinstance(file_name, Path):
+        file_name = file_name.name
+
+    if isinstance(file_name, str):
+        # Remove file extension, replace dots with underscores
+        source = split_delimiter.join(file_name.split(".")[:-1])
+
+        # Remove front substrings as specified
+        source = split_delimiter.join(
+            source.split(split_delimiter)[front_strings_to_remove:]
+        )
+
+        return source
+    else:
+        raise ValueError("Input must be a string or a Path object.")
+
+
 def replace_substrings(
     input_data,
     substrings_to_replace,
@@ -126,34 +155,117 @@ def replace_substrings(
         )
 
 
-def count_duplicates(lst):
+def get_tuple_list(
+    input_list,
+    *,
+    replace_nan="nan",
+    replace_none="None",
+    columns_to_remove=[],
+    return_sorted=False,
+):
+    """
+    Convert a list of lists to a list of tuples.
+
+    Parameters:
+        input_list (list): List of lists.
+
+    Returns:
+        list: List of tuples.
+    """
+    # Convert each sublist to a tuple, if not already
+    tuple_list = []
+
+    for entry in input_list:
+        if isinstance(entry, list):
+            tuple_list.append(tuple(entry))
+        elif isinstance(entry, tuple):
+            tuple_list.append(entry)
+        elif isinstance(entry, str):
+            tuple_list.append((entry,))
+        else:
+            warnings.warn(f"List entry '{entry}' is not a list, tuple, or string.")
+
+    if replace_nan:
+        tuple_list = [
+            tuple(replace_nan if pd.isna(x) else x for x in entry)
+            for entry in tuple_list
+        ]
+
+    if replace_none:
+        tuple_list = [
+            tuple(replace_none if x is None else x for x in entry)
+            for entry in tuple_list
+        ]
+
+    if columns_to_remove:
+        tuple_list = [
+            tuple(x for idx, x in enumerate(entry) if idx not in columns_to_remove)
+            for entry in tuple_list
+        ]
+
+    if return_sorted:
+        tuple_list.sort(key=lambda x: x)
+
+    return tuple_list
+
+
+def count_duplicates(input_list, *, key_column=0, columns_to_ignore=[]):
     """
     Count occurrences of duplicate items in a list.
 
     Parameters:
-        lst (list): List to analyze.
+        input_list (list): List to analyze.
+        key_column (int): Index of column to use as key for counting duplicates (default is 0).
+        columns_to_ignore (list): List of column indices to ignore when comparing all entries (default is []).
 
     Returns:
         dict: Dictionary where (sorted) keys are duplicate items and values are their counts.
     """
-    # Convert each sublist to a tuple, if not already
-    tuple_lst = []
+    filtered_list = get_tuple_list(input_list, columns_to_remove=columns_to_ignore)
+    counter = Counter(filtered_list)
 
-    for entry in lst:
-        if isinstance(entry, list):
-            tuple_lst.append(tuple(entry))
-        elif isinstance(entry, tuple):
-            tuple_lst.append(entry)
-        elif isinstance(entry, str):
-            tuple_lst.append((entry,))
-        else:
-            warnings.warn(f"List entry '{entry}' is not a list, tuple, or string.")
+    if key_column == "all":
+        duplicates = {
+            item: count for item, count in sorted(counter.items()) if count > 1
+        }
+    else:
+        duplicates = {
+            item[key_column]: count
+            for item, count in sorted(counter.items())
+            if count > 1
+        }
 
-    counter = Counter(tuple_lst)
-    duplicates = {
-        item[0]: count for item, count in sorted(counter.items()) if count > 1
-    }
     return duplicates
+
+
+def remove_duplicates(input_list, *, duplicates=None):
+    """
+    Remove duplicate items from a list.
+
+    Parameters:
+        input_list (list): List to remove duplicates from.
+        duplicates (dict): Dictionary of duplicate items and their counts (default is None to count duplicates here).
+    """
+    if duplicates is None:
+        duplicates = count_duplicates(input_list, key_column="all")
+
+    tuple_list = get_tuple_list(input_list, return_sorted=True)
+    unique_list = []
+
+    for entry in tuple_list:
+        if entry in duplicates:
+            duplicates[entry] -= 1
+
+            # Remove entry from duplicates if count reaches 1
+            if duplicates[entry] == 1:
+                duplicates.pop(entry)
+        else:
+            unique_list.append(list(entry))
+
+    # Sort by all columns
+    unique_list.sort(key=lambda x: x)
+
+    return unique_list
 
 
 def get_row_values(key, values):
@@ -167,10 +279,17 @@ def get_row_values(key, values):
     Returns:
         list: Row values.
     """
+    if isinstance(key, tuple):
+        key = list(key)
+    elif not isinstance(key, list):
+        key = [key]
+
     if isinstance(values, dict):
-        row_values = [key] + list(values.values())
+        row_values = key + list(values.values())
+    elif isinstance(values, list):
+        row_values = key + values
     else:
-        row_values = [key, values]
+        row_values = key + [values]
 
     return row_values
 
@@ -192,7 +311,9 @@ def dict_to_file(dict_to_write, column_names, file_name):
         Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
         if file_suffix in [".txt", ".csv"]:
-            with open(file_path, "w", newline="", encoding="utf-8") as file:
+            with open(
+                file_path, "w", newline="", encoding="utf-8", errors="replace"
+            ) as file:
                 writer = (
                     csv.writer(file, delimiter="\t")
                     if file_suffix == ".txt"
@@ -256,7 +377,7 @@ def find_column_index(raw_data, column_id, *, header_lines=1):
                     if col.lower() == lower_column_id:
                         return raw_data.columns.get_loc(col)
 
-                raise KeyError(f"Column '{column_id}' not found in DataFrame.")
+                # raise KeyError(f"Column '{column_id}' not found in DataFrame.")
         elif isinstance(column_id, int):
             if column_id in range(len(raw_data.columns)):
                 return column_id
@@ -264,9 +385,16 @@ def find_column_index(raw_data, column_id, *, header_lines=1):
                 raise ValueError(
                     f"Column number '{column_id}' out of range in DataFrame."
                 )
+        elif isinstance(column_id, list):
+            for col in column_id:
+                idx = find_column_index(raw_data, col)
+
+                if idx is not None:
+                    return idx
         else:
             raise ValueError(
-                "Invalid column identifier. Please provide a column name (str) or column number (int).",
+                "Invalid column identifier. Please provide a column name (str) or column "
+                "number (int) or a list of column names (strings).",
             )
     elif isinstance(raw_data, list):
         if isinstance(column_id, str):
@@ -275,10 +403,6 @@ def find_column_index(raw_data, column_id, *, header_lines=1):
             elif column_id.lower() in raw_data[header_lines - 1]:
                 # If exact match not found, try lowercase match
                 return raw_data[header_lines - 1].index(column_id.lower())
-            else:
-                raise ValueError(
-                    f"Column '{column_id}' not found in header line of list."
-                )
         elif isinstance(column_id, int):
             if column_id in range(len(raw_data[header_lines - 1])):
                 return column_id
@@ -286,22 +410,32 @@ def find_column_index(raw_data, column_id, *, header_lines=1):
                 raise ValueError(
                     f"Column number '{column_id}' out of range in header line of list."
                 )
+        elif isinstance(column_id, list):
+            for col in column_id:
+                idx = find_column_index(raw_data, col)
+
+                if idx is not None:
+                    return idx
         else:
             raise ValueError(
-                "Invalid column identifier. Please provide a column name (str) or column number (int)."
+                "Invalid column identifier. Please provide a column name (str) or column "
+                "number (int) or a list of column names (strings).",
             )
     else:
         raise TypeError("Input data must be a pandas DataFrame or a list of lists.")
 
+    warnings.warn(f"None of the columns {column_id} found. Returning None.")
+    return None
 
-def list_to_file(list_to_write, column_names, file_name):
+
+def list_to_file(list_to_write, file_name, *, column_names=None):
     """
     Write a list of tuples to a text file (tab-separated) or csv file (;-separated) or an Excel file.
 
     Parameters:
         list_to_write (list): List of strings or tuples or dictionaries to be written to the file.
-        column_names (list): List of column names (strings).
         file_name (str or Path): Path of output file (suffix determines file type).
+        column_names (list): List of column names (strings) to write as header line (default is None).
     """
     # Convert string entries to single item tuples
     list_to_write = [
@@ -315,7 +449,9 @@ def list_to_file(list_to_write, column_names, file_name):
             [entry.get(col, "") for col in column_names] for entry in list_to_write
         ]
     # Check if all tuples in list have the same length as the column_names list
-    elif not all(len(entry) == len(column_names) for entry in list_to_write):
+    elif column_names and not all(
+        len(entry) == len(column_names) for entry in list_to_write
+    ):
         print(
             f"Error: All tuples in the list must have {len(column_names)} entries (same as column_names)."
         )
@@ -328,14 +464,18 @@ def list_to_file(list_to_write, column_names, file_name):
     Path(file_name).parent.mkdir(parents=True, exist_ok=True)
 
     if file_suffix in [".txt", ".csv"]:
-        with open(file_path, "w", newline="", encoding="utf-8") as file:
+        with open(
+            file_path, "w", newline="", encoding="utf-8", errors="replace"
+        ) as file:
             writer = (
                 csv.writer(file, delimiter="\t")
                 if file_suffix == ".txt"
                 else csv.writer(file, delimiter=";")
             )
-            header = column_names
-            writer.writerow(header)  # Header row
+
+            if column_names:
+                header = column_names
+                writer.writerow(header)  # Header row
 
             for entry in list_to_write:
                 writer.writerow(entry)
@@ -348,6 +488,56 @@ def list_to_file(list_to_write, column_names, file_name):
         )
 
     print(f"List written to file '{file_name}'.")
+
+
+def get_unique_values_from_column(input_list, column_index, *, header_lines=1):
+    """
+    Get unique values from a column in a list of lists.
+
+    Parameters:
+        input_list (list): List of lists.
+        column_index (int): Index of the column to extract unique values from.
+        header_lines (int): Number of header lines to ignore in list of lists (default is 1).
+
+    Returns:
+        list: List of unique values from the specified column.
+    """
+    column_index = find_column_index(input_list, column_index)
+
+    return sorted(set(row[column_index] for row in input_list[header_lines:]))
+
+
+def get_rows_with_value_in_column(input_list, column_index, value):
+    """
+    Get rows with a specified value in a column in a list of lists.
+
+    Parameters:
+        input_list (list): List of lists.
+        column_index (int): Index of the column to search for the value.
+        value: Value to search for in the specified column.
+
+    Returns:
+        list: List of rows with the specified value in the specified column.
+    """
+    column_index = find_column_index(input_list, column_index)
+
+    return [row for row in input_list if row[column_index] == value]
+
+
+def get_list_of_columns(input_list, columns_wanted):
+    """
+    Get a list containing only specified columns from a list of lists.
+
+    Parameters:
+        input_list (list): List of lists.
+        columns_wanted (list): List of column names or indices to extract.
+    """
+    column_indexes = []
+
+    for column in columns_wanted:
+        column_indexes.append(find_column_index(input_list, column))
+
+    return [[row[idx] for idx in column_indexes] for row in input_list]
 
 
 def add_to_dict(
