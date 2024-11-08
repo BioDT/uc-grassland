@@ -33,6 +33,16 @@ def get_observation_data_specs(site_id):
             },
             "pft_lookup_specs": {"cover": "default"},
         },
+        "270a41c4-33a8-4da6-9258-2ab10916f262": {
+            "name": "AgroScapeLab Quillow (ZALF)",
+            "variables": ["cover"],
+            "file_names": {"cover": "DE_AgroScapeQuillow_data_cover.csv"},
+            "observation_columns": {"cover": "default"},
+            "pft_lookup_files": {
+                "cover": "lat53.360000_lon13.800000__PFT__data_cover.txt"
+            },
+            "pft_lookup_specs": {"cover": "default"},
+        },
         "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
             "name": "LTSER Zone Atelier Armorique",
             "variables": ["cover", "indices"],  # indices not considered yet
@@ -83,17 +93,43 @@ def get_observation_data_specs(site_id):
         },
         "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d": {
             "name": "Hochschwab (AT-HSW) GLORIA",
-            "variables": ["cover", "abundance"],
+            "variables": [
+                "cover",
+                "abundance_gloria_1_8",
+            ],  # abundance categories 1-8, very rare to dominant, visual estimate
             "file_names": {
                 "cover": "AT_Hochschwab_data_cover.csv",
-                "abundance": "AT_Hochschwab_data_abund.csv",
+                "abundance_gloria_1_8": "AT_Hochschwab_data_abund.csv",
             },
-            "observation_columns": {"cover": "default", "abundance": "default"},
+            "observation_columns": {
+                "cover": "default",
+                "abundance_gloria_1_8": "default",
+            },
             "pft_lookup_files": {
                 "cover": "lat47.622020_lon15.149292__PFT__data_cover.txt",
-                "abundance": "lat47.622020_lon15.149292__PFT__data_abund.txt",
+                "abundance_gloria_1_8": "lat47.622020_lon15.149292__PFT__data_abund.txt",
             },
-            "pft_lookup_specs": {"cover": "default", "abundance": "default"},
+            "pft_lookup_specs": {"cover": "default", "abundance_gloria_1_8": "default"},
+        },
+        "61c188bc-8915-4488-8d92-6d38483406c0": {
+            "name": "Randu meadows",
+            "variables": ["cover_braun_blanquet"],
+            "file_names": {"cover_braun_blanquet": "LV_RanduMeadows_data_abund.csv"},
+            "observation_columns": {"cover_braun_blanquet": "default"},
+            "pft_lookup_files": {
+                "cover_braun_blanquet": "lat57.814301_lon24.339609__PFT__data_abund.txt"
+            },
+            "pft_lookup_specs": {"cover_braun_blanquet": "default"},
+        },
+        "66431807-ebf1-477f-aa52-3716542f3378": {
+            "name": "LTSER Engure",
+            "variables": ["cover"],
+            "file_names": {"cover": "LV_Engure_data_cover.csv"},
+            "observation_columns": {"cover": "default"},
+            "pft_lookup_files": {
+                "cover": "lat57.216700_lon23.135000__PFT__data_cover.txt"
+            },
+            "pft_lookup_specs": {"cover": "default"},
         },
         "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1": {
             "name": "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen",
@@ -104,6 +140,38 @@ def get_observation_data_specs(site_id):
                 "cover": "lat47.041162_lon11.098057__PFT__data_cover.txt"
             },
             "pft_lookup_specs": {"cover": "default"},
+        },
+        "6b62feb2-61bf-47e1-b97f-0e909c408db8": {
+            "name": "Montagna di Torricchio",
+            "variables": ["cover_braun_blanquet"],
+            "file_names": {
+                "cover_braun_blanquet": "IT_MontagnadiTorricchio_data_abund.csv"
+            },
+            "observation_columns": {"cover_braun_blanquet": "default"},
+            "pft_lookup_files": {
+                "cover_braun_blanquet": "lat42.961400_lon13.019200__PFT__reference.txt"
+            },
+            "pft_lookup_specs": {
+                "cover_braun_blanquet": {
+                    "key_column": "CODE",
+                    "info_column": "PFT combined",
+                    "info_name": "PFT",
+                }
+            },
+        },
+        "829a2bcc-79d6-462f-ae2c-13653124359d": {
+            "name": "Ordesa y Monte Perdido / Huesca ES",
+            "variables": [
+                "absolute_frequency"
+            ],  # abundance number of contacts each 10 cm in 20 m transects ()
+            "file_names": {
+                "absolute_frequency": "ES_OrdesaYMontePerdido_data_freq.csv"
+            },
+            "observation_columns": {"absolute_frequency": "default"},
+            "pft_lookup_files": {
+                "absolute_frequency": "lat42.650000_lon0.030000__PFT__data_freq.txt"
+            },
+            "pft_lookup_specs": {"absolute_frequency": "default"},
         },
         "9f9ba137-342d-4813-ae58-a60911c3abc1": {
             "name": "Rhine-Main-Observatory",
@@ -117,6 +185,40 @@ def get_observation_data_specs(site_id):
             },
             "pft_lookup_specs": {"cover_braun_blanquet": "default"},
         },
+        "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
+            "name": "Torgnon grassland Tellinod (IT19 Aosta Valley)",
+            "variables": ["frequency_daget_poissonet"],  # relative abundance?
+            "file_names": {
+                "frequency_daget_poissonet": "IT_TorgnonGrasslandTellinod_data_abund.csv"
+            },
+            "observation_columns": {"frequency_daget_poissonet": "default"},
+            "pft_lookup_files": {
+                "frequency_daget_poissonet": "lat45.846063_lon7.579028__PFT__data_abund.txt"
+            },
+            "pft_lookup_specs": {"frequency_daget_poissonet": "default"},
+        },
+        "b356da08-15ac-42ad-ba71-aadb22845621": {
+            "name": "Nørholm Hede",
+            "variables": ["cover"],
+            "file_names": {"cover": "DK_NorholmHede_data_cover.csv"},
+            "observation_columns": {"cover": "default"},
+            "pft_lookup_files": {
+                "cover": "lat55.680000_lon8.610000__PFT__data_cover.txt"
+            },
+            "pft_lookup_specs": {"cover": "default"},
+        },
+        "c0738b00-854c-418f-8d4f-69b03486e9fd": {
+            "name": "Appennino centrale: Gran Sasso d'Italia",
+            "variables": ["cover_braun_blanquet"],
+            "file_names": {
+                "cover_braun_blanquet": "IT_AppenninoCentrale_data_abund.csv"
+            },
+            "observation_columns": {"cover_braun_blanquet": "default"},
+            "pft_lookup_files": {
+                "cover_braun_blanquet": "lat42.446250_lon13.554978__PFT__data_abund.txt"
+            },
+            "pft_lookup_specs": {"cover_braun_blanquet": "default"},
+        },
         "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
             "name": "Appennino centro-meridionale: Majella-Matese",
             "variables": ["cover"],
@@ -127,6 +229,18 @@ def get_observation_data_specs(site_id):
             },
             "pft_lookup_specs": {"cover": "default"},
         },
+        "e13f1146-b97a-4bc5-9bc5-65322379a567": {
+            "name": "Jalovecka dolina",
+            "variables": [
+                "cover_categories_1_9"
+            ],  # unit of measure of density or biomass - semi-quantitative ordinal scale
+            "file_names": {"cover_categories_1_9": "SK_JaloveckaDolina_data_cover.csv"},
+            "observation_columns": {"cover_categories_1_9": "default"},
+            "pft_lookup_files": {
+                "cover_categories_1_9": "lat49.217800_lon19.671900__PFT__data_cover.txt"
+            },
+            "pft_lookup_specs": {"cover_categories_1_9": "default"},
+        },
     }
 
     if site_id in observation_data_specs_per_site.keys():
@@ -135,6 +249,49 @@ def get_observation_data_specs(site_id):
         raise ValueError(
             f"Site ID '{site_id}' not found in observation data specifications."
         )
+
+
+def get_default_observation_columns(variable):
+    """
+    Get default observation columns for a specific observation variable.
+
+    Parameters:
+        variable (str): Observation variable name.
+
+        Returns:
+        dict: Dictionary with default column names for the observation variable, including:
+            'plot' (str): Column name for plot names.
+            'time' (str): Column name for time points.
+            'species' (str): Column name for species names.
+            'value' (str): Column name for observation values.
+            'unit' (str): Column name for observation units.
+    """
+    default_columns = {
+        "plot": "STATION_CODE",
+        "time": "TIME",
+        "species": "TAXA",
+        "value": "VALUE",
+        "unit": "UNIT",
+    }
+
+    if variable in ["cover", "cover_braun_blanquet", "absolute_frequency"]:
+        return default_columns
+    # elif variable == "indices":  ... add more observation variables here
+    else:
+        warnings.warn(
+            f"Unknown observation variable '{variable}'. Returning default columns."
+        )
+        return default_columns
+
+
+def get_default_lookup_specs():
+    default_columns = {
+        "key_column": "Species Original",
+        "info_column": "PFT combined",
+        "info_name": "PFT",
+    }
+
+    return default_columns
 
 
 def braun_blanquet_to_cover(braun_blanquet_code):
@@ -147,6 +304,9 @@ def braun_blanquet_to_cover(braun_blanquet_code):
     Returns:
         float: Cover value for the Braun-Blanquet code, if found, otherwise None.
     """
+    if pd.isna(braun_blanquet_code):
+        return None
+
     braun_blanquet_mapping = {
         "r": 0.1,
         "+": 0.3,
@@ -164,6 +324,68 @@ def braun_blanquet_to_cover(braun_blanquet_code):
         return braun_blanquet_mapping[braun_blanquet_code]
     else:
         raise ValueError(f"Invalid Braun-Blanquet code '{braun_blanquet_code}'.")
+
+
+def categories_1_9_to_cover(categories_1_9_code):
+    """
+    Map semi-quantitative ordinal scale to cover values.
+    Uses interpretation of verbal descriptions, no clear quantitative values found for codes 1-4!
+
+    Parameters:
+        categories_1_9_code (str): Semi-quantitative ordinal scale code.
+
+    Returns:
+        float: Cover value for the semi-quantitative ordinal scale code, if found, otherwise None.
+    """
+    categories_1_9_mapping = {
+        1: 0.5,  # very few individuals (1-2)
+        2: 1,  # few individuals
+        3: 2.5,  # cover < 5%, not abundant
+        4: 4.5,  # cover < 5%, abundant
+        5: 8.75,  # cover 5 - 12.5%
+        6: 18.75,  # cover 12.5 - 25%
+        7: 37.5,  # cover 25 - 50%
+        8: 62.5,  # cover 50 - 75%
+        9: 87.5,  # cover 75 - 100%
+    }
+
+    if categories_1_9_code in categories_1_9_mapping.keys():
+        return categories_1_9_mapping[categories_1_9_code]
+    else:
+        raise ValueError(
+            f"Invalid category code '{categories_1_9_code}'. Valid codes are 1-9."
+        )
+
+
+def categories_gloria_1_8_to_cover(gloria_1_8_code):
+    """
+    Map abundance codes to cover values for "summit area sections" (SAS) as
+    defined in the GLORIA field manual (https://gloria.ac.at/downloads/Manual_5thEd_ENG.pdf, p.41f).
+    Uses interpretation of verbal descriptions, no clear quantitative values found for all codes!
+
+    Parameters:
+        gloria_1_8_code (str): Semi-quantitative ordinal scale code.
+
+    Returns:
+        float: Cover value for the semi-quantitative ordinal scale code, if found, otherwise None.
+    """
+    categories_gloria_mapping = {
+        1: 0.5,  # r! (very rare): One or a few small individuals
+        2: 1,  # r (rare): Some individuals at several locations that can hardly be overlooked in a careful observation;
+        3: 3,  # rare-scattered
+        4: 5,  # s (scattered): Widespread within the section, species can hardly be overlooked, but the presence is not obvious at first glance; individuals are not necessarily evenly dispersed over the entire summit area section
+        5: 10,  # scattered-common
+        6: 25,  # c (common): Occurring frequently and widespread within the section – presence is obvious at first glance, it covers, however, less than 50% of the SAS’s area;
+        7: 50,  # common-dominant
+        8: 75,  # d (dominant): Very abundant, making up a high proportion of the phytomass, often forming more or less patchy or dense vegetation layers; species covers more than 50% of the area of the SAS
+    }
+
+    if gloria_1_8_code in categories_gloria_mapping.keys():
+        return categories_gloria_mapping[gloria_1_8_code]
+    else:
+        raise ValueError(
+            f"Invalid Gloria category code '{gloria_1_8_code}'. Valid codes are 1-8."
+        )
 
 
 def read_observation_data(
@@ -222,8 +444,8 @@ def read_observation_data(
             if new_file:
                 ut.dict_to_file(
                     duplicate_rows,
-                    df_column_names + ["#Duplicate rows"],
-                    new_file.with_name(new_file.stem + "_duplicate_rows.txt"),
+                    new_file.with_name(new_file.stem + "__duplicate_rows.txt"),
+                    column_names=df_column_names + ["#Duplicate rows"],
                 )
 
             # Remove duplicates from observation data, keep first occurrence
@@ -234,7 +456,7 @@ def read_observation_data(
             if new_file:
                 ut.list_to_file(
                     observation_data,
-                    new_file.with_name(new_file.stem + "_duplicate_rows_removed.txt"),
+                    new_file.with_name(new_file.stem + "__duplicate_rows_removed.txt"),
                 )
 
         # Check for entries that only differ in value, all other columns are the same
@@ -262,10 +484,10 @@ def read_observation_data(
                 if new_file:
                     ut.dict_to_file(
                         duplicate_entries,
-                        df_column_names[:value_column]
+                        new_file.with_name(new_file.stem + "__duplicate_entries.txt"),
+                        column_names=df_column_names[:value_column]
                         + df_column_names[value_column + 1 :]
                         + ["#Duplicate entries"],
-                        new_file.with_name(new_file.stem + "_duplicate_entries.txt"),
                     )
 
         return observation_data
@@ -276,61 +498,27 @@ def read_observation_data(
         return []
 
 
-def get_default_observation_columns(variable):
-    """
-    Get default observation columns for a specific observation variable.
-
-    Parameters:
-        variable (str): Observation variable name.
-
-        Returns:
-        dict: Dictionary with default column names for the observation variable, including:
-            'plot' (str): Column name for plot names.
-            'time' (str): Column name for time points.
-            'species' (str): Column name for species names.
-            'value' (str): Column name for observation values.
-            'unit' (str): Column name for observation units.
-    """
-    default_columns = {
-        "plot": "STATION_CODE",
-        "time": "TIME",
-        "species": "TAXA",
-        "value": "VALUE",
-        "unit": "UNIT",
-    }
-
-    if variable in ["cover", "cover_braun_blanquet", "abundance"]:
-        return default_columns
-    # elif variable == "indices":  ... add more observation variables here
-    else:
-        warnings.warn(
-            f"Unknown observation variable '{variable}'. Returning default columns."
-        )
-        return default_columns
-
-
-def get_default_lookup_specs():
-    default_columns = {
-        "key_column": "Species Original",
-        "info_column": "PFT combined",
-        "info_name": "PFT",
-    }
-
-    return default_columns
-
-
 def process_observation_data(
     observation_data, variable, pft_lookup, *, columns="default", new_file=None
 ):
-    # Skip abundance because species-level categories conversion to PFT is not clear
-    # 1=very rare, 2=rare, 3=rare-scattered, 4=scattered, 5=scattered-common,
-    # 6=common, 7=common-dominant, 8=dominant (see GLORIA manual).
+    """
+    Process observation data for a specific variable and map to PFTs.
+
+    Parameters:
+        observation_data (list): List of lists with observation data.
+        variable (str): Observation variable name.
+        pft_lookup (dict): Dictionary with species-PFT mapping.
+        columns (dict): Dictionary with column names for the observation data (default is 'default').
+        new_file (Path): Path to the new file to save processed observation data (default is None for not saving).
+
+    Returns:
+        DataFrame: Processed observation data mapped to PFTs or None if variable is not processed.
+    """
     # Skip indices because conversion to PFT is not clear
     if variable in ["abundance", "indices"]:
         warnings.warn(
-            f"'{variable}' data not processed because conversion to PFT is not clear. Skipping variable."
+            f"'{variable}' data not fully processed because conversion to PFT is not clear."
         )
-        return
 
     if columns == "default" or columns is None:
         columns = get_default_observation_columns(variable)
@@ -339,176 +527,467 @@ def process_observation_data(
         target_folder = new_file.parent
 
     # Reduce observation data to selected columns, remap column names accordingly
-    observation_data = ut.get_list_of_columns(observation_data, columns.values())
-    columns = {key: idx for idx, key in enumerate(columns.keys())}
+    observation_data, columns_found = ut.get_list_of_columns(
+        observation_data, columns.values()
+    )
+
+    # Get the keys from the columns dict for which the columns (i.e. the dict values) were found in the data
+    columns_found = [key for key in columns if columns[key] in columns_found]
+
+    # Create a new columns dict with the column names found as keys and the corresponding index in the reduced data as values
+    columns = {key: idx for idx, key in enumerate(columns_found)}
 
     # Process observation data
-    plot_names = ut.get_unique_values_from_column(
-        observation_data, columns["plot"], header_lines=1
-    )
-
-    # TODO: some data can further differ by event_id for identical plot names
-    pfts = ["grass", "forb", "legume", "other", "not assigned"]
-    observation_pft = pd.DataFrame(
-        columns=["plot", "time"]
-        + pfts
-        + ["unit"]
-        + [f"#{pft}" for pft in pfts]
-        + ["#invalid"]
-    )
-
-    for plot_name in plot_names:
-        plot_data = ut.get_rows_with_value_in_column(
-            observation_data, columns["plot"], plot_name
+    if "plot" in columns and "time" in columns:
+        plot_names = ut.get_unique_values_from_column(
+            observation_data, columns["plot"], header_lines=1
         )
 
-        if target_folder:
-            file_name = target_folder / f"{variable}__{plot_name.replace("/", "_")}.txt"
-            ut.list_to_file(plot_data, file_name, column_names=columns.keys())
-
-        time_points = ut.get_unique_values_from_column(
-            plot_data, columns["time"], header_lines=0
+        # TODO: some data can further differ by event_id for identical plot names
+        pfts = ["grass", "forb", "legume", "other", "not_assigned"]
+        observation_pft = pd.DataFrame(
+            columns=["plot", "time"]
+            + pfts
+            + ["unit"]
+            + [f"#{pft}" for pft in pfts]
+            + ["#invalid_value"]
+            + ["invalid_observation"]
         )
+        target_unit = get_target_unit(variable)
 
-        for time_point in time_points:
-            time_data = ut.get_rows_with_value_in_column(
-                plot_data, columns["time"], time_point
+        for plot_name in plot_names:
+            plot_data = ut.get_rows_with_value_in_column(
+                observation_data, columns["plot"], plot_name
             )
-            duplicates = ut.count_duplicates(
-                time_data,
-                key_column=columns["species"],
-                columns_to_ignore=[columns["value"]],
+
+            if target_folder:
+                # Replace slashs in plot name with underscores and question marks with "full width question marks"
+                plot_name_str = str(plot_name).replace("/", "_").replace("?", "？")
+                file_name = target_folder / f"{variable}__{plot_name_str}.txt"
+                ut.list_to_file(plot_data, file_name, column_names=columns.keys())
+
+            time_points = ut.get_unique_values_from_column(
+                plot_data, columns["time"], header_lines=0
             )
-            if len(duplicates) > 0:
+
+            for time_point in time_points:
+                if "value" in columns:
+                    # Get rows from observation data for this plot and time point
+                    time_data = ut.get_rows_with_value_in_column(
+                        plot_data, columns["time"], time_point
+                    )
+
+                    # # Option to remove duplicate from retrieved observation data for this plot and time point
+                    # # Not done because one cannot tell whether they refer to the same or different observations, even with same value!
+                    # duplicates = ut.count_duplicates(time_data, key_column="all")
+
+                    # if len(duplicates) > 0:
+                    #     warnings.warn(
+                    #         f"Duplicate species entries remain in retrieved observation data for plot '{plot_name}' "
+                    #         f"at time '{time_point}'! Removing duplicates for subsequent processing.\n"
+                    #         "Duplicate species entries:\n"
+                    #         + "\n".join(
+                    #             [f"'{entry}' ({count})" for entry, count in duplicates.items()]
+                    #         )
+                    #     )
+                    #     time_data = ut.remove_duplicates(time_data, duplicates=duplicates)
+
+                    # Check for remaining duplicates that only differ in value, skip these from processing
+                    duplicates = ut.count_duplicates(
+                        time_data,
+                        key_column=columns["species"],
+                        columns_to_ignore=[columns["value"]],
+                    )
+
+                    if len(duplicates) > 0:
+                        warnings.warn(
+                            f"Duplicate species entries in plot '{plot_name}' at time '{time_point}'. Cannot process data from values. Skipping time point."
+                            " Duplicate species entries:\n"
+                            + "\n".join(
+                                [
+                                    f"'{entry}' ({count})"
+                                    for entry, count in duplicates.items()
+                                ]
+                            )
+                        )
+                        new_row = {key: "" for key in observation_pft.columns}
+                        new_row.update(
+                            {
+                                "plot": plot_name,
+                                "time": time_point,
+                                "invalid_observation": f"{len(duplicates)} non-unique species entries",
+                            }
+                        )
+                    else:
+                        # Collect entries and add to PFTs
+                        pft_values = {key: 0 for key in pfts}
+                        pft_counts = {
+                            key: 0
+                            for key in [f"#{pft}" for pft in pfts] + ["#invalid_value"]
+                        }
+                        unit_check = None
+
+                        for entry in time_data:
+                            species = entry[columns["species"]]
+                            pft = apft.reduce_pft_info(
+                                pft_lookup.get(species, "not found")
+                            )
+                            unit = entry[columns["unit"]]
+                            value = check_observation_value(
+                                entry[columns["value"]],
+                                variable,
+                                unit=unit,
+                                unit_check=unit_check,
+                                plot_name=plot_name,
+                                time_point=time_point,
+                                species=species,
+                            )
+
+                            if pd.isna(value):
+                                pft_counts["#invalid_value"] += 1
+                            else:
+                                pft_values[pft] += value
+                                pft_counts[f"#{pft}"] += 1
+
+                                if not pd.isna(unit):
+                                    unit_check = unit
+
+                        # Add PFT values to observation data
+                        new_row = {
+                            "plot": plot_name,
+                            "time": time_point,
+                            "unit": target_unit,
+                        }
+                        new_row.update(pft_values)
+                        new_row.update(pft_counts)
+                else:
+                    # No 'value' column found, add empty row for this plot and time point
+                    new_row = {key: "" for key in observation_pft.columns}
+                    new_row.update(
+                        {
+                            "plot": plot_name,
+                            "time": time_point,
+                            "invalid_observation": "no 'value' entries",
+                        }
+                    )
+
+                # Add new row to observation_pft, can be empty if duplicates were found
+                new_row_df = pd.DataFrame([new_row])
+                observation_pft = pd.concat(
+                    [observation_pft, new_row_df], ignore_index=True
+                )
+
+        # Sort observation_pft by time column, and then by plot column
+        observation_pft = observation_pft.sort_values(by=["time", "plot"])
+
+        if new_file:
+            observation_pft.to_csv(new_file, sep="\t", index=False)
+            print(f"Processed observation data written to file '{new_file}'.")
+
+        return observation_pft
+    else:
+        warnings.warn(
+            f"Column 'plot' and/or 'time' not found in observation data for '{variable}'. Skipping processing."
+        )
+        return None
+
+
+def check_observation_value(
+    value,
+    variable,
+    *,
+    unit=None,
+    unit_check=None,
+    plot_name="not specified",
+    time_point="not specified",
+    species="not specified",
+):
+    """
+    Check observation value for validity and return corrected value if necessary.
+
+    Parameters:
+        value (str): Observation value.
+        variable (str): Observation variable name.
+        unit (str): Observation unit (default is None).
+        plot_name (str): Plot name (default is None).
+        time_point (str): Time point (default is None).
+        species (str): Species name (default is None).
+
+    Returns:
+        str: Corrected observation value or original value if valid.
+    """
+
+    if variable == "cover":
+        try:
+            value = float(value)
+
+            if value < 0 or value > 100:
                 warnings.warn(
-                    f"Duplicate species entries in plot '{plot_name}' at time '{time_point}'. Cannot process data from values. Skipping time point."
+                    f"Invalid cover value '{value}' for species '{species}' "
+                    f"in plot '{plot_name}' at time '{time_point}'. "
+                    "Cover values must be between 0 and 100 %. Skipping invalid entry."
                 )
-                new_row = {key: "" for key in observation_pft.columns}
-                new_row.update(
-                    {
-                        "plot": plot_name,
-                        "time": time_point,
-                        "#invalid": f"{len(duplicates)} non-unique species entries",
-                    }
+                return None
+        except ValueError:
+            try:
+                value_found = value
+                value = braun_blanquet_to_cover(value_found)
+                warnings.warn(
+                    f"Value '{value_found}' for '{variable}' of species '{species}' "
+                    f"in plot '{plot_name}' at time '{time_point}' is not a number, "
+                    f"but a Braun-Blanquet code. Mapped to cover value '{value}'."
                 )
-            else:
-                # Collect entries and add to PFTs
-                pft_values = {key: 0 for key in pfts}
-                pft_counts = {key: 0 for key in [f"#{pft}" for pft in pfts]}
-                unit = None
-                invalid_entries = 0
+            except ValueError:
+                warnings.warn(
+                    f"Value '{value_found}' for '{variable}' of species '{species}' "
+                    f"in plot '{plot_name}' at time '{time_point}' is not a number "
+                    "(and not a Braun-Blanquet code). Skipping invalid entry."
+                )
+                return None
 
-                for entry in time_data:
-                    species = entry[columns["species"]]
-                    pft = apft.reduce_pft_info(pft_lookup.get(species, "not found"))
-                    value = entry[columns["value"]]
-                    unit_here = entry[columns["unit"]]
-
-                    if variable == "cover":
-                        try:
-                            value = float(value)
-                        except ValueError:
-                            try:
-                                value_found = value
-                                value = braun_blanquet_to_cover(value_found)
-                                warnings.warn(
-                                    f"Value '{value_found}' for '{variable}' of species '{species}' "
-                                    f"in plot '{plot_name}' at time '{time_point}' is not a number, "
-                                    f"but a Braun-Blanquet code. Mapped to cover value '{value}'."
-                                )
-                            except ValueError:
-                                warnings.warn(
-                                    f"Value '{value_found}' for '{variable}' of species '{species}' "
-                                    f"in plot '{plot_name}' at time '{time_point}' is not a number. "
-                                    "Skipping invalid entry."
-                                )
-
-                                invalid_entries += 1
-                                continue
-
-                        if not pd.isna(unit_here) and unit_here not in [
-                            "%",
-                            "percent",
-                            "abundance",
-                        ]:
-                            warnings.warn(
-                                f"Invalid unit '{unit_here}' for '{variable}' of species '{species}' "
-                                f"in plot '{plot_name}' at time '{time_point}'. Unit should be '%'."
-                            )
-
-                    elif variable == "cover_braun_blanquet":
-                        try:
-                            value = braun_blanquet_to_cover(value)
-                        except ValueError:
-                            warnings.warn(
-                                f"Invalid Braun-Blanquet code '{value}' for '{variable}' of species '{species}' "
-                                f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
-                            )
-                            invalid_entries += 1
-                            continue
-
-                        if (
-                            not pd.isna(unit_here)
-                            and unit_here.lower() != "braun_blanquet"
-                        ):
-                            warnings.warn(
-                                f"Invalid unit '{unit_here}' for '{variable}' of species '{species}' "
-                                f"in plot '{plot_name}' at time '{time_point}'. Unit should be 'Braun_Blanquet'."
-                            )
-
-                    pft_values[pft] += value
-                    pft_counts[f"#{pft}"] += 1
-
-                    if not pd.isna(unit_here):
-                        if unit:
-                            if unit_here != unit:
-                                warnings.warn(
-                                    f"Unit mismatch for '{variable}' of species '{species}' in plot "
-                                    f"'{plot_name}' at time '{time_point}': {unit} vs. {unit_here}."
-                                )
-                        else:
-                            unit = unit_here
-
-                # Add PFT values to observation data
-                new_row = {
-                    "plot": plot_name,
-                    "time": time_point,
-                    "unit": unit,
-                    "#invalid": invalid_entries,
-                }
-                new_row.update(pft_values)
-                new_row.update(pft_counts)
-
-            # Add new row to observation_pft, can be empty if duplicates were found
-            new_row_df = pd.DataFrame([new_row])
-            observation_pft = pd.concat(
-                [observation_pft, new_row_df], ignore_index=True
+        if not pd.isna(unit) and unit not in [
+            "%",
+            "percent",
+            "abundance",
+        ]:
+            warnings.warn(
+                f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
+                f"in plot '{plot_name}' at time '{time_point}'. Unit should be '%'."
             )
 
-    # sort observation_pft by time column, and then by plot column
-    observation_pft = observation_pft.sort_values(by=["time", "plot"])
+    elif variable == "cover_braun_blanquet":
+        try:
+            value = braun_blanquet_to_cover(value)
+        except ValueError:
+            warnings.warn(
+                f"Invalid Braun-Blanquet code '{value}' for '{variable}' of species '{species}' "
+                f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
+            )
+            return None
+
+        if not pd.isna(unit) and unit.lower() not in [
+            "braun_blanquet",
+            "code",
+            "dimless",
+        ]:
+            warnings.warn(
+                f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
+                f"in plot '{plot_name}' at time '{time_point}'."
+            )
+
+    elif variable == "cover_categories_1_9":
+        try:
+            value = categories_1_9_to_cover(value)
+        except ValueError:
+            warnings.warn(
+                f"Invalid categories 1-9 code '{value}' for '{variable}' of species '{species}' "
+                f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
+            )
+            return None
+
+        if not pd.isna(unit) and unit.lower() != "dimless":
+            warnings.warn(
+                f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
+                f"in plot '{plot_name}' at time '{time_point}'. Unit should be 'dimless'."
+            )
+
+    elif variable == "abundance_gloria_1_8":
+        try:
+            value = categories_gloria_1_8_to_cover(value)
+        except ValueError:
+            warnings.warn(
+                f"Invalid Gloria abundance code '{value}' for '{variable}' of species '{species}' "
+                f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
+            )
+            return None
+
+        if not pd.isna(unit) and unit.lower() not in ["category"]:
+            warnings.warn(
+                f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
+                f"in plot '{plot_name}' at time '{time_point}'. Unit should be 'category'."
+            )
+
+    # elif variable == "frequency_daget_poissonet":
+    #     try:
+    #         value = float(value)
+    #     except ValueError:
+    #         warnings.warn(
+    #             f"Invalid frequency value '{value}' for '{variable}' of species '{species}' "
+    #             f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
+    #         )
+    #         return None
+
+    #     if not pd.isna(unit) and unit not in ["%", "percent"]:
+    #         warnings.warn(
+    #             f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
+    #             f"in plot '{plot_name}' at time '{time_point}'. Unit should be '%'."
+    #         )
+
+    # Just use the value as is for other variables
+    else:
+        try:
+            value = float(value)
+        except ValueError:
+            warnings.warn(
+                f"Invalid value '{value}' for '{variable}' of species '{species}' "
+                f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
+            )
+            return None
+
+    if unit is not None and unit_check is not None and unit != unit_check:
+        warnings.warn(
+            f"Unit mismatch for '{variable}' of species '{species}' in plot "
+            f"'{plot_name}' at time '{time_point}': {unit_check} vs. {unit}."
+        )
+
+    return value
+
+
+def get_observation_summary(observation_pft, *, new_file=None):
+    """
+    Get summary statistics from processed observation data.
+
+    Parameters:
+        observation_pft (DataFrame): Processed observation data.
+
+    Returns:
+        dict: Dictionary with summary statistics from processed observation data.
+    """
+    pfts = ["grass", "forb", "legume", "other", "not_assigned"]
+
+    # Fill missing values in pft entries with nan to allow calculations
+    columns_to_convert = pfts + [f"#{pft}" for pft in pfts] + ["#invalid_value"]
+    observation_pft[columns_to_convert] = observation_pft[columns_to_convert].apply(
+        pd.to_numeric, errors="coerce"
+    )
+
+    # General observation counts
+    plot_count = observation_pft["plot"].nunique()  # count of unique plots
+    time_points_count = observation_pft["time"].nunique()  # count of unique time points
+    observation_count = observation_pft.shape[0]  # total count of observations
+    mean_time_points_per_plot = observation_count / plot_count
+
+    # Count invalid time points, and invalid species entries (due to invalid values)
+    observations_invalid = observation_pft["invalid_observation"].notna().sum()
+    entries_invalid = observation_pft["#invalid_value"].sum()
+
+    # Mean species counts and proportions (omitting invalid values)
+    species_count_per_observation = observation_pft[[f"#{pft}" for pft in pfts]].sum(
+        axis=1, skipna=False
+    )
+    mean_species_count = species_count_per_observation.mean()
+    min_species_count = species_count_per_observation.min()
+    max_species_count = species_count_per_observation.max()
+
+    mean_species_proportion_not_assigned = (
+        observation_pft["#not_assigned"] / species_count_per_observation
+    ).mean()
+    mean_species_proportion_assigned = 1 - mean_species_proportion_not_assigned
+
+    # Mean proportion of the three "grassland" PFTs (grass, forb, legume) per observation
+    mean_species_proportion_grassland_pft = (
+        observation_pft[[f"#{pft}" for pft in pfts[:3]]].sum(axis=1)
+        / species_count_per_observation
+    ).mean()
+
+    observation_summary = {
+        "plot_count": plot_count,
+        "time_points_count": time_points_count,
+        "observation_count": observation_count,
+        "invalid_observations_omitted": observations_invalid,
+        "mean_time_points_per_plot": mean_time_points_per_plot,
+        "mean_species_count": mean_species_count,
+        "min_species_count": min_species_count,
+        "max_species_count": max_species_count,
+        "invalid_species_entries_omitted": entries_invalid,
+        "mean_species_proportion_not_assigned": mean_species_proportion_not_assigned,
+        "mean_species_proportion_assigned": mean_species_proportion_assigned,
+        "mean_species_proportion_grass_pft": mean_species_proportion_grassland_pft,
+    }
+
+    # Mean counts of all single PFTs
+    for pft in pfts:
+        observation_summary[f"mean_species_count_{pft}"] = observation_pft[
+            f"#{pft}"
+        ].mean()
+
+    # Mean values of observation data
+    total_value_per_observation = observation_pft[pfts].sum(axis=1, skipna=False)
+    observation_summary["mean_total_value"] = total_value_per_observation.mean()
+    observation_summary["min_total_value"] = total_value_per_observation.min()
+    observation_summary["max_total_value"] = total_value_per_observation.max()
+
+    # Absolute and relative mean values of all single PFTs
+    for pft in pfts:
+        observation_summary[f"mean_value_{pft}"] = observation_pft[pft].mean()
+        observation_summary[f"mean_relative_value_{pft}"] = (
+            observation_pft[pft] / total_value_per_observation
+        ).mean()
 
     if new_file:
-        observation_pft.to_csv(new_file, sep="\t", index=False)
+        ut.dict_to_file(observation_summary, new_file, column_names=None)
 
-    return observation_pft
+    return observation_summary
 
 
-def get_observations_from_files(location, observation_data_specs, source_folder):
+def get_target_unit(variable):
+    if variable in [
+        "cover",
+        "cover_braun_blanquet",
+        "cover_categories_1_9",
+        "abundance_gloria_1_8",
+        "frequency_daget_poissonet",
+    ]:
+        return "%"
+    else:
+        return ""
+
+
+def get_target_variable_name(variable):
+    """
+    Get target variable name for processed observation data.
+
+    Parameters:
+        variable (str): Observation variable name.
+
+        Returns:
+        str: Target variable name for processed observation data.
+    """
+    target_variables = {
+        "cover_braun_blanquet": "Cover_from_braun_blanquet",
+        "cover_categories_1_9": "Cover_from_categories_1_9",
+        "abundance_gloria_1_8": "Cover_from_abundance_1_8",
+        "frequency_daget_poissonet": "Frequency",
+    }
+    target_variable = target_variables.get(variable, variable.capitalize())
+
+    return target_variable
+
+
+def get_observations_from_files(
+    location, observation_data_specs, source_folder, *, target_folder=None
+):
     """
     Get observation data from files and save to .txt files in location subfolder.
 
     Parameters:
         location (dict): Dictionary with 'name', 'deims_id', 'lat' and 'lon' keys.
         observation_data_specs (dict): Dictionary with 'name' and 'file_names' keys.
-        source_folder (Path): Path to the folder containing observation data files.
+        location_folder (Path): Path to the folder containing observation data files.
     """
     if location["name"] == observation_data_specs["name"]:
-        # Create location subfolder
-        location_folder = source_folder / location["deims_id"] / "Observations"
-        location_folder.mkdir(parents=True, exist_ok=True)
+        if target_folder is None:
+            target_folder = source_folder
+
+        target_subfolder = target_folder / "Observations"
+        target_subfolder.mkdir(parents=True, exist_ok=True)
         formatted_lat = f"lat{location['lat']:.6f}"
         formatted_lon = f"lon{location['lon']:.6f}"
+
+        location_summary = {
+            "site_id": location["deims_id"],
+            "site_name": location["name"],
+        }
 
         for variable in observation_data_specs["variables"]:
             file_name = observation_data_specs["file_names"][variable]
@@ -517,7 +996,7 @@ def get_observations_from_files(location, observation_data_specs, source_folder)
                 # Read observation data from raw file and save to new .txt file
                 observation_source = ut.get_source_from_elter_data_file_name(file_name)
                 target_file = (
-                    location_folder
+                    target_subfolder
                     / f"{formatted_lat}_{formatted_lon}__Observation__Raw__{observation_source}.txt"
                 )
                 observation_data = read_observation_data(
@@ -525,7 +1004,7 @@ def get_observations_from_files(location, observation_data_specs, source_folder)
                 )
 
                 # Read PFT lookup data from PFT mapping file
-                lookup_folder = source_folder / location["deims_id"] / "PFT_Mapping"
+                lookup_folder = target_folder / "PFT_Mapping"
                 lookup_file = (
                     lookup_folder / observation_data_specs["pft_lookup_files"][variable]
                 )
@@ -542,9 +1021,10 @@ def get_observations_from_files(location, observation_data_specs, source_folder)
                 )
 
                 # Process raw observation data
+                target_variable = get_target_variable_name(variable)
                 target_file = (
-                    location_folder
-                    / f"{formatted_lat}_{formatted_lon}__Observation__PFT__{observation_source}.txt"
+                    target_subfolder
+                    / f"{formatted_lat}_{formatted_lon}__Observation__PFT__{target_variable}.txt"
                 )
                 observation_pft = process_observation_data(
                     observation_data,
@@ -554,14 +1034,33 @@ def get_observations_from_files(location, observation_data_specs, source_folder)
                     new_file=target_file,
                 )
 
+                # Get summary for processed observation data
+                if observation_pft is not None:
+                    target_file = target_file.with_name(
+                        target_file.stem + "__summary" + target_file.suffix
+                    )
+                    location_summary[variable] = {
+                        "target_variable": target_variable,
+                        "source": observation_source,
+                    }
+                    observation_summary = get_observation_summary(
+                        observation_pft, new_file=target_file
+                    )
+                    location_summary[variable].update(observation_summary)
 
-def data_processing(deims_id, source_folder):
+    return location_summary
+
+
+def data_processing(deims_id, source_folder, *, target_folder=None):
     """
     Find and process observation data for a site based on DEIMS ID.
 
     Parameters:
         deims_id (str): DEIMS ID of the site.
         source_folder (Path): Path to the folder containing observation data files.
+
+    Returns:
+        dict: Dictionary with summary statistics from processed observation data, if found.
     """
     try:
         observation_data_specs = get_observation_data_specs(deims_id)
@@ -571,44 +1070,118 @@ def data_processing(deims_id, source_folder):
         )
         return
 
+    if target_folder is None:
+        target_folder = source_folder
+
     location = ut.get_deims_coordinates(deims_id)
 
     if location["found"]:
-        get_observations_from_files(location, observation_data_specs, source_folder)
+        source_subfolder = source_folder / location["deims_id"]
+        target_subfolder = target_folder / location["deims_id"]
+        location_summary = get_observations_from_files(
+            location,
+            observation_data_specs,
+            source_subfolder,
+            target_folder=target_subfolder,
+        )
+
+        return location_summary
     else:
         warnings.warn(
             f"Coordinates not found for DEIMS ID '{deims_id}'. Skipping site."
         )
+        return
 
 
-def prep_observation_data_for_sites(site_ids=None, source_folder=None):
+def observation_summaries_to_list(observation_summaries, *, new_file=None):
+    """
+    Convert observation summaries to a list and save to a .txt file.
+
+    Parameters:
+        observation_summaries (dict): Dictionary with observation summaries.
+        new_file (Path): Path to the new file to save observation summaries.
+    """
+    observation_summaries_list = []
+    column_names = None
+
+    for site_summary in observation_summaries.values():
+        site_id = site_summary["site_id"]
+        site_name = site_summary["site_name"]
+
+        for key, variable_summary in site_summary.items():
+            if key not in ["site_id", "site_name"] and isinstance(
+                variable_summary, dict
+            ):
+                # Add dict values from variable_summary to list
+                row = [site_id, site_name, key] + list(variable_summary.values())
+                observation_summaries_list.append(row)
+
+                if column_names is None:
+                    column_names = list(variable_summary.keys())
+                elif column_names != list(variable_summary.keys()):
+                    warnings.warn(
+                        f"Column names for '{key}' do not match previous entries. Keeping column names from first entry."
+                    )
+
+    if new_file:
+        ut.list_to_file(
+            observation_summaries_list,
+            new_file,
+            column_names=["site_id", "site_name", "variable"] + column_names,
+        )
+
+
+def prep_observation_data_for_sites(
+    site_ids=None, source_folder=None, target_folder=None
+):
     """
     Prepare observation data for selected sites.
 
     Parameters:
         site_ids (list): List of DEIMS IDs of the sites.
         source_folder (Path): Path to the folder containing observation data files.
+        target_folder (Path): Path to the folder to save processed observation data.
     """
     # Examples if not specified otherwise in function call
     if site_ids is None:
         # Specify selected site IDs, these need to be in species_data_specs
         site_ids = [
             "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+            "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
             "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
             "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
             "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
             "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
+            "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
             "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
+            "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
+            "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
             "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+            "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
+            "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
+            "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
             "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
+            "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
         ]
-        # site_ids = ["9f9ba137-342d-4813-ae58-a60911c3abc1"]  # Rhine-Main-Observatory
 
     if source_folder is None:
-        source_folder = ut.get_package_root() / "grasslandSites"
+        source_folder = Path(
+            "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/"
+        )
+
+    if target_folder is None:
+        target_folder = ut.get_package_root() / "grasslandSites"
+
+    site_observation_summary = {}
 
     for deims_id in site_ids:
-        data_processing(deims_id, source_folder)
+        site_observation_summary[deims_id] = data_processing(
+            deims_id, source_folder, target_folder=target_folder
+        )
+
+    summary_file = target_folder / "Observation_Summaries.txt"
+    observation_summaries_to_list(site_observation_summary, new_file=summary_file)
 
 
 def main():
@@ -630,11 +1203,17 @@ def main():
         type=Path,
         help="Path to the folder containing species data files",
     )
+    parser.add_argument(
+        "--target_folder",
+        type=Path,
+        help="Path to the folder to save processed observation data",
+    )
     args = parser.parse_args()
 
     prep_observation_data_for_sites(
         site_ids=args.locations,
         source_folder=args.source_folder,
+        target_folder=args.target_folder,
     )
 
 

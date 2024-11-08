@@ -189,7 +189,7 @@ def resolve_species_info_dicts(
 
 def reduce_pft_info(info):
     """
-    Reduce PFT information to coarse category.
+    Map PFT information to coarse category.
 
     Parameters:
         info (str): PFT information entry.
@@ -198,7 +198,7 @@ def reduce_pft_info(info):
         str: Reduced PFT information entry.
     """
     if info in ["not assigned", "not found"] or info.startswith("conflicting"):
-        return "not assigned"
+        return "not_assigned"
     elif info in [
         "(tree)",
         "(shrub)",
@@ -379,7 +379,7 @@ def read_info_dict(
 
         # Save created dictionary to new file if file is provided
         if new_file:
-            ut.dict_to_file(info_dict, [key_name, info_name], new_file)
+            ut.dict_to_file(info_dict, new_file, column_names=[key_name, info_name])
 
         return info_dict
     else:
@@ -596,7 +596,7 @@ def get_gbif_family(spec):
 #     # Save created dictionary to new file
 #     if file_name:
 #         ut.dict_to_file(
-#             species_info_dict_gbif, ["Species", info_name, "Original names"], file_name
+#             species_info_dict_gbif, file_name, column_names=["Species", info_name, "Original names"]
 #         )
 
 #     return species_info_dict_gbif
@@ -969,7 +969,7 @@ def get_species_info(
         file_name = ut.add_string_to_file_name(
             file_name, f"__{info_name}__{lookup_source}"
         )
-        ut.dict_to_file(info_dict, ["Species", info_name], file_name)
+        ut.dict_to_file(info_dict, file_name, column_names=["Species", info_name])
 
     return info_dict
 
@@ -998,7 +998,7 @@ def get_species_family_gbif(species_list, *, file_name=""):
 
     if file_name:
         file_name = ut.add_string_to_file_name(file_name, "__Family__GBIF")
-        ut.dict_to_file(info_dict, ["Species", info_name], file_name)
+        ut.dict_to_file(info_dict, file_name, column_names=["Species", info_name])
 
     return info_dict
 
@@ -1048,7 +1048,7 @@ def get_species_pft_from_family_woodiness(
             file_name,
             f"__{info_name}__family_{lookup_source_family}_woodiness_{lookup_source_woodiness}",
         )
-        ut.dict_to_file(info_dict, ["Species", info_name], file_name)
+        ut.dict_to_file(info_dict, file_name, column_names=["Species", info_name])
 
     return info_dict
 
@@ -1253,8 +1253,8 @@ def get_all_infos_and_pft(
 
             ut.dict_to_file(
                 family_extra,
-                ["Species", "Family"],
                 ut.add_string_to_file_name(file_name, "__Family__Extra"),
+                column_names=["Species", "Family"],
             )
 
     # Combine and resolve Family from both sources (TRY & GBIF)
@@ -1369,23 +1369,23 @@ def get_all_infos_and_pft(
     if file_name:
         ut.dict_to_file(
             family_combined,
-            ["Species", "Family Combined"],
             ut.add_string_to_file_name(file_name, "__Family__combined"),
+            column_names=["Species", "Family Combined"],
         )
         ut.dict_to_file(
             woodiness_combined,
-            ["Species", "Woodiness Combined"],
             ut.add_string_to_file_name(file_name, "__Woodiness__combined"),
+            column_names=["Species", "Woodiness Combined"],
         )
         ut.dict_to_file(
             pft_combined,
-            ["Species", "PFT Combined"],
             ut.add_string_to_file_name(file_name, "__PFT__combined"),
+            column_names=["Species", "PFT Combined"],
         )
         ut.dict_to_file(
             pft_combined_extra,
-            ["Species", "PFT Combined incl. Extra"],
             ut.add_string_to_file_name(file_name, "__PFT__combined_Extra"),
+            column_names=["Species", "PFT Combined incl. Extra"],
         )
 
     # Add PFT combined column to species list
@@ -1461,6 +1461,12 @@ def get_species_data_specs(site_id):
             "species_columns": ["TAXA"],
             "extra_columns": [[]],
         },
+        "270a41c4-33a8-4da6-9258-2ab10916f262": {
+            "name": "AgroScapeLab Quillow (ZALF)",
+            "file_names": ["DE_AgroScapeQuillow_data_cover.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
         "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
             "name": "LTSER Zone Atelier Armorique",
             "file_names": [
@@ -1495,6 +1501,18 @@ def get_species_data_specs(site_id):
             "species_columns": ["NAME", "TAXA", "TAXA"],
             "extra_columns": [["CODE"], [], []],
         },
+        "61c188bc-8915-4488-8d92-6d38483406c0": {
+            "name": "Randu meadows",
+            "file_names": ["LV_RanduMeadows_data_abund.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "66431807-ebf1-477f-aa52-3716542f3378": {
+            "name": "LTSER Engure",
+            "file_names": ["LV_Engure_data_cover.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
         "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1": {
             "name": "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen",
             "file_names": [
@@ -1504,15 +1522,59 @@ def get_species_data_specs(site_id):
             "species_columns": ["NAME", "TAXA"],
             "extra_columns": [["CODE"], []],
         },
+        "6b62feb2-61bf-47e1-b97f-0e909c408db8": {
+            "name": "Montagna di Torricchio",
+            "file_names": [
+                "IT_MontagnadiTorricchio_reference.csv",
+                "IT_MontagnaTorricchio_data_abund.csv",
+            ],
+            "species_columns": ["NAME", "TAXA"],
+            "extra_columns": [["CODE"], []],
+        },
+        "829a2bcc-79d6-462f-ae2c-13653124359d": {
+            "name": "Ordesa y Monte Perdido / Huesca ES",
+            "file_names": [
+                "ES_OrdesaYMontePerdido_data_freq.csv"
+            ],  # "ES_OrdesaYMontePerdido_reference.csv",
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
         "9f9ba137-342d-4813-ae58-a60911c3abc1": {
             "name": "Rhine-Main-Observatory",
             "file_names": ["DE_RhineMainObservatory_abund_data.csv"],
             "species_columns": ["TAXA"],
             "extra_columns": [[]],
         },
+        "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
+            "name": "Torgnon grassland Tellinod (IT19 Aosta Valley)",
+            "file_names": ["IT_TorgnonGrasslandTellinod_data_abund.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "b356da08-15ac-42ad-ba71-aadb22845621": {
+            "name": "Nørholm Hede",
+            "file_names": ["DK_NorholmHede_data_cover.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "c0738b00-854c-418f-8d4f-69b03486e9fd": {
+            "name": "Appennino centrale: Gran Sasso d'Italia",
+            "file_names": [
+                "IT_AppenninoCentrale_reference.csv",
+                "IT_AppenninoCentrale_data_abund.csv",
+            ],
+            "species_columns": ["CODE", "TAXA"],
+            "extra_columns": [[], []],
+        },
         "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
             "name": "Appennino centro-meridionale: Majella-Matese",
             "file_names": ["IT_AppenninoCentroMeridionale_data_cover.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "e13f1146-b97a-4bc5-9bc5-65322379a567": {
+            "name": "Jalovecka dolina",
+            "file_names": ["SK_JaloveckaDolina_data_cover.csv"],
             "species_columns": ["TAXA"],
             "extra_columns": [[]],
         },
@@ -1533,6 +1595,7 @@ def get_pft_from_files(
     lookup_tables,
     *,
     save_single_files=True,
+    target_folder=None,
 ):
     """
     Process species data for a site based on species data specifications (data can come from multiple files).
@@ -1544,9 +1607,12 @@ def get_pft_from_files(
         save_single_files (bool): Save intermediate results to separate files (default is True).
     """
     if location["name"] == species_data_specs["name"]:
+        if target_folder is None:
+            target_folder = source_folder
+
         # Create location subfolder
-        location_folder = source_folder / location["deims_id"] / "PFT_Mapping"
-        location_folder.mkdir(parents=True, exist_ok=True)
+        target_subfolder = target_folder / "PFT_Mapping"
+        target_subfolder.mkdir(parents=True, exist_ok=True)
         formatted_lat = f"lat{location['lat']:.6f}"
         formatted_lon = f"lon{location['lon']:.6f}"
         collect_species_pfts = {}
@@ -1554,11 +1620,11 @@ def get_pft_from_files(
         for idx, file_name in enumerate(species_data_specs["file_names"]):
             if (source_folder / file_name).exists():
                 # Copy file with species list to location subfolder, allow overwriting
-                shutil.copyfile(source_folder / file_name, location_folder / file_name)
+                shutil.copyfile(source_folder / file_name, target_subfolder / file_name)
                 species_column = species_data_specs["species_columns"][idx]
                 extra_columns = species_data_specs["extra_columns"][idx]
                 infos_pft, pft_lookup = get_all_infos_and_pft(
-                    location_folder / file_name,
+                    target_subfolder / file_name,
                     species_column,
                     lookup_tables,
                     extra_columns=extra_columns,
@@ -1568,7 +1634,7 @@ def get_pft_from_files(
                 # Save species infos to location specific files
                 species_source = ut.get_source_from_elter_data_file_name(file_name)
                 target_file = (
-                    location_folder
+                    target_subfolder
                     / f"{formatted_lat}_{formatted_lon}__PFT__{species_source}.txt"
                 )
                 ut.list_to_file(
@@ -1597,9 +1663,11 @@ def get_pft_from_files(
 
         # Save combined PFTs to file
         file_name = (
-            location_folder / f"{formatted_lat}_{formatted_lon}__PFT__allSources.txt"
+            target_subfolder / f"{formatted_lat}_{formatted_lon}__PFT__allSources.txt"
         )
-        ut.dict_to_file(collect_species_pfts, ["Species", "PFT combined"], file_name)
+        ut.dict_to_file(
+            collect_species_pfts, file_name, column_names=["Species", "PFT combined"]
+        )
     else:
         raise ValueError(
             f"Site name mismatch for DEIMS ID '{location['deims_id']}': "
@@ -1607,13 +1675,14 @@ def get_pft_from_files(
         )
 
 
-def data_processing(deims_id, source_folder, *, lookup_tables=None):
+def data_processing(deims_id, source_folder, *, target_folder=None, lookup_tables=None):
     """
     Find and process species data for a site based on DEIMS ID.
 
     Parameters:
         deims_id (str): DEIMS ID of the site.
         source_folder (Path): Path to the folder containing species data files.
+        target_folder (Path): Path to the folder to save processed species data.
         lookup_tables (dict): Dictionary with lookup tables for species data (default is None, lookup tables will be created).
     """
     try:
@@ -1624,18 +1693,25 @@ def data_processing(deims_id, source_folder, *, lookup_tables=None):
         )
         return
 
+    if target_folder is None:
+        target_folder = source_folder
+
     location = ut.get_deims_coordinates(deims_id)
 
     if location["found"]:
         if not lookup_tables:
             lookup_tables = get_lookup_tables(force_create=False)
 
+        source_subfolder = source_folder / location["deims_id"]
+        target_subfolder = target_folder / location["deims_id"]
+
         get_pft_from_files(
             location,
             species_data_specs,
-            source_folder,
+            source_subfolder,
             lookup_tables,
             save_single_files=True,  # False to skip saving intermediate files
+            target_folder=target_subfolder,
         )
     else:
         warnings.warn(
@@ -1643,13 +1719,16 @@ def data_processing(deims_id, source_folder, *, lookup_tables=None):
         )
 
 
-def assign_pfts_for_sites(site_ids=None, source_folder=None, lookup_tables=None):
+def assign_pfts_for_sites(
+    site_ids=None, source_folder=None, target_folder=None, lookup_tables=None
+):
     """
     Assign Plant Functional Types (PFT) to species for a list of sites.
 
     Parameters:
         site_ids (list): List of sites by DEIMS IDs (strings).
         source_folder (Path): Path to the folder containing species data files.
+        target_folder (Path): Path to the folder to save processed species data.
         lookup_tables (dict): Dictionary with lookup tables for species mapping to PFTs.
     """
     # Examples if not specified otherwise in function call
@@ -1657,27 +1736,46 @@ def assign_pfts_for_sites(site_ids=None, source_folder=None, lookup_tables=None)
         # Specify selected site IDs, these need to be in species_data_specs
         site_ids = [
             "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+            "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
             "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
             "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
             "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
             "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
+            "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
             "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
+            "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
+            "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
             "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+            "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
+            "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
+            "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
             "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
+            "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
         ]
-        # site_ids = ["3de1057c-a364-44f2-8a2a-350d21b58ea0"]  # Obergurgl
-        site_ids = [
-            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6"
-        ]  # LTSER Zone Atelier Armorique
+        # # site_ids = ["3de1057c-a364-44f2-8a2a-350d21b58ea0"]  # Obergurgl
+        # site_ids = [
+        #     "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6"
+        # ]  # LTSER Zone Atelier Armorique
 
     if source_folder is None:
-        source_folder = ut.get_package_root() / "grasslandSites"
+        source_folder = Path(
+            "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/"
+        )
+
+    if target_folder is None:
+        target_folder = ut.get_package_root() / "grasslandSites"
 
     if lookup_tables is None:
         lookup_tables = get_lookup_tables(force_create=False)
 
     for deims_id in site_ids:
-        data_processing(deims_id, source_folder, lookup_tables=lookup_tables)
+        data_processing(
+            deims_id,
+            source_folder,
+            target_folder=target_folder,
+            lookup_tables=lookup_tables,
+        )
 
 
 def main():
@@ -1700,6 +1798,11 @@ def main():
         help="Path to the folder containing species data files",
     )
     parser.add_argument(
+        "--target_folder",
+        type=Path,
+        help="Path to the folder to save processed species data",
+    )
+    parser.add_argument(
         "--lookup_tables",
         type=dict,
         help="Dictionary with lookup tables for species data",
@@ -1709,6 +1812,7 @@ def main():
     assign_pfts_for_sites(
         site_ids=args.locations,
         source_folder=args.source_folder,
+        target_folder=args.target_folder,
         lookup_tables=args.lookup_tables,
     )
 

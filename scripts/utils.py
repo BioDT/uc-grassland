@@ -294,14 +294,14 @@ def get_row_values(key, values):
     return row_values
 
 
-def dict_to_file(dict_to_write, column_names, file_name):
+def dict_to_file(dict_to_write, file_name, *, column_names=["key", "value"]):
     """
     Write a dictionary to a text file (tab-separated) or csv file (;-separated) or an Excel file.
 
     Parameters:
         dict_to_write (dict): Dictionary to be written to file.
-        column_names (list): List of all column names (strings, includes first column for dict_to_write keys).
         file_name (str or Path): Path of output file (suffix determines file type).
+        column_names (list): List of column names (strings) to write as header line (default is ['key', 'value']).
     """
     if file_name:
         file_path = Path(file_name)
@@ -319,8 +319,9 @@ def dict_to_file(dict_to_write, column_names, file_name):
                     if file_suffix == ".txt"
                     else csv.writer(file, delimiter=";")
                 )
-                header = column_names
-                writer.writerow(header)  # Header row
+
+                if column_names is not None:
+                    writer.writerow(column_names)  # Header row
 
                 for key, values in dict_to_write.items():
                     writer.writerow(get_row_values(key, values))
@@ -364,6 +365,11 @@ def find_column_index(raw_data, column_id, *, header_lines=1):
         ValueError: If column identifier is not a string or integer.
         TypeError: If raw_data is not a pandas DataFrame or a list of lists.
     """
+    if column_id is None:
+        warnings.warn(
+            "Column identifier is None. Cannot find column in data. Returning None."
+        )
+        return None
 
     if isinstance(raw_data, pd.DataFrame):
         if isinstance(column_id, str):
@@ -385,12 +391,12 @@ def find_column_index(raw_data, column_id, *, header_lines=1):
                 raise ValueError(
                     f"Column number '{column_id}' out of range in DataFrame."
                 )
-        elif isinstance(column_id, list):
-            for col in column_id:
-                idx = find_column_index(raw_data, col)
+        # elif isinstance(column_id, list):
+        #     for col in column_id:
+        #         idx = find_column_index(raw_data, col)
 
-                if idx is not None:
-                    return idx
+        #         if idx is not None:
+        #             return idx
         else:
             raise ValueError(
                 "Invalid column identifier. Please provide a column name (str) or column "
@@ -410,12 +416,12 @@ def find_column_index(raw_data, column_id, *, header_lines=1):
                 raise ValueError(
                     f"Column number '{column_id}' out of range in header line of list."
                 )
-        elif isinstance(column_id, list):
-            for col in column_id:
-                idx = find_column_index(raw_data, col)
+        # elif isinstance(column_id, list):
+        #     for col in column_id:
+        #         idx = find_column_index(raw_data, col)
 
-                if idx is not None:
-                    return idx
+        #         if idx is not None:
+        #             return idx
         else:
             raise ValueError(
                 "Invalid column identifier. Please provide a column name (str) or column "
@@ -424,7 +430,7 @@ def find_column_index(raw_data, column_id, *, header_lines=1):
     else:
         raise TypeError("Input data must be a pandas DataFrame or a list of lists.")
 
-    warnings.warn(f"None of the columns {column_id} found. Returning None.")
+    warnings.warn(f"Column '{column_id}' not found. Returning None.")
     return None
 
 
@@ -449,7 +455,7 @@ def list_to_file(list_to_write, file_name, *, column_names=None):
             [entry.get(col, "") for col in column_names] for entry in list_to_write
         ]
     # Check if all tuples in list have the same length as the column_names list
-    elif column_names and not all(
+    elif column_names is not None and not all(
         len(entry) == len(column_names) for entry in list_to_write
     ):
         print(
@@ -473,9 +479,8 @@ def list_to_file(list_to_write, file_name, *, column_names=None):
                 else csv.writer(file, delimiter=";")
             )
 
-            if column_names:
-                header = column_names
-                writer.writerow(header)  # Header row
+            if column_names is not None:
+                writer.writerow(column_names)  # Header row
 
             for entry in list_to_write:
                 writer.writerow(entry)
@@ -533,11 +538,18 @@ def get_list_of_columns(input_list, columns_wanted):
         columns_wanted (list): List of column names or indices to extract.
     """
     column_indexes = []
+    columns_found = []
 
     for column in columns_wanted:
-        column_indexes.append(find_column_index(input_list, column))
+        column_index = find_column_index(input_list, column)
 
-    return [[row[idx] for idx in column_indexes] for row in input_list]
+        if column_index is not None:
+            column_indexes.append(column_index)
+            columns_found.append(column)
+
+    sublist = [[row[idx] for idx in column_indexes] for row in input_list]
+
+    return sublist, columns_found
 
 
 def add_to_dict(
