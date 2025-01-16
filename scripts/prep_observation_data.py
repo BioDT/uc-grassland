@@ -261,6 +261,8 @@ def get_default_observation_columns(variable):
         Returns:
         dict: Dictionary with default column names for the observation variable, including:
             'plot' (str): Column name for plot names.
+            'event_id' (str): Column name for event IDs.
+            'layer' (str): Column name for layer names.
             'time' (str): Column name for time points.
             'species' (str): Column name for species names.
             'value' (str): Column name for observation values.
@@ -268,20 +270,27 @@ def get_default_observation_columns(variable):
     """
     default_columns = {
         "plot": "STATION_CODE",
+        "event_id": "EVENT_ID",
+        "layer": "LAYER",  # layer added to use only layer 'F', could be adjusted to use also other layers
         "time": "TIME",
         "species": "TAXA",
         "value": "VALUE",
         "unit": "UNIT",
     }
 
-    if variable in ["cover", "cover_braun_blanquet", "absolute_frequency"]:
-        return default_columns
-    # elif variable == "indices":  ... add more observation variables here
-    else:
+    # Only check and warn here, no differences in columns for now
+    if variable not in [
+        "cover",
+        "cover_braun_blanquet",
+        "absolute_frequency",
+        "abundance_gloria_1_8",
+        "cover_categories_1_9",
+    ]:
         warnings.warn(
             f"Unknown observation variable '{variable}'. Returning default columns."
         )
-        return default_columns
+
+    return default_columns
 
 
 def get_default_lookup_specs():
@@ -308,17 +317,23 @@ def braun_blanquet_to_cover(braun_blanquet_code):
         return None
 
     braun_blanquet_mapping = {
+        # "x", None,   # occurs in RMO
         "r": 0.1,
+        "R": 0.1,  # assuming same as "r", probably typo
         "+": 0.3,
         "1": 2.8,
         "2m": 4.5,
         "2a": 10,
         "2b": 20.5,
-        "2": 12.5,  # ??
-        "3": 38,  # also saw 37.5
+        "2": 15,  # ??  MDT: 5-25%, also used by: RMO (no info in method file), GSI ("Braun-Blanquet scale (1921), as modified by Pignatti (1959).")
+        "3": 38,  # also saw 37.5, val mazia: 38.5 in data, but 38 in ref file?
         "4": 62.5,
         "5": 87.5,
     }
+
+    # # Check for specific case of category "2" to find all sites with this code
+    # if braun_blanquet_code == "2":
+    #     print("Braun-Blanquet code '2' found, using cover value 15 %.")
 
     if braun_blanquet_code in braun_blanquet_mapping.keys():
         return braun_blanquet_mapping[braun_blanquet_code]
@@ -427,10 +442,7 @@ def read_observation_data(
             ut.list_to_file(observation_data, new_file)
 
         # Check for duplicates in observation data
-        duplicate_rows = ut.count_duplicates(
-            observation_data,
-            key_column="all",
-        )
+        duplicate_rows = ut.count_duplicates(observation_data, key_column="all")
 
         if len(duplicate_rows) > 0:
             warnings.warn(
@@ -444,8 +456,10 @@ def read_observation_data(
             if new_file:
                 ut.dict_to_file(
                     duplicate_rows,
-                    new_file.with_name(new_file.stem + "__duplicate_rows.txt"),
-                    column_names=df_column_names + ["#Duplicate rows"],
+                    new_file.with_name(
+                        new_file.stem + "__duplicate_rows" + new_file.suffix
+                    ),
+                    column_names=observation_data[0] + ["#Duplicate rows"],
                 )
 
             # Remove duplicates from observation data, keep first occurrence
@@ -456,38 +470,104 @@ def read_observation_data(
             if new_file:
                 ut.list_to_file(
                     observation_data,
-                    new_file.with_name(new_file.stem + "__duplicate_rows_removed.txt"),
+                    new_file.with_name(
+                        new_file.stem + "__duplicate_rows_removed" + new_file.suffix
+                    ),
                 )
 
-        # Check for entries that only differ in value, all other columns are the same
-        value_column = ut.find_column_index(observation_data, "VALUE")
+        # Check for entries that only differ in "SCIENTIFIC_NAME_GBIF" (if existing), all other columns are the same
+        scientific_column = ut.find_column_index(
+            observation_data, "SCIENTIFIC_NAME_GBIF", warn_not_found=False
+        )
 
-        if value_column is not None:
-            duplicate_entries = ut.count_duplicates(
-                observation_data,
-                key_column="all",
-                columns_to_ignore=[value_column],
+        # Try alternative column name "ScientificNameGBIF" if not found
+        if scientific_column is None:
+            scientific_column = ut.find_column_index(
+                observation_data, "ScientificNameGBIF", warn_not_found=False
             )
 
-            if len(duplicate_entries) > 0:
+        if scientific_column is not None:
+            # Remove scientific name column from observation data
+            observation_data = [
+                row[:scientific_column] + row[scientific_column + 1 :]
+                for row in observation_data
+            ]
+
+            duplicate_rows_except_scientific_name = ut.count_duplicates(
+                observation_data, key_column="all"
+            )
+
+            if len(duplicate_rows_except_scientific_name) > 0:
                 warnings.warn(
-                    "Observation data have entries that only differ in 'VALUE'!\n"
+                    "Observation data have entries that only differ in 'Scientific Name GBIF'!\n"
                     "Duplicates:\n"
                     + "\n".join(
                         [
                             f"'{entry}' ({count})"
-                            for entry, count in duplicate_entries.items()
+                            for entry, count in duplicate_rows_except_scientific_name.items()
                         ]
                     )
                 )
 
                 if new_file:
                     ut.dict_to_file(
-                        duplicate_entries,
-                        new_file.with_name(new_file.stem + "__duplicate_entries.txt"),
-                        column_names=df_column_names[:value_column]
-                        + df_column_names[value_column + 1 :]
-                        + ["#Duplicate entries"],
+                        duplicate_rows_except_scientific_name,
+                        new_file.with_name(
+                            new_file.stem
+                            + "__duplicate_rows_except_scientific_name"
+                            + new_file.suffix
+                        ),
+                        column_names=observation_data[0] + ["#Duplicate rows"],
+                    )
+
+                # Remove duplicates from observation data, keep first occurrence
+                observation_data = ut.remove_duplicates(
+                    observation_data, duplicates=duplicate_rows_except_scientific_name
+                )
+
+                if new_file:
+                    ut.list_to_file(
+                        observation_data,
+                        new_file.with_name(
+                            new_file.stem
+                            + "__duplicate_rows_except_scientific_name_removed"
+                            + new_file.suffix
+                        ),
+                    )
+
+        # Check for entries that only differ in value, all other columns are the same
+        value_column = ut.find_column_index(observation_data, "VALUE")
+
+        if value_column is not None:
+            duplicate_rows_except_value = ut.count_duplicates(
+                observation_data,
+                key_column="all",
+                columns_to_ignore=[value_column],
+            )
+
+            if len(duplicate_rows_except_value) > 0:
+                warnings.warn(
+                    "Observation data have entries that only differ in 'VALUE'!\n"
+                    "Duplicates:\n"
+                    + "\n".join(
+                        [
+                            f"'{entry}' ({count})"
+                            for entry, count in duplicate_rows_except_value.items()
+                        ]
+                    )
+                )
+
+                if new_file:
+                    ut.dict_to_file(
+                        duplicate_rows_except_value,
+                        new_file.with_name(
+                            new_file.stem
+                            + "__duplicate_rows_except_value"
+                            + new_file.suffix
+                        ),
+                        column_names=observation_data[0][:value_column]
+                        + observation_data[0][value_column + 1 :]
+                        + ["#Duplicate rows"],
                     )
 
         return observation_data
@@ -496,6 +576,120 @@ def read_observation_data(
             f"File extension '{file_extension}' not supported. Skipping file."
         )
         return []
+
+
+def process_single_plot_observation_data(
+    plot_data, columns, plot_name, variable, pft_lookup, observation_pft, *, pfts=None
+):
+    target_unit = get_target_unit(variable)
+
+    # Use default PFTs if not specified
+    if pfts is None:
+        pfts = ["grass", "forb", "legume", "other", "not_assigned"]
+
+    time_points = ut.get_unique_values_from_column(
+        plot_data, columns["time"], header_lines=0
+    )
+
+    for time_point in time_points:
+        if "value" in columns:
+            # Get rows from observation data for this plot and time point
+            time_data = ut.get_rows_with_value_in_column(
+                plot_data, columns["time"], time_point
+            )
+
+            # Remove remaining duplicates from retrieved observation data for this plot and time point
+            duplicates = ut.count_duplicates(time_data, key_column="all")
+
+            if len(duplicates) > 0:
+                warnings.warn(
+                    f"Duplicate species entries remain in retrieved observation data for plot '{plot_name}' "
+                    f"at time '{time_point}'! Removing duplicates for subsequent processing.\n"
+                    "Duplicate species entries:\n"
+                    + "\n".join(
+                        [f"'{entry}' ({count})" for entry, count in duplicates.items()]
+                    )
+                )
+                time_data = ut.remove_duplicates(time_data, duplicates=duplicates)
+
+            # Check for remaining duplicates that only differ in value, skip these from processing
+            duplicates = ut.count_duplicates(
+                time_data,
+                key_column=columns["species"],
+                columns_to_ignore=[columns["value"]],
+            )
+
+            if len(duplicates) > 0:
+                warnings.warn(
+                    f"Duplicate species entries in plot '{plot_name}' at time '{time_point}'. Cannot process data from values. Skipping time point."
+                    " Duplicate species entries:\n"
+                    + "\n".join(
+                        [f"'{entry}' ({count})" for entry, count in duplicates.items()]
+                    )
+                )
+                new_row = {key: "" for key in observation_pft.columns}
+                new_row.update(
+                    {
+                        "plot": plot_name,
+                        "time": time_point,
+                        "invalid_observation": f"{len(duplicates)} non-unique species entries",
+                    }
+                )
+            else:
+                # Collect entries and add to PFTs
+                pft_values = {key: 0 for key in pfts}
+                pft_counts = {
+                    key: 0 for key in [f"#{pft}" for pft in pfts] + ["#invalid_value"]
+                }
+                unit_check = None
+
+                for entry in time_data:
+                    species = entry[columns["species"]]
+                    pft = apft.reduce_pft_info(pft_lookup.get(species, "not found"))
+                    unit = entry[columns["unit"]]
+                    value = check_observation_value(
+                        entry[columns["value"]],
+                        variable,
+                        unit=unit,
+                        unit_check=unit_check,
+                        plot_name=plot_name,
+                        time_point=time_point,
+                        species=species,
+                    )
+
+                    if pd.isna(value):
+                        pft_counts["#invalid_value"] += 1
+                    else:
+                        pft_values[pft] += value
+                        pft_counts[f"#{pft}"] += 1
+
+                        if not pd.isna(unit):
+                            unit_check = unit
+
+                # Add PFT values to observation data
+                new_row = {
+                    "plot": plot_name,
+                    "time": time_point,
+                    "unit": target_unit,
+                }
+                new_row.update(pft_values)
+                new_row.update(pft_counts)
+        else:
+            # No 'value' column found, add empty row for this plot and time point
+            new_row = {key: "" for key in observation_pft.columns}
+            new_row.update(
+                {
+                    "plot": plot_name,
+                    "time": time_point,
+                    "invalid_observation": "no 'value' entries",
+                }
+            )
+
+        # Add new row to observation_pft, can be empty if duplicates were found
+        new_row_df = pd.DataFrame([new_row])
+        observation_pft = pd.concat([observation_pft, new_row_df], ignore_index=True)
+
+    return observation_pft
 
 
 def process_observation_data(
@@ -539,11 +733,17 @@ def process_observation_data(
 
     # Process observation data
     if "plot" in columns and "time" in columns:
+        header_lines = 1
         plot_names = ut.get_unique_values_from_column(
-            observation_data, columns["plot"], header_lines=1
+            observation_data, columns["plot"], header_lines=header_lines
         )
 
-        # TODO: some data can further differ by event_id for identical plot names
+        # Format entries in 'time' column using ut.format_datestring
+        for idx, entry in enumerate(observation_data[header_lines:]):
+            observation_data[idx + header_lines][columns["time"]] = (
+                ut.format_datestring(entry[columns["time"]])
+            )
+
         pfts = ["grass", "forb", "legume", "other", "not_assigned"]
         observation_pft = pd.DataFrame(
             columns=["plot", "time"]
@@ -553,132 +753,97 @@ def process_observation_data(
             + ["#invalid_value"]
             + ["invalid_observation"]
         )
-        target_unit = get_target_unit(variable)
+        # target_unit = get_target_unit(variable)
 
         for plot_name in plot_names:
             plot_data = ut.get_rows_with_value_in_column(
                 observation_data, columns["plot"], plot_name
             )
 
-            if target_folder:
-                # Replace slashs in plot name with underscores and question marks with "full width question marks"
-                plot_name_str = str(plot_name).replace("/", "_").replace("?", "？")
-                file_name = target_folder / f"{variable}__{plot_name_str}.txt"
-                ut.list_to_file(plot_data, file_name, column_names=columns.keys())
+            if "layer" in columns:
+                layer_entries = ut.get_unique_values_from_column(
+                    plot_data, columns["layer"], header_lines=0
+                )
 
-            time_points = ut.get_unique_values_from_column(
-                plot_data, columns["time"], header_lines=0
-            )
+                if len(layer_entries) > 1:
+                    # try to use only entries with layer 'F', or otherwise 'COVE_F'
+                    for layer in ["F", "COVE_F"]:
+                        plot_data_F = ut.get_rows_with_value_in_column(
+                            plot_data, columns["layer"], layer
+                        )
 
-            for time_point in time_points:
-                if "value" in columns:
-                    # Get rows from observation data for this plot and time point
-                    time_data = ut.get_rows_with_value_in_column(
-                        plot_data, columns["time"], time_point
-                    )
-
-                    # # Option to remove duplicate from retrieved observation data for this plot and time point
-                    # # Not done because one cannot tell whether they refer to the same or different observations, even with same value!
-                    # duplicates = ut.count_duplicates(time_data, key_column="all")
-
-                    # if len(duplicates) > 0:
-                    #     warnings.warn(
-                    #         f"Duplicate species entries remain in retrieved observation data for plot '{plot_name}' "
-                    #         f"at time '{time_point}'! Removing duplicates for subsequent processing.\n"
-                    #         "Duplicate species entries:\n"
-                    #         + "\n".join(
-                    #             [f"'{entry}' ({count})" for entry, count in duplicates.items()]
-                    #         )
-                    #     )
-                    #     time_data = ut.remove_duplicates(time_data, duplicates=duplicates)
-
-                    # Check for remaining duplicates that only differ in value, skip these from processing
-                    duplicates = ut.count_duplicates(
-                        time_data,
-                        key_column=columns["species"],
-                        columns_to_ignore=[columns["value"]],
-                    )
-
-                    if len(duplicates) > 0:
-                        warnings.warn(
-                            f"Duplicate species entries in plot '{plot_name}' at time '{time_point}'. Cannot process data from values. Skipping time point."
-                            " Duplicate species entries:\n"
-                            + "\n".join(
-                                [
-                                    f"'{entry}' ({count})"
-                                    for entry, count in duplicates.items()
-                                ]
+                        if len(plot_data_F) > 0:
+                            plot_data = plot_data_F
+                            warnings.warn(
+                                f"{len(layer_entries)} different layer entries found for plot '{plot_name}' ({layer_entries}). Using only layer '{layer}'."
                             )
-                        )
-                        new_row = {key: "" for key in observation_pft.columns}
-                        new_row.update(
-                            {
-                                "plot": plot_name,
-                                "time": time_point,
-                                "invalid_observation": f"{len(duplicates)} non-unique species entries",
-                            }
-                        )
+
+                            break
+
+            if "event_id" in columns:
+                # Get unique event IDs for this plot
+                event_ids = ut.get_unique_values_from_column(
+                    plot_data, columns["event_id"], header_lines=0
+                )
+
+                # Group event ids for the same subplot (same start before first underscore)
+                event_id_dict = {}
+
+                for event_id in event_ids:
+                    subplot = event_id.split("_")[0]
+
+                    if subplot in event_id_dict:
+                        event_id_dict[subplot].append(event_id)
                     else:
-                        # Collect entries and add to PFTs
-                        pft_values = {key: 0 for key in pfts}
-                        pft_counts = {
-                            key: 0
-                            for key in [f"#{pft}" for pft in pfts] + ["#invalid_value"]
-                        }
-                        unit_check = None
+                        event_id_dict[subplot] = [event_id]
 
-                        for entry in time_data:
-                            species = entry[columns["species"]]
-                            pft = apft.reduce_pft_info(
-                                pft_lookup.get(species, "not found")
-                            )
-                            unit = entry[columns["unit"]]
-                            value = check_observation_value(
-                                entry[columns["value"]],
-                                variable,
-                                unit=unit,
-                                unit_check=unit_check,
-                                plot_name=plot_name,
-                                time_point=time_point,
-                                species=species,
-                            )
+                for subplot in event_id_dict.keys():
+                    subplot_data = []
 
-                            if pd.isna(value):
-                                pft_counts["#invalid_value"] += 1
-                            else:
-                                pft_values[pft] += value
-                                pft_counts[f"#{pft}"] += 1
+                    for event_id in event_id_dict[subplot]:
+                        subplot_data += ut.get_rows_with_value_in_column(
+                            plot_data, columns["event_id"], event_id
+                        )
 
-                                if not pd.isna(unit):
-                                    unit_check = unit
+                    if target_folder:
+                        # Replace slashs in plot name with underscores and question marks with "full width question marks"
+                        plot_name_str = (
+                            str(plot_name).replace("/", "_").replace("?", "？")
+                            + f"__{str(subplot)}"
+                        )
+                        file_name = target_folder / f"{variable}__{plot_name_str}.txt"
+                        ut.list_to_file(
+                            subplot_data, file_name, column_names=columns.keys()
+                        )
 
-                        # Add PFT values to observation data
-                        new_row = {
-                            "plot": plot_name,
-                            "time": time_point,
-                            "unit": target_unit,
-                        }
-                        new_row.update(pft_values)
-                        new_row.update(pft_counts)
-                else:
-                    # No 'value' column found, add empty row for this plot and time point
-                    new_row = {key: "" for key in observation_pft.columns}
-                    new_row.update(
-                        {
-                            "plot": plot_name,
-                            "time": time_point,
-                            "invalid_observation": "no 'value' entries",
-                        }
+                    observation_pft = process_single_plot_observation_data(
+                        subplot_data,
+                        columns,
+                        plot_name_str,
+                        variable,
+                        pft_lookup,
+                        observation_pft,
+                        pfts=pfts,
                     )
 
-                # Add new row to observation_pft, can be empty if duplicates were found
-                new_row_df = pd.DataFrame([new_row])
-                observation_pft = pd.concat(
-                    [observation_pft, new_row_df], ignore_index=True
+            else:
+                if target_folder:
+                    # Replace slashs in plot name with underscores and question marks with "full width question marks"
+                    plot_name_str = str(plot_name).replace("/", "_").replace("?", "？")
+                    file_name = target_folder / f"{variable}__{plot_name_str}.txt"
+                    ut.list_to_file(plot_data, file_name, column_names=columns.keys())
+
+                observation_pft = process_single_plot_observation_data(
+                    plot_data,
+                    columns,
+                    plot_name_str,
+                    variable,
+                    pft_lookup,
+                    observation_pft,
                 )
 
         # Sort observation_pft by time column, and then by plot column
-        observation_pft = observation_pft.sort_values(by=["time", "plot"])
+        observation_pft = observation_pft.sort_values(by=["plot", "time"])
 
         if new_file:
             observation_pft.to_csv(new_file, sep="\t", index=False)
@@ -769,6 +934,7 @@ def check_observation_value(
             "braun_blanquet",
             "code",
             "dimless",
+            "dimles",  # account for typo in raw data
         ]:
             warnings.warn(
                 f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
@@ -895,6 +1061,7 @@ def get_observation_summary(observation_pft, *, new_file=None):
         "time_points_count": time_points_count,
         "observation_count": observation_count,
         "invalid_observations_omitted": observations_invalid,
+        "proportion_invalid_observations": observations_invalid / observation_count,
         "mean_time_points_per_plot": mean_time_points_per_plot,
         "mean_species_count": mean_species_count,
         "min_species_count": min_species_count,
@@ -902,7 +1069,7 @@ def get_observation_summary(observation_pft, *, new_file=None):
         "invalid_species_entries_omitted": entries_invalid,
         "mean_species_proportion_not_assigned": mean_species_proportion_not_assigned,
         "mean_species_proportion_assigned": mean_species_proportion_assigned,
-        "mean_species_proportion_grass_pft": mean_species_proportion_grassland_pft,
+        "mean_species_proportion_grassland_pft": mean_species_proportion_grassland_pft,
     }
 
     # Mean counts of all single PFTs
@@ -965,7 +1132,12 @@ def get_target_variable_name(variable):
 
 
 def get_observations_from_files(
-    location, observation_data_specs, source_folder, *, target_folder=None
+    location,
+    observation_data_specs,
+    source_folder,
+    *,
+    target_folder=None,
+    target_suffix=".txt",
 ):
     """
     Get observation data from files and save to .txt files in location subfolder.
@@ -973,7 +1145,12 @@ def get_observations_from_files(
     Parameters:
         location (dict): Dictionary with 'name', 'deims_id', 'lat' and 'lon' keys.
         observation_data_specs (dict): Dictionary with 'name' and 'file_names' keys.
-        location_folder (Path): Path to the folder containing observation data files.
+        source_folder (Path): Path to the folder containing observation data files.
+        target_folder (Path): Path to the folder to save processed observation data (default is None).
+        target_suffix (str): Suffix for target files (default is '.txt').
+
+    Returns:
+        dict: Dictionary with summary statistics from processed observation data.
     """
     if location["name"] == observation_data_specs["name"]:
         if target_folder is None:
@@ -987,6 +1164,8 @@ def get_observations_from_files(
         location_summary = {
             "site_id": location["deims_id"],
             "site_name": location["name"],
+            "lat_deims": location["lat"],
+            "lon_deims": location["lon"],
         }
 
         for variable in observation_data_specs["variables"]:
@@ -997,7 +1176,7 @@ def get_observations_from_files(
                 observation_source = ut.get_source_from_elter_data_file_name(file_name)
                 target_file = (
                     target_subfolder
-                    / f"{formatted_lat}_{formatted_lon}__Observation__Raw__{observation_source}.txt"
+                    / f"{formatted_lat}_{formatted_lon}__Observation__Raw__{observation_source}{target_suffix}"
                 )
                 observation_data = read_observation_data(
                     source_folder / file_name, new_file=target_file
@@ -1051,13 +1230,17 @@ def get_observations_from_files(
     return location_summary
 
 
-def data_processing(deims_id, source_folder, *, target_folder=None):
+def prep_observation_data(
+    deims_id, source_folder, *, target_folder=None, target_suffix=".txt"
+):
     """
     Find and process observation data for a site based on DEIMS ID.
 
     Parameters:
         deims_id (str): DEIMS ID of the site.
         source_folder (Path): Path to the folder containing observation data files.
+        target_folder (Path): Path to the folder to save processed observation data (default is None).
+        target_suffix (str): Suffix for target files (default is '.txt').
 
     Returns:
         dict: Dictionary with summary statistics from processed observation data, if found.
@@ -1083,6 +1266,7 @@ def data_processing(deims_id, source_folder, *, target_folder=None):
             observation_data_specs,
             source_subfolder,
             target_folder=target_subfolder,
+            target_suffix=target_suffix,
         )
 
         return location_summary
@@ -1091,6 +1275,57 @@ def data_processing(deims_id, source_folder, *, target_folder=None):
             f"Coordinates not found for DEIMS ID '{deims_id}'. Skipping site."
         )
         return
+
+
+def get_short_name(site_name, target_variable):
+    """
+    Get short name for target variable in observation site.
+
+    Parameters:
+        site_name (str): Name of the observation site.
+        target_variable (str): Target variable name.
+
+    Returns:
+        str: Short name for target variable in observation site.
+    """
+    short_names = {
+        "IT25 - Val Mazia/Matschertal": {"Cover": "VMM-C"},
+        "AgroScapeLab Quillow (ZALF)": {"Cover": "ASQ-C"},
+        "LTSER Zone Atelier Armorique": {"Cover": "ZAA-C", "Indices": "ZAA-I"},
+        "Stubai (combination of Neustift meadows and Kaserstattalm)": {
+            "Cover": "STB-C"
+        },
+        "Obergurgl": {"Cover": "OGL-C"},
+        "Hochschwab (AT-HSW) GLORIA": {
+            "Cover": "HSW-C",
+            "Cover_from_abundance_1_8": "HSW-C18",
+        },
+        "Randu meadows": {"Cover_from_braun_blanquet": "RND-CBB"},
+        "LTSER Engure": {"Cover": "ENG-C"},
+        "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen": {"Cover": "SCH-C"},
+        "Montagna di Torricchio": {"Cover_from_braun_blanquet": "MDT-CBB"},
+        "Ordesa y Monte Perdido / Huesca ES": {"Absolute_frequency": "OMP-AF"},
+        "Rhine-Main-Observatory": {"Cover_from_braun_blanquet": "RMO-CBB"},
+        "Torgnon grassland Tellinod (IT19 Aosta Valley)": {"Frequency": "TGT-F"},
+        "Nørholm Hede": {"Cover": "NHH-C"},
+        "Appennino centrale: Gran Sasso d'Italia": {
+            "Cover_from_braun_blanquet": "GSI-CBB"
+        },
+        "Appennino centro-meridionale: Majella-Matese": {"Cover": "MAM-C"},
+        "Jalovecka dolina": {"Cover_from_categories_1_9": "JAD-C19"},
+    }
+
+    if site_name in short_names.keys():
+        if target_variable in short_names[site_name].keys():
+            return short_names[site_name][target_variable]
+        else:
+            warnings.warn(
+                f"Short name not found for target variable '{target_variable}' in site '{site_name}'."
+            )
+    else:
+        warnings.warn(f"Short name(s) not found for site '{site_name}'.")
+
+    return "n.f."
 
 
 def observation_summaries_to_list(observation_summaries, *, new_file=None):
@@ -1107,13 +1342,28 @@ def observation_summaries_to_list(observation_summaries, *, new_file=None):
     for site_summary in observation_summaries.values():
         site_id = site_summary["site_id"]
         site_name = site_summary["site_name"]
+        lat_deims = site_summary["lat_deims"]
+        lon_deims = site_summary["lon_deims"]
 
         for key, variable_summary in site_summary.items():
-            if key not in ["site_id", "site_name"] and isinstance(
-                variable_summary, dict
-            ):
+            if key not in [
+                "site_id",
+                "site_name",
+                "lat_deims",
+                "lon_deims",
+            ] and isinstance(variable_summary, dict):
                 # Add dict values from variable_summary to list
-                row = [site_id, site_name, key] + list(variable_summary.values())
+                observation_short_name = get_short_name(
+                    site_name, variable_summary["target_variable"]
+                )
+                row = [
+                    site_id,
+                    site_name,
+                    lat_deims,
+                    lon_deims,
+                    key,
+                    observation_short_name,
+                ] + list(variable_summary.values())
                 observation_summaries_list.append(row)
 
                 if column_names is None:
@@ -1127,12 +1377,20 @@ def observation_summaries_to_list(observation_summaries, *, new_file=None):
         ut.list_to_file(
             observation_summaries_list,
             new_file,
-            column_names=["site_id", "site_name", "variable"] + column_names,
+            column_names=[
+                "site_id",
+                "site_name",
+                "lat_deims",
+                "lon_deims",
+                "variable",
+                "short_name",
+            ]
+            + column_names,
         )
 
 
-def prep_observation_data_for_sites(
-    site_ids=None, source_folder=None, target_folder=None
+def data_processing(
+    site_ids=None, source_folder=None, target_folder=None, target_suffix=".txt"
 ):
     """
     Prepare observation data for selected sites.
@@ -1176,8 +1434,11 @@ def prep_observation_data_for_sites(
     site_observation_summary = {}
 
     for deims_id in site_ids:
-        site_observation_summary[deims_id] = data_processing(
-            deims_id, source_folder, target_folder=target_folder
+        site_observation_summary[deims_id] = prep_observation_data(
+            deims_id,
+            source_folder,
+            target_folder=target_folder,
+            target_suffix=target_suffix,
         )
 
     summary_file = target_folder / "Observation_Summaries.txt"
@@ -1208,12 +1469,20 @@ def main():
         type=Path,
         help="Path to the folder to save processed observation data",
     )
+    parser.add_argument(
+        "--target_suffix",
+        type=str,
+        default=".csv",
+        choices=[".txt", ".csv"],
+        help="Suffix to be used raw and cleaned from duplicates data files ('.txt' or '.csv').",
+    )
     args = parser.parse_args()
 
-    prep_observation_data_for_sites(
+    data_processing(
         site_ids=args.locations,
         source_folder=args.source_folder,
         target_folder=args.target_folder,
+        target_suffix=args.target_suffix,
     )
 
 

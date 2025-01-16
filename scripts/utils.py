@@ -36,6 +36,7 @@ import pandas as pd
 import pyproj
 import rasterio
 import requests
+from dateutil.parser import parse
 
 
 def add_string_to_file_name(file_name, string_to_add, *, new_suffix=None):
@@ -348,7 +349,7 @@ def dict_to_file(dict_to_write, file_name, *, column_names=["key", "value"]):
         print(f"Dictionary written to file '{file_name}'.")
 
 
-def find_column_index(raw_data, column_id, *, header_lines=1):
+def find_column_index(raw_data, column_id, *, header_lines=1, warn_not_found=True):
     """
     Find index of specified column in data frame or list of lists.
 
@@ -356,6 +357,7 @@ def find_column_index(raw_data, column_id, *, header_lines=1):
         raw_data (pd.DataFrame or list): Data frame or list of lists to find column.
         column_id (str or int): Column identifier (name as string or index).
         header_lines (int): Number of header lines in list of lists (default is 1).
+        warn_not_found (bool): Warn if column is not found (default is True).
 
     Returns:
         int: Index of specified column, if found.
@@ -430,7 +432,9 @@ def find_column_index(raw_data, column_id, *, header_lines=1):
     else:
         raise TypeError("Input data must be a pandas DataFrame or a list of lists.")
 
-    warnings.warn(f"Column '{column_id}' not found. Returning None.")
+    if warn_not_found:
+        warnings.warn(f"Column '{column_id}' not found. Returning None.")
+
     return None
 
 
@@ -495,6 +499,43 @@ def list_to_file(list_to_write, file_name, *, column_names=None):
     print(f"List written to file '{file_name}'.")
 
 
+def format_datestring(input_str, *, target_format="%Y-%m-%d", indicator_dayfirst="."):
+    """
+    Convert date strings to standard date format for sorting.
+
+    Parameters:
+        input_str (str): Date string to convert.
+        target_format (str): Target date format (default is '%Y-%m-%d').
+        indicator_dayfirst (str): Indicator for day-first date format (default is '.').
+            This indicator needs to be present in the input string twice to assume that
+            the input string is in day-first format.
+
+    Returns:
+        str: Formatted date string.
+    """
+    if not isinstance(input_str, str):
+        # warnings.warn(f"Input date '{input_str}' is not a string. Returning unchanged.")
+        return input_str
+
+    # Apply only to full data strings (length 10)
+    if len(input_str) != 10:
+        warnings.warn(
+            f"Input date string '{input_str}' is not of length 10. Returning unchanged."
+        )
+        return input_str
+
+    try:
+        # dayfirst=True if 2 times 'indicator_dayfirst' in input string (e.g. split by '.' results in 3 parts)
+        dayfirst = len(input_str.split(indicator_dayfirst)) == 3
+        formatted_date_str = parse(input_str, dayfirst=dayfirst).strftime(target_format)
+        return formatted_date_str
+    except ValueError:
+        warnings.warn(
+            f"Could not parse input date string '{input_str}'. Returning unchanged."
+        )
+        return input_str
+
+
 def get_unique_values_from_column(input_list, column_index, *, header_lines=1):
     """
     Get unique values from a column in a list of lists.
@@ -508,8 +549,13 @@ def get_unique_values_from_column(input_list, column_index, *, header_lines=1):
         list: List of unique values from the specified column.
     """
     column_index = find_column_index(input_list, column_index)
+    column_values = [row[column_index] for row in input_list[header_lines:]]
 
-    return sorted(set(row[column_index] for row in input_list[header_lines:]))
+    # Convert nan to string for sorting and usability as selection criterion later
+    column_values = ["nan" if pd.isna(value) else value for value in column_values]
+    unique_values = sorted(set(column_values))
+
+    return unique_values
 
 
 def get_rows_with_value_in_column(input_list, column_index, value):
@@ -525,8 +571,9 @@ def get_rows_with_value_in_column(input_list, column_index, value):
         list: List of rows with the specified value in the specified column.
     """
     column_index = find_column_index(input_list, column_index)
+    rows_with_value = [row for row in input_list if row[column_index] == value]
 
-    return [row for row in input_list if row[column_index] == value]
+    return rows_with_value
 
 
 def get_list_of_columns(input_list, columns_wanted):
@@ -1018,16 +1065,16 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
                 lon = entries_raw["lon"]
                 station_code = entries_raw["station_code"]
                 site_code = entries_raw["site_code"]
-                deims_id = site_code.split("/")[-1]
-                deims_id_check = get_deims_coordinates(deims_id)
+                # deims_id = site_code.split("/")[-1]
+                # deims_id_check = get_deims_coordinates(deims_id)
 
-                if deims_id_check["found"]:
-                    if lat != deims_id_check["lat"] or lon != deims_id_check["lon"]:
-                        warnings.warn(
-                            f"Station coordinates (lat.: {lat}, lon.: {lon}) differ from "
-                            f"representative coordinates for DEIMS.iD (lat.: {deims_id_check["lat"]}, "
-                            f"lon: {deims_id_check["lon"]})! Using station coordinates."
-                        )
+                # if deims_id_check["found"]:
+                #     if lat != deims_id_check["lat"] or lon != deims_id_check["lon"]:
+                #         warnings.warn(
+                #             f"Station coordinates (lat.: {lat}, lon.: {lon}) differ from "
+                #             f"representative coordinates for DEIMS.iD (lat.: {deims_id_check["lat"]}, "
+                #             f"lon: {deims_id_check["lon"]})! Using station coordinates."
+                #         )
 
                 # Check if coordinates already exist in locations
                 existing_location = find_existing_location(lat, lon)
@@ -1037,14 +1084,11 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
                         existing_location["station_code"].append(station_code)
                     if site_code not in existing_location["site_code"]:
                         existing_location["site_code"].append(site_code)
-                    if (
-                        deims_id_check["found"]
-                        and deims_id != existing_location["deims_id"]
-                    ):
-                        raise ValueError(
-                            "Different valid DEIMS.iDs found for identical spatial coordinates!"
-                        )
-                        # existing_location["deims_id"].append(deims_id)
+                    # if (
+                    #     deims_id_check["found"]
+                    #     and deims_id not in existing_location["deims_id"]
+                    # ):
+                    #     existing_location["deims_id"].append(deims_id)
                 else:
                     location = {
                         "lat": lat,
@@ -1052,10 +1096,10 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
                         "station_code": [station_code],
                         "site_code": [site_code],
                     }
-                    if deims_id_check["found"]:
-                        location.update(
-                            deims_id=deims_id, found=True, name=deims_id_check["name"]
-                        )
+                    # if deims_id_check["found"]:
+                    #     location.update(
+                    #         deims_id=deims_id, found=True, name=deims_id_check["name"]
+                    #     )
 
                     locations.append(location)
 
