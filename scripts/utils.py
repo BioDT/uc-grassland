@@ -1231,14 +1231,15 @@ def extract_raster_value(tif_file, location, *, band_number=1, attempts=5, delay
                 return None, time_stamp
 
 
-def check_url(url, *, attempts=5, delay=2):
+def check_url(url, *, attempts=5, delay_exponential=2, delay_linear=2):
     """
     Check if a file exists at specified URL and retrieve its content type.
 
     Parameters:
         url (str): URL to check.
         attempts (int): Number of attempts in case of connection errors or specific status codes (default is 5).
-        delay (int): Number of seconds to wait between attempts (default is 2).
+        delay_exponential (int): Initial delay in seconds for request rate limit errors (default is 2).
+        delay_linear (int): Delay in seconds for gateway errors and other failed requests (default is 2).
 
     Returns:
         str: URL if existing (original or redirected), None otherwise.
@@ -1246,26 +1247,39 @@ def check_url(url, *, attempts=5, delay=2):
     if not url:
         return None
 
-    retry_status_codes = {502, 503, 504}
+    status_codes_rate = {429}  # codes for retry with exponentially increasing delay
+    status_codes_gateway = {502, 503, 504}  # codes for retry with fixed time delay
 
     while attempts > 0:
+        attempts -= 1
+
         try:
             response = requests.head(url, allow_redirects=True)
 
             if response.status_code == 200:
                 return response.url
-            elif response.status_code in retry_status_codes:
-                attempts -= 1
+            elif response.status_code in status_codes_rate:
+                print(f"Request rate limited (Error {response.status_code}).")
 
                 if attempts > 0:
-                    time.sleep(delay)
+                    print(f"Retrying in {delay_exponential} seconds ...")
+                    time.sleep(delay_exponential)
+                    delay_exponential *= 2
+            elif response.status_code in status_codes_gateway:
+                print(f"Request failed (Error {response.status_code}).")
+
+                if attempts > 0:
+                    print(f"Retrying in {delay_linear} seconds ...")
+                    time.sleep(delay_linear)
+
             else:
                 return None
-        except requests.ConnectionError:
-            attempts -= 1
+        except requests.ConnectionError as e:
+            print(f"Request failed {e}.")
 
             if attempts > 0:
-                time.sleep(delay)
+                print(f"Retrying in {delay_linear} seconds ...")
+                time.sleep(delay_linear)
 
     return None
 
