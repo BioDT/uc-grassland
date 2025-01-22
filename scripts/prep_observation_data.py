@@ -1,31 +1,25 @@
 import argparse
 import warnings
 from pathlib import Path
+from types import MappingProxyType
 
 import assign_pfts as apft
 import pandas as pd
 import utils as ut
 
-
-def get_observation_data_specs(site_id):
-    """
-    Get observation data specifications for a specific site with grassland observation data.
-
-    Parameters:
-        site_id (str): DEIMS ID of the site.
-
-    Returns:
-        dict: Dictionary with observation data specifications for the site:
-            'name' (str): Site name.
-            'file_names' (list): Files containing observation data.
-
-    Raises:
-        ValueError: If site ID is not found in observation data specifications.
-    """
-    observation_data_specs_per_site = {
+# Define observation data specifications for a sites with grassland observation data, including:
+#     name (str): Site name.
+#     variables (list): List of observation variables.
+#     file_names (dict): Dictionary with file names for observation variables.
+#     observation_columns (dict): Dictionary with observation columns for observation variables.
+#     pft_lookup_files (dict): Dictionary with PFT lookup file names for observation variables.
+#     pft_lookup_specs (dict): Dictionary with PFT lookup specifications for observation variables.
+OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
+    {
         "11696de6-0ab9-4c94-a06b-7ce40f56c964": {
             "name": "IT25 - Val Mazia/Matschertal",
             "variables": ["cover"],
+            "short_names": {"cover": "VMM-C"},
             "file_names": {"cover": "IT_Matschertal_data_abund.csv"},
             "observation_columns": {"cover": "default"},
             "pft_lookup_files": {
@@ -36,6 +30,7 @@ def get_observation_data_specs(site_id):
         "270a41c4-33a8-4da6-9258-2ab10916f262": {
             "name": "AgroScapeLab Quillow (ZALF)",
             "variables": ["cover"],
+            "short_names": {"cover": "ASQ-C"},
             "file_names": {"cover": "DE_AgroScapeQuillow_data_cover.csv"},
             "observation_columns": {"cover": "default"},
             "pft_lookup_files": {
@@ -46,6 +41,7 @@ def get_observation_data_specs(site_id):
         "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
             "name": "LTSER Zone Atelier Armorique",
             "variables": ["cover", "indices"],  # indices not considered yet
+            "short_names": {"cover": "ZAA-C", "indices": "ZAA-I"},
             "file_names": {
                 "cover": "FR_AtelierArmorique_data_cover.csv",
                 "indices": "FR_AtelierArmorique_data_indices.csv",
@@ -76,6 +72,7 @@ def get_observation_data_specs(site_id):
         "324f92a3-5940-4790-9738-5aa21992511c": {
             "name": "Stubai (combination of Neustift meadows and Kaserstattalm)",
             "variables": ["cover"],
+            "short_names": {"cover": "STB-C"},
             "file_names": {"cover": "AT_Stubai_data_abund.csv"},
             "observation_columns": {"cover": "default"},
             "pft_lookup_files": {
@@ -85,11 +82,16 @@ def get_observation_data_specs(site_id):
         },
         "3de1057c-a364-44f2-8a2a-350d21b58ea0": {
             "name": "Obergurgl",
-            "variables": ["cover"],  # FREQ (pres/abs in 100 subplots of 1 m²)
-            "file_names": {"cover": "AT_Obergurgl_data.csv"},
-            "observation_columns": {"cover": "default"},
-            "pft_lookup_files": {"cover": "lat46.867100_lon11.024900__PFT__data.txt"},
-            "pft_lookup_specs": {"cover": "default"},
+            "variables": [
+                "absolute_frequency"
+            ],  # FREQ (pres/abs in 100 subplots of 1 m²)
+            "short_names": {"absolute_frequency": "OGL-AF"},
+            "file_names": {"absolute_frequency": "AT_Obergurgl_data.csv"},
+            "observation_columns": {"absolute_frequency": "default"},
+            "pft_lookup_files": {
+                "absolute_frequency": "lat46.867100_lon11.024900__PFT__data.txt"
+            },
+            "pft_lookup_specs": {"absolute_frequency": "default"},
         },
         "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d": {
             "name": "Hochschwab (AT-HSW) GLORIA",
@@ -97,6 +99,7 @@ def get_observation_data_specs(site_id):
                 "cover",
                 "abundance_gloria_1_8",
             ],  # abundance categories 1-8, very rare to dominant, visual estimate
+            "short_names": {"cover": "HSW-C", "abundance_gloria_1_8": "HSW-C18"},
             "file_names": {
                 "cover": "AT_Hochschwab_data_cover.csv",
                 "abundance_gloria_1_8": "AT_Hochschwab_data_abund.csv",
@@ -114,6 +117,7 @@ def get_observation_data_specs(site_id):
         "61c188bc-8915-4488-8d92-6d38483406c0": {
             "name": "Randu meadows",
             "variables": ["cover_braun_blanquet"],
+            "short_names": {"cover_braun_blanquet": "RND-CBB"},
             "file_names": {"cover_braun_blanquet": "LV_RanduMeadows_data_abund.csv"},
             "observation_columns": {"cover_braun_blanquet": "default"},
             "pft_lookup_files": {
@@ -124,6 +128,7 @@ def get_observation_data_specs(site_id):
         "66431807-ebf1-477f-aa52-3716542f3378": {
             "name": "LTSER Engure",
             "variables": ["cover"],
+            "short_names": {"cover": "ENG-C"},
             "file_names": {"cover": "LV_Engure_data_cover.csv"},
             "observation_columns": {"cover": "default"},
             "pft_lookup_files": {
@@ -134,6 +139,7 @@ def get_observation_data_specs(site_id):
         "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1": {
             "name": "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen",
             "variables": ["cover"],
+            "short_names": {"cover": "SCH-C"},
             "file_names": {"cover": "AT_Schrankogel_data_cover.csv"},
             "observation_columns": {"cover": "default"},
             "pft_lookup_files": {
@@ -144,6 +150,7 @@ def get_observation_data_specs(site_id):
         "6b62feb2-61bf-47e1-b97f-0e909c408db8": {
             "name": "Montagna di Torricchio",
             "variables": ["cover_braun_blanquet"],
+            "short_names": {"cover_braun_blanquet": "MDT-CBB"},
             "file_names": {
                 "cover_braun_blanquet": "IT_MontagnadiTorricchio_data_abund.csv"
             },
@@ -164,6 +171,7 @@ def get_observation_data_specs(site_id):
             "variables": [
                 "absolute_frequency"
             ],  # abundance number of contacts each 10 cm in 20 m transects ()
+            "short_names": {"absolute_frequency": "OMP-AF"},
             "file_names": {
                 "absolute_frequency": "ES_OrdesaYMontePerdido_data_freq.csv"
             },
@@ -176,6 +184,7 @@ def get_observation_data_specs(site_id):
         "9f9ba137-342d-4813-ae58-a60911c3abc1": {
             "name": "Rhine-Main-Observatory",
             "variables": ["cover_braun_blanquet"],
+            "short_names": {"cover_braun_blanquet": "RMO-CBB"},
             "file_names": {
                 "cover_braun_blanquet": "DE_RhineMainObservatory_abund_data.csv"
             },
@@ -188,6 +197,7 @@ def get_observation_data_specs(site_id):
         "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
             "name": "Torgnon grassland Tellinod (IT19 Aosta Valley)",
             "variables": ["frequency_daget_poissonet"],  # relative abundance?
+            "short_names": {"frequency_daget_poissonet": "TGT-F"},
             "file_names": {
                 "frequency_daget_poissonet": "IT_TorgnonGrasslandTellinod_data_abund.csv"
             },
@@ -200,6 +210,7 @@ def get_observation_data_specs(site_id):
         "b356da08-15ac-42ad-ba71-aadb22845621": {
             "name": "Nørholm Hede",
             "variables": ["cover"],
+            "short_names": {"cover": "NHH-C"},
             "file_names": {"cover": "DK_NorholmHede_data_cover.csv"},
             "observation_columns": {"cover": "default"},
             "pft_lookup_files": {
@@ -210,6 +221,7 @@ def get_observation_data_specs(site_id):
         "c0738b00-854c-418f-8d4f-69b03486e9fd": {
             "name": "Appennino centrale: Gran Sasso d'Italia",
             "variables": ["cover_braun_blanquet"],
+            "short_names": {"cover_braun_blanquet": "GSI-CBB"},
             "file_names": {
                 "cover_braun_blanquet": "IT_AppenninoCentrale_data_abund.csv"
             },
@@ -222,6 +234,7 @@ def get_observation_data_specs(site_id):
         "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
             "name": "Appennino centro-meridionale: Majella-Matese",
             "variables": ["cover"],
+            "short_names": {"cover": "MAM-C"},
             "file_names": {"cover": "IT_AppenninoCentroMeridionale_data_cover.csv"},
             "observation_columns": {"cover": "default"},
             "pft_lookup_files": {
@@ -234,6 +247,7 @@ def get_observation_data_specs(site_id):
             "variables": [
                 "cover_categories_1_9"
             ],  # unit of measure of density or biomass - semi-quantitative ordinal scale
+            "short_names": {"cover_categories_1_9": "JAD-C19"},
             "file_names": {"cover_categories_1_9": "SK_JaloveckaDolina_data_cover.csv"},
             "observation_columns": {"cover_categories_1_9": "default"},
             "pft_lookup_files": {
@@ -242,33 +256,21 @@ def get_observation_data_specs(site_id):
             "pft_lookup_specs": {"cover_categories_1_9": "default"},
         },
     }
+)
 
-    if site_id in observation_data_specs_per_site.keys():
-        return observation_data_specs_per_site[site_id]
-    else:
-        raise ValueError(
-            f"Site ID '{site_id}' not found in observation data specifications."
-        )
+# Define target variable names.
+TARGET_VARIABLE_NAMES = MappingProxyType(
+    {
+        "cover_braun_blanquet": "Cover_from_braun_blanquet",
+        "cover_categories_1_9": "Cover_from_categories_1_9",
+        "abundance_gloria_1_8": "Cover_from_abundance_1_8",
+        "frequency_daget_poissonet": "Frequency",
+    }
+)
 
-
-def get_default_observation_columns(variable):
-    """
-    Get default observation columns for a specific observation variable.
-
-    Parameters:
-        variable (str): Observation variable name.
-
-        Returns:
-        dict: Dictionary with default column names for the observation variable, including:
-            'plot' (str): Column name for plot names.
-            'event_id' (str): Column name for event IDs.
-            'layer' (str): Column name for layer names.
-            'time' (str): Column name for time points.
-            'species' (str): Column name for species names.
-            'value' (str): Column name for observation values.
-            'unit' (str): Column name for observation units.
-    """
-    default_columns = {
+# Define default observation column names for observation data.
+DEFAULT_OBSERVATION_COLUMNS = MappingProxyType(
+    {
         "plot": "STATION_CODE",
         "event_id": "EVENT_ID",
         "layer": "LAYER",  # layer added to use only layer 'F', could be adjusted to use also other layers
@@ -277,46 +279,20 @@ def get_default_observation_columns(variable):
         "value": "VALUE",
         "unit": "UNIT",
     }
+)
 
-    # Only check and warn here, no differences in columns for now
-    if variable not in [
-        "cover",
-        "cover_braun_blanquet",
-        "absolute_frequency",
-        "abundance_gloria_1_8",
-        "cover_categories_1_9",
-    ]:
-        warnings.warn(
-            f"Unknown observation variable '{variable}'. Returning default columns."
-        )
-
-    return default_columns
-
-
-def get_default_lookup_specs():
-    default_columns = {
+# Define default PFT lookup specifications.
+DEFAULT_PFT_LOOKUP_SPECS = MappingProxyType(
+    {
         "key_column": "Species Original",
         "info_column": "PFT combined",
         "info_name": "PFT",
     }
+)
 
-    return default_columns
-
-
-def braun_blanquet_to_cover(braun_blanquet_code):
-    """
-    Map Braun-Blanquet codes to cover values.
-
-    Parameters:
-        braun_blanquet_code (str): Braun-Blanquet code.
-
-    Returns:
-        float: Cover value for the Braun-Blanquet code, if found, otherwise None.
-    """
-    if pd.isna(braun_blanquet_code):
-        return None
-
-    braun_blanquet_mapping = {
+# Define mappings of categorical codes to cover values (in %)
+BRAUN_BLANQUET_TO_COVER = MappingProxyType(
+    {
         # "x", None,   # occurs in RMO
         "r": 0.1,
         "R": 0.1,  # assuming same as "r", probably typo
@@ -330,29 +306,25 @@ def braun_blanquet_to_cover(braun_blanquet_code):
         "4": 62.5,
         "5": 87.5,
     }
-
-    # # Check for specific case of category "2" to find all sites with this code
-    # if braun_blanquet_code == "2":
-    #     print("Braun-Blanquet code '2' found, using cover value 15 %.")
-
-    if braun_blanquet_code in braun_blanquet_mapping.keys():
-        return braun_blanquet_mapping[braun_blanquet_code]
-    else:
-        raise ValueError(f"Invalid Braun-Blanquet code '{braun_blanquet_code}'.")
-
-
-def categories_1_9_to_cover(categories_1_9_code):
-    """
-    Map semi-quantitative ordinal scale to cover values.
-    Uses interpretation of verbal descriptions, no clear quantitative values found for codes 1-4!
-
-    Parameters:
-        categories_1_9_code (str): Semi-quantitative ordinal scale code.
-
-    Returns:
-        float: Cover value for the semi-quantitative ordinal scale code, if found, otherwise None.
-    """
-    categories_1_9_mapping = {
+)
+ABUNDANCE_GLORIA_1_8_TO_COVER = MappingProxyType(
+    {
+        # Map abundance codes to cover values for "summit area sections" (SAS) as
+        # defined in the GLORIA field manual (https://gloria.ac.at/downloads/Manual_5thEd_ENG.pdf, p.41f).
+        # Uses interpretation of verbal descriptions, no clear quantitative values found for all codes!
+        1: 0.5,  # r! (very rare): One or a few small individuals
+        2: 1,  # r (rare): Some individuals at several locations that can hardly be overlooked in a careful observation;
+        3: 3,  # rare-scattered
+        4: 5,  # s (scattered): Widespread within the section, species can hardly be overlooked, but the presence is not obvious at first glance; individuals are not necessarily evenly dispersed over the entire summit area section
+        5: 10,  # scattered-common
+        6: 25,  # c (common): Occurring frequently and widespread within the section – presence is obvious at first glance, it covers, however, less than 50% of the SAS’s area;
+        7: 50,  # common-dominant
+        8: 75,  # d (dominant): Very abundant, making up a high proportion of the phytomass, often forming more or less patchy or dense vegetation layers; species covers more than 50% of the area of the SAS
+    }
+)
+CATEGORIES_1_9_TO_COVER = MappingProxyType(
+    {
+        # Uses interpretation of verbal descriptions, no clear quantitative values found for codes 1-4!
         1: 0.5,  # very few individuals (1-2)
         2: 1,  # few individuals
         3: 2.5,  # cover < 5%, not abundant
@@ -363,44 +335,7 @@ def categories_1_9_to_cover(categories_1_9_code):
         8: 62.5,  # cover 50 - 75%
         9: 87.5,  # cover 75 - 100%
     }
-
-    if categories_1_9_code in categories_1_9_mapping.keys():
-        return categories_1_9_mapping[categories_1_9_code]
-    else:
-        raise ValueError(
-            f"Invalid category code '{categories_1_9_code}'. Valid codes are 1-9."
-        )
-
-
-def categories_gloria_1_8_to_cover(gloria_1_8_code):
-    """
-    Map abundance codes to cover values for "summit area sections" (SAS) as
-    defined in the GLORIA field manual (https://gloria.ac.at/downloads/Manual_5thEd_ENG.pdf, p.41f).
-    Uses interpretation of verbal descriptions, no clear quantitative values found for all codes!
-
-    Parameters:
-        gloria_1_8_code (str): Semi-quantitative ordinal scale code.
-
-    Returns:
-        float: Cover value for the semi-quantitative ordinal scale code, if found, otherwise None.
-    """
-    categories_gloria_mapping = {
-        1: 0.5,  # r! (very rare): One or a few small individuals
-        2: 1,  # r (rare): Some individuals at several locations that can hardly be overlooked in a careful observation;
-        3: 3,  # rare-scattered
-        4: 5,  # s (scattered): Widespread within the section, species can hardly be overlooked, but the presence is not obvious at first glance; individuals are not necessarily evenly dispersed over the entire summit area section
-        5: 10,  # scattered-common
-        6: 25,  # c (common): Occurring frequently and widespread within the section – presence is obvious at first glance, it covers, however, less than 50% of the SAS’s area;
-        7: 50,  # common-dominant
-        8: 75,  # d (dominant): Very abundant, making up a high proportion of the phytomass, often forming more or less patchy or dense vegetation layers; species covers more than 50% of the area of the SAS
-    }
-
-    if gloria_1_8_code in categories_gloria_mapping.keys():
-        return categories_gloria_mapping[gloria_1_8_code]
-    else:
-        raise ValueError(
-            f"Invalid Gloria category code '{gloria_1_8_code}'. Valid codes are 1-8."
-        )
+)
 
 
 def read_observation_data(
@@ -525,15 +460,15 @@ def read_observation_data(
                     observation_data, duplicates=duplicate_rows_except_scientific_name
                 )
 
-                if new_file:
-                    ut.list_to_file(
-                        observation_data,
-                        new_file.with_name(
-                            new_file.stem
-                            + "__duplicate_rows_except_scientific_name_removed"
-                            + new_file.suffix
-                        ),
-                    )
+        if new_file:
+            ut.list_to_file(
+                observation_data,
+                new_file.with_name(
+                    new_file.stem
+                    + "__duplicate_rows_and_scientific_name_removed"
+                    + new_file.suffix
+                ),
+            )
 
         # Check for entries that only differ in value, all other columns are the same
         value_column = ut.find_column_index(observation_data, "VALUE")
@@ -709,13 +644,14 @@ def process_observation_data(
         DataFrame: Processed observation data mapped to PFTs or None if variable is not processed.
     """
     # Skip indices because conversion to PFT is not clear
-    if variable in ["abundance", "indices"]:
+    if variable in ["indices", "absolute_frequency"]:
         warnings.warn(
             f"'{variable}' data not fully processed because conversion to PFT is not clear."
         )
+        return None
 
     if columns == "default" or columns is None:
-        columns = get_default_observation_columns(variable)
+        columns = DEFAULT_OBSERVATION_COLUMNS
 
     if new_file:
         target_folder = new_file.parent
@@ -753,7 +689,6 @@ def process_observation_data(
             + ["#invalid_value"]
             + ["invalid_observation"]
         )
-        # target_unit = get_target_unit(variable)
 
         for plot_name in plot_names:
             plot_data = ut.get_rows_with_value_in_column(
@@ -881,10 +816,11 @@ def check_observation_value(
     Returns:
         str: Corrected observation value or original value if valid.
     """
+    value_in = value
 
     if variable == "cover":
         try:
-            value = float(value)
+            value = float(value_in)
 
             if value < 0 or value > 100:
                 warnings.warn(
@@ -894,111 +830,106 @@ def check_observation_value(
                 )
                 return None
         except ValueError:
-            try:
-                value_found = value
-                value = braun_blanquet_to_cover(value_found)
+            # Check for Braun-Blanquet code
+            value = BRAUN_BLANQUET_TO_COVER.get(value_in)
+
+            if value is not None:
                 warnings.warn(
-                    f"Value '{value_found}' for '{variable}' of species '{species}' "
+                    f"Value '{value_in}' for '{variable}' of species '{species}' "
                     f"in plot '{plot_name}' at time '{time_point}' is not a number, "
                     f"but a Braun-Blanquet code. Mapped to cover value '{value}'."
                 )
-            except ValueError:
+            else:
                 warnings.warn(
-                    f"Value '{value_found}' for '{variable}' of species '{species}' "
+                    f"Value '{value_in}' for '{variable}' of species '{species}' "
                     f"in plot '{plot_name}' at time '{time_point}' is not a number "
                     "(and not a Braun-Blanquet code). Skipping invalid entry."
                 )
                 return None
 
-        if not pd.isna(unit) and unit not in [
-            "%",
-            "percent",
-            "abundance",
-        ]:
+        if not pd.isna(unit) and unit not in ["%", "percent", "abundance"]:
             warnings.warn(
                 f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
                 f"in plot '{plot_name}' at time '{time_point}'. Unit should be '%'."
             )
 
     elif variable == "cover_braun_blanquet":
-        try:
-            value = braun_blanquet_to_cover(value)
-        except ValueError:
+        value = BRAUN_BLANQUET_TO_COVER.get(value_in)
+
+        if value is None:
             warnings.warn(
-                f"Invalid Braun-Blanquet code '{value}' for '{variable}' of species '{species}' "
+                f"Invalid Braun-Blanquet code '{value_in}' for species '{species}' "
                 f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
             )
             return None
-
-        if not pd.isna(unit) and unit.lower() not in [
-            "braun_blanquet",
-            "code",
-            "dimless",
-            "dimles",  # account for typo in raw data
-        ]:
-            warnings.warn(
-                f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
-                f"in plot '{plot_name}' at time '{time_point}'."
-            )
+        else:
+            if not pd.isna(unit) and unit.lower() not in [
+                "braun_blanquet",
+                "code",
+                "dimless",
+                "dimles",  # account for typo in raw data
+            ]:
+                warnings.warn(
+                    f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
+                    f"in plot '{plot_name}' at time '{time_point}'."
+                )
 
     elif variable == "cover_categories_1_9":
-        try:
-            value = categories_1_9_to_cover(value)
-        except ValueError:
+        value = CATEGORIES_1_9_TO_COVER.get(value_in)
+
+        if value is None:
             warnings.warn(
-                f"Invalid categories 1-9 code '{value}' for '{variable}' of species '{species}' "
+                f"Invalid categories 1-9 code '{value_in}' for species '{species}' "
                 f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
             )
             return None
-
-        if not pd.isna(unit) and unit.lower() != "dimless":
-            warnings.warn(
-                f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
-                f"in plot '{plot_name}' at time '{time_point}'. Unit should be 'dimless'."
-            )
+        else:
+            if not pd.isna(unit) and unit.lower() != "dimless":
+                warnings.warn(
+                    f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
+                    f"in plot '{plot_name}' at time '{time_point}'. Unit should be 'dimless'."
+                )
 
     elif variable == "abundance_gloria_1_8":
+        value = ABUNDANCE_GLORIA_1_8_TO_COVER.get(value_in)
+
+        if value is None:
+            warnings.warn(
+                f"Invalid Gloria abundance code '{value}' for species '{species}' "
+                f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
+            )
+            return None
+        else:
+            if not pd.isna(unit) and unit.lower() not in ["category"]:
+                warnings.warn(
+                    f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
+                    f"in plot '{plot_name}' at time '{time_point}'. Unit should be 'category'."
+                )
+
+    elif variable == "frequency_daget_poissonet":
         try:
-            value = categories_gloria_1_8_to_cover(value)
+            value = float(value_in)
+
+            if value < 0 or value > 100:
+                warnings.warn(
+                    f"Invalid frequency value '{value}' for species '{species}' "
+                    f"in plot '{plot_name}' at time '{time_point}'. "
+                    "Frequency values must be between 0 and 100 %. Skipping invalid entry."
+                )
+                return None
         except ValueError:
             warnings.warn(
-                f"Invalid Gloria abundance code '{value}' for '{variable}' of species '{species}' "
+                f"Invalid frequency value '{value_in}' for species '{species}' "
                 f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
             )
             return None
 
-        if not pd.isna(unit) and unit.lower() not in ["category"]:
-            warnings.warn(
-                f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
-                f"in plot '{plot_name}' at time '{time_point}'. Unit should be 'category'."
-            )
-
-    # elif variable == "frequency_daget_poissonet":
-    #     try:
-    #         value = float(value)
-    #     except ValueError:
-    #         warnings.warn(
-    #             f"Invalid frequency value '{value}' for '{variable}' of species '{species}' "
-    #             f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
-    #         )
-    #         return None
-
-    #     if not pd.isna(unit) and unit not in ["%", "percent"]:
-    #         warnings.warn(
-    #             f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
-    #             f"in plot '{plot_name}' at time '{time_point}'. Unit should be '%'."
-    #         )
-
-    # Just use the value as is for other variables
     else:
-        try:
-            value = float(value)
-        except ValueError:
-            warnings.warn(
-                f"Invalid value '{value}' for '{variable}' of species '{species}' "
-                f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
-            )
-            return None
+        warnings.warn(
+            f"Variable '{variable}' not supported. Skipping observation value {value_in} "
+            f"for species '{species}' in plot '{plot_name}' at time '{time_point}'."
+        )
+        return None
 
     if unit is not None and unit_check is not None and unit != unit_check:
         warnings.warn(
@@ -1110,27 +1041,6 @@ def get_target_unit(variable):
         return ""
 
 
-def get_target_variable_name(variable):
-    """
-    Get target variable name for processed observation data.
-
-    Parameters:
-        variable (str): Observation variable name.
-
-        Returns:
-        str: Target variable name for processed observation data.
-    """
-    target_variables = {
-        "cover_braun_blanquet": "Cover_from_braun_blanquet",
-        "cover_categories_1_9": "Cover_from_categories_1_9",
-        "abundance_gloria_1_8": "Cover_from_abundance_1_8",
-        "frequency_daget_poissonet": "Frequency",
-    }
-    target_variable = target_variables.get(variable, variable.capitalize())
-
-    return target_variable
-
-
 def get_observations_from_files(
     location,
     observation_data_specs,
@@ -1190,7 +1100,7 @@ def get_observations_from_files(
                 lookup_specs = observation_data_specs["pft_lookup_specs"][variable]
 
                 if lookup_specs == "default" or lookup_specs is None:
-                    lookup_specs = get_default_lookup_specs()
+                    lookup_specs = DEFAULT_PFT_LOOKUP_SPECS
 
                 pft_lookup = apft.read_info_dict(
                     lookup_file,
@@ -1200,7 +1110,9 @@ def get_observations_from_files(
                 )
 
                 # Process raw observation data
-                target_variable = get_target_variable_name(variable)
+                target_variable = TARGET_VARIABLE_NAMES.get(
+                    variable, variable.capitalize()
+                )
                 target_file = (
                     target_subfolder
                     / f"{formatted_lat}_{formatted_lon}__Observation__PFT__{target_variable}.txt"
@@ -1245,9 +1157,9 @@ def prep_observation_data(
     Returns:
         dict: Dictionary with summary statistics from processed observation data, if found.
     """
-    try:
-        observation_data_specs = get_observation_data_specs(deims_id)
-    except ValueError:
+    observation_data_specs = OBSERVATION_DATA_SPECS_PER_SITE.get(deims_id)
+
+    if observation_data_specs is None:
         warnings.warn(
             f"DEIMS ID '{deims_id}' not found in observation data specifications. Skipping site."
         )
@@ -1277,57 +1189,6 @@ def prep_observation_data(
         return
 
 
-def get_short_name(site_name, target_variable):
-    """
-    Get short name for target variable in observation site.
-
-    Parameters:
-        site_name (str): Name of the observation site.
-        target_variable (str): Target variable name.
-
-    Returns:
-        str: Short name for target variable in observation site.
-    """
-    short_names = {
-        "IT25 - Val Mazia/Matschertal": {"Cover": "VMM-C"},
-        "AgroScapeLab Quillow (ZALF)": {"Cover": "ASQ-C"},
-        "LTSER Zone Atelier Armorique": {"Cover": "ZAA-C", "Indices": "ZAA-I"},
-        "Stubai (combination of Neustift meadows and Kaserstattalm)": {
-            "Cover": "STB-C"
-        },
-        "Obergurgl": {"Cover": "OGL-C"},
-        "Hochschwab (AT-HSW) GLORIA": {
-            "Cover": "HSW-C",
-            "Cover_from_abundance_1_8": "HSW-C18",
-        },
-        "Randu meadows": {"Cover_from_braun_blanquet": "RND-CBB"},
-        "LTSER Engure": {"Cover": "ENG-C"},
-        "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen": {"Cover": "SCH-C"},
-        "Montagna di Torricchio": {"Cover_from_braun_blanquet": "MDT-CBB"},
-        "Ordesa y Monte Perdido / Huesca ES": {"Absolute_frequency": "OMP-AF"},
-        "Rhine-Main-Observatory": {"Cover_from_braun_blanquet": "RMO-CBB"},
-        "Torgnon grassland Tellinod (IT19 Aosta Valley)": {"Frequency": "TGT-F"},
-        "Nørholm Hede": {"Cover": "NHH-C"},
-        "Appennino centrale: Gran Sasso d'Italia": {
-            "Cover_from_braun_blanquet": "GSI-CBB"
-        },
-        "Appennino centro-meridionale: Majella-Matese": {"Cover": "MAM-C"},
-        "Jalovecka dolina": {"Cover_from_categories_1_9": "JAD-C19"},
-    }
-
-    if site_name in short_names.keys():
-        if target_variable in short_names[site_name].keys():
-            return short_names[site_name][target_variable]
-        else:
-            warnings.warn(
-                f"Short name not found for target variable '{target_variable}' in site '{site_name}'."
-            )
-    else:
-        warnings.warn(f"Short name(s) not found for site '{site_name}'.")
-
-    return "n.f."
-
-
 def observation_summaries_to_list(observation_summaries, *, new_file=None):
     """
     Convert observation summaries to a list and save to a .txt file.
@@ -1338,31 +1199,25 @@ def observation_summaries_to_list(observation_summaries, *, new_file=None):
     """
     observation_summaries_list = []
     column_names = None
+    site_keys = ["site_id", "site_name", "lat_deims", "lon_deims"]
+    var_keys = ["variable", "short_name"]
 
     for site_summary in observation_summaries.values():
-        site_id = site_summary["site_id"]
-        site_name = site_summary["site_name"]
-        lat_deims = site_summary["lat_deims"]
-        lon_deims = site_summary["lon_deims"]
-
         for key, variable_summary in site_summary.items():
-            if key not in [
-                "site_id",
-                "site_name",
-                "lat_deims",
-                "lon_deims",
-            ] and isinstance(variable_summary, dict):
+            if key not in site_keys and isinstance(variable_summary, dict):
                 # Add dict values from variable_summary to list
-                observation_short_name = get_short_name(
-                    site_name, variable_summary["target_variable"]
+                short_name = (
+                    OBSERVATION_DATA_SPECS_PER_SITE.get(site_summary["site_id"], {})
+                    .get("short_names", {})
+                    .get(key, "n.f.")
                 )
                 row = [
-                    site_id,
-                    site_name,
-                    lat_deims,
-                    lon_deims,
+                    site_summary["site_id"],
+                    site_summary["site_name"],
+                    site_summary["lat_deims"],
+                    site_summary["lon_deims"],
                     key,
-                    observation_short_name,
+                    short_name,
                 ] + list(variable_summary.values())
                 observation_summaries_list.append(row)
 
@@ -1377,15 +1232,7 @@ def observation_summaries_to_list(observation_summaries, *, new_file=None):
         ut.list_to_file(
             observation_summaries_list,
             new_file,
-            column_names=[
-                "site_id",
-                "site_name",
-                "lat_deims",
-                "lon_deims",
-                "variable",
-                "short_name",
-            ]
-            + column_names,
+            column_names=site_keys + var_keys + column_names,
         )
 
 
