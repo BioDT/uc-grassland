@@ -57,26 +57,28 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
         # # example: GiFACE
         # coordinates = {"lat": 50.53262187949219, "lon": 8.684426520889202}
 
-        # # example: GCEF small scale difference
-        # coordinates = {"lat": 51.390427, "lon": 11.876855}  # GER, GCEF grassland site
-        # coordinates = {"lat": 51.392331, "lon": 11.883838}  # GER, GCEF grassland site
-        # coordinates = {
-        #     "lat": 51.3919,
-        #     "lon": 11.8787,
-        # }  # GER, GCEF grassland site, centroid, non-grassland in HRL
-
-        # example: locations with missing data in one but not both of the sources
-        # no soilgrids, hhs available
-        coordinates = {"lat": 50.311208, "lon": 9.448670}
-        dprc.data_processing(coordinates)
-
-        # soilgrids available, no hhs
+        # example: GCEF small scale difference
         coordinates_list = [
-            {"lat": 50.279263, "lon": 9.367577},
-            {"lat": 50.134160, "lon": 8.940724},
-            {"lat": 50.188000, "lon": 9.134750},
-            {"lat": 50.134200, "lon": 8.941430},
+            {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+            {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
+            {
+                "lat": 51.3919,
+                "lon": 11.8787,
+            },  # GER, GCEF grassland site, centroid, non-grassland in HRL
         ]
+
+        # # example: locations with missing data in one but not both of the sources
+        # # no soilgrids, hhs available
+        # coordinates = {"lat": 50.311208, "lon": 9.448670}
+        # dprc.data_processing(coordinates)
+
+        # # soilgrids available, no hhs
+        # coordinates_list = [
+        #     {"lat": 50.279263, "lon": 9.367577},
+        #     {"lat": 50.134160, "lon": 8.940724},
+        #     {"lat": 50.188000, "lon": 9.134750},
+        #     {"lat": 50.134200, "lon": 8.941430},
+        # ]
 
         for coordinates in coordinates_list:
             dprc.data_processing(coordinates)
@@ -92,17 +94,17 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
         # hhs_cache = "c:/_D/biodt_data/soilMapsHiHydroSoil"
         # dprc.data_processing(coordinates, hhs_cache=hhs_cache)
 
-        # example: get multiple coordinates from DEIMS.iDs from XLS file
-        sites_file_name = (
-            ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-        )
-        sites_ids = ut.get_deims_ids_from_xls(sites_file_name, header_row=1)
+        # # example: get multiple coordinates from DEIMS.iDs from XLS file
+        # sites_file_name = (
+        #     ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        # )
+        # sites_ids = ut.get_deims_ids_from_xls(sites_file_name, header_row=1)
 
-        for deims_id in sites_ids:
-            location = ut.get_deims_coordinates(deims_id)
+        # for deims_id in sites_ids:
+        #     location = ut.get_deims_coordinates(deims_id)
 
-            if location["found"]:
-                dprc.data_processing(location)
+        #     if location["found"]:
+        #         dprc.data_processing(location)
 
 
 def main():
