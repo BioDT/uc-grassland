@@ -326,14 +326,16 @@ def prep_grassland_model_input_data(
         source_folder = Path(
             "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/"
         )
-        deims_id = "11696de6-0ab9-4c94-a06b-7ce40f56c964"
-        station_file = source_folder / deims_id / "IT_Matschertal_station.csv"
+        # deims_id = "11696de6-0ab9-4c94-a06b-7ce40f56c964"
+        # station_file = source_folder / deims_id / "IT_Matschertal_station.csv"
+        deims_id = "270a41c4-33a8-4da6-9258-2ab10916f262"
+        station_file = source_folder / deims_id / "DE_AgroScapeQuillow_station.csv"
         coordinates_list = ut.get_plot_locations_from_csv(station_file)
         first_year = 1999
         last_year = 2010
         years = list(range(first_year, last_year + 1))
         download_weather_area = True
-        skip_grass_check = True
+        # skip_grass_check = True
 
         data_processing(
             coordinates_list,

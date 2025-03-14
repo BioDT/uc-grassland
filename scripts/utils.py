@@ -1068,6 +1068,14 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
                 lon = entries_raw["lon"]
                 station_code = entries_raw["station_code"]
                 site_code = entries_raw["site_code"]
+
+                if pd.isna(lat) or pd.isna(lon):
+                    warnings.warn(
+                        f"Latitude and/or longitude 'nan' found for station code '{station_code}' "
+                        f"and site code '{site_code}'. Skipping plot location row."
+                    )
+                    continue
+
                 # deims_id = site_code.split("/")[-1]
                 # deims_id_check = get_deims_coordinates(deims_id)
 
