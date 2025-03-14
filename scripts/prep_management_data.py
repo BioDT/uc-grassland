@@ -282,7 +282,6 @@ def get_management_map_file(
                 print("Trying to access via URL ...")
 
         # Get map file URL
-        # map_file = f"http://opendap.biodt.eu/grasslands-pdt/landUseMaps/{map_key}/{file_name}"
         map_file = f"https://zenodo.org/records/10609590/files/{file_name}"
 
     # Return map file URL, if found
@@ -593,8 +592,8 @@ def get_fert_days(mow_days, year):
     )
 
     # Calculate fertilisation dates using specific days ahead of corresponding mow events
-    for idx, mow_day in enumerate(mow_days):
-        fert_day = mow_day - deltas[idx]
+    for index, mow_day in enumerate(mow_days):
+        fert_day = mow_day - deltas[index]
 
         if fert_day < earliest_fert_day:
             warnings.warn(
@@ -624,8 +623,8 @@ def fert_days_from_mow_days(mow_days_per_year, years):
     """
     fert_days_per_year = []
 
-    for idx, year in enumerate(years):
-        fert_days = get_fert_days(mow_days_per_year[idx], year)
+    for index, year in enumerate(years):
+        fert_days = get_fert_days(mow_days_per_year[index], year)
         fert_days_per_year.append(fert_days)
 
     return fert_days_per_year
@@ -769,24 +768,24 @@ def convert_management_data(
 
         if map_key == "GER_Lange":
             # Add mowing events to management events, using default schedule
-            for idx in np.where(mow_count_per_year > 0)[0]:
+            for index in np.where(mow_count_per_year > 0)[0]:
                 mow_schedule = get_mow_schedule(
-                    years[idx],
-                    mow_count_per_year[idx],
+                    years[index],
+                    mow_count_per_year[index],
                     "event observed (date: schedule)",
                     mow_height=mow_height,
                 )
                 management_events.extend(mow_schedule)
         elif map_key == "GER_Schwieder":
             # Get specific mowing dates for each year with mowing, add to management events
-            for idx in np.where(mow_count_per_year > 0)[0]:
-                entry = management_data_raw[idx]
-                mow_days_per_year[idx] = [
-                    int(x) for x in entry[2 : int(mow_count_per_year[idx]) + 2]
+            for index in np.where(mow_count_per_year > 0)[0]:
+                entry = management_data_raw[index]
+                mow_days_per_year[index] = [
+                    int(x) for x in entry[2 : int(mow_count_per_year[index]) + 2]
                 ]
                 mow_events = get_mow_events(
-                    years[idx],
-                    mow_days_per_year[idx],
+                    years[index],
+                    mow_days_per_year[index],
                     "date observed",
                     mow_height=mow_height,
                     leap_year_considered=True,
@@ -831,8 +830,8 @@ def convert_management_data(
     mow_count_per_year[np.isnan(mow_count_per_year)] = mow_count_fill
 
     # Add all remaining mowing events to schedule
-    for idx, year in enumerate(years):
-        if mow_count_per_year[idx] > 0 and year not in years_with_mow_data:
+    for index, year in enumerate(years):
+        if mow_count_per_year[index] > 0 and year not in years_with_mow_data:
             mow_schedule = get_mow_schedule(
                 year,
                 mow_count_fill,
@@ -848,12 +847,12 @@ def convert_management_data(
         fert_count_per_year = np.zeros_like(fertilised_per_year)
 
         # If data say fertilisation, adapt number of events to mowing events (even if mowing==0)!
-        for idx in np.where(fertilised_per_year == 1)[0]:
-            fert_count_per_year[idx] = mow_count_per_year[idx]
-            fert_source_per_year[idx] = "event observed (date: schedule)"
+        for index in np.where(fertilised_per_year == 1)[0]:
+            fert_count_per_year[index] = mow_count_per_year[index]
+            fert_source_per_year[index] = "event observed (date: schedule)"
 
         # Fill fertilisation years without data
-        idx_to_fill = np.where(np.isnan(fertilised_per_year))[0]
+        index_to_fill = np.where(np.isnan(fertilised_per_year))[0]
         no_fert_data_for_mean = False
 
         if fill_mode == "mean":
@@ -869,10 +868,10 @@ def convert_management_data(
                 )
 
                 # Fill in fertilisation events, but not more than mowing events of the same year
-                fert_count_per_year[idx_to_fill] = np.minimum(
-                    fert_count_fill, mow_count_per_year[idx_to_fill]
+                fert_count_per_year[index_to_fill] = np.minimum(
+                    fert_count_fill, mow_count_per_year[index_to_fill]
                 )
-                fert_source_per_year[idx_to_fill] = (
+                fert_source_per_year[index_to_fill] = (
                     f"event assumed (fill mode: {fill_mode}, date: schedule)"
                 )
             else:
@@ -887,8 +886,8 @@ def convert_management_data(
             print(
                 "Using the same number of fertilisation events as mowing events for each year."
             )
-            fert_count_per_year[idx_to_fill] = mow_count_per_year[idx_to_fill]
-            fert_source_per_year[idx_to_fill] = (
+            fert_count_per_year[index_to_fill] = mow_count_per_year[index_to_fill]
+            fert_source_per_year[index_to_fill] = (
                 "event assumed (fill mode: like mowing, date: schedule)"
             )
     elif map_key == "GER_Schwieder":
@@ -907,13 +906,13 @@ def convert_management_data(
             )
 
     # Add all fertilisation events to schedule
-    for idx, year in enumerate(years):
-        if fert_count_per_year[idx] > 0:
+    for index, year in enumerate(years):
+        if fert_count_per_year[index] > 0:
             fert_schedule = get_fert_schedule(
                 year,
-                fert_count_per_year[idx],
-                fert_source_per_year[idx],
-                fert_days=fert_days_per_year[idx],
+                fert_count_per_year[index],
+                fert_source_per_year[index],
+                fert_days=fert_days_per_year[index],
             )
             management_events.extend(fert_schedule)
 

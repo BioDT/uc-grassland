@@ -88,7 +88,6 @@ Data sources:
 """
 
 import argparse
-import copy
 import warnings
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -114,19 +113,19 @@ def get_map_specs(map_key):
             'leg_ext': File extension for the legend (may extend the stem).
             'folder': Folder name for local files or files on opendap server.
             'subfolder': Subfolder name for local files or files on opendap server.
-            'url_folder': URL to folder containing the files.
+            'url_folder': URL to folder containing the map files.
+
     """
     folder = "landCoverMaps"
-    url_opendap = "http://opendap.biodt.eu/grasslands-pdt/"
 
     if map_key == "GER_Preidl":
         map_specs = {
             "file_stem": "preidl-etal-RSE-2020_land-cover-classification-germany-2016",
             "map_ext": ".tif",
-            "leg_ext": ".tif.aux.xml",
+            "leg_ext": ".tif.aux.xlsx",  # ".tif.aux.xml",
             "folder": folder,
             "subfolder": map_key,
-            "url_folder": f"{url_opendap}{folder}/{map_key}/",
+            "url_folder": f"{ut.OPENDAP_ROOT}{folder}/{map_key}/",
         }
     elif map_key == "EUR_Pflugmacher":
         map_specs = {
@@ -135,7 +134,7 @@ def get_map_specs(map_key):
             "leg_ext": "_legend.xlsx",
             "folder": folder,
             "subfolder": map_key,
-            "url_folder": f"{url_opendap}{folder}/{map_key}/",  # "https://hs.pangaea.de/Maps/EuropeLandcover/" not working anymore,
+            "url_folder": f"{ut.OPENDAP_ROOT}{folder}/{map_key}/",  # "https://hs.pangaea.de/Maps/EuropeLandcover/" not working anymore,
         }
     elif map_key.startswith("GER_Schwieder_"):
         map_year = map_key.split("_")[-1]  # get year from map key
@@ -217,37 +216,33 @@ def get_map_and_legend(map_key, *, cache=None):
         else:
             raise FileNotFoundError(f"Land cover map file '{map_file}' not found!")
 
-    # Get categories, files are very small and can be downloaded if not exisiting
+    # Get categories for map values
     file_name = f"{map_specs['file_stem']}{map_specs['leg_ext']}"
 
-    if cache is None:
-        leg_file = (
-            ut.get_package_root()
-            / map_specs["folder"]
-            / map_specs["subfolder"]
-            / file_name
-        )
-    else:
+    if cache is not None:
+        # Get legend from local file
         leg_file = Path(cache) / map_specs["subfolder"] / file_name
 
-    if not leg_file.is_file():
-        # Get categories file from opendap server
-        print(f"Land cover categories file '{leg_file}' not found!")
-        print("Trying to download from URL ...")
-        ut.download_file_opendap(
-            file_name,
-            f"{map_specs['folder']}/{map_specs['subfolder']}",
-            leg_file.parent,
-        )
+        if leg_file.is_file():
+            print(f"Land cover categories found. Using '{leg_file}'.")
+            category_mapping = create_category_mapping(leg_file)
 
-    if leg_file.is_file():
-        # Read categories from file
+            return map_file, category_mapping
+        else:
+            print(f"Land cover categories file '{leg_file}' not found!")
+
+    # Get legend directly from URL, no download
+    leg_file = (
+        f"{ut.OPENDAP_ROOT}{map_specs['folder']}/{map_specs['subfolder']}/{file_name}"
+    )
+
+    if ut.check_url(leg_file):
         print(f"Land cover categories found. Using '{leg_file}'.")
         category_mapping = create_category_mapping(leg_file)
-    else:
-        raise FileNotFoundError(f"Land cover categories file '{file_name}' not found!")
 
-    return map_file, category_mapping
+        return map_file, category_mapping
+    else:
+        raise FileNotFoundError(f"Land cover categories file '{leg_file}' not found!")
 
 
 def create_category_mapping(leg_file):
@@ -255,24 +250,31 @@ def create_category_mapping(leg_file):
     Create a mapping of category indices to category names from legend file (XML or XLSX or ...).
 
     Parameters:
-        leg_file (str): The path to the leg file containing category names (in specific format).
+        leg_file (Path or URL): Path or URL to the leg file containing category names (in specific format).
 
     Returns:
         dict: A mapping of category indices to category names.
     """
     category_mapping = {}
 
-    if leg_file.suffix == ".xlsx":
+    # Get file type (without dot)
+    if isinstance(leg_file, Path):
+        leg_file_suffix = leg_file.suffix[1:]
+    elif isinstance(leg_file, str):
+        leg_file_suffix = leg_file.split(".")[-1]
+
+    if leg_file_suffix in ["xlsx", "xls"]:
         try:
             df = pd.read_excel(leg_file)
 
             # Assuming category elements are listed in the first two columns (index and name)
             category_mapping = {row[0]: row[1] for row in df.values}
-            # # Alternative using the row names 'code' and 'class_names'
+            # # Alternative using the row names 'code' and 'class_name'
             # category_mapping = (df[["code", "class_name"]].set_index("code")["class_name"].to_dict())
         except Exception as e:
             print(f"Error reading XLSX file: {str(e)}")
-    elif leg_file.suffix == ".xml":
+    elif leg_file_suffix == "xml":
+        # Not implemented for URL, only local files
         try:
             tree = ET.parse(leg_file)
             root = tree.getroot()
@@ -335,7 +337,7 @@ def get_category_deims(location):
             )
         except Exception as e:
             print(
-                f"Error: Access failed to DEIMS site record ('https://deims.org/api/sites/{location["deims_id"]}')."
+                f"Error: Access failed to DEIMS site record ('https://deims.org/api/sites/{location['deims_id']}')."
             )
             print(f" Exception: {str(e)}.")
 
@@ -563,10 +565,20 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
         "EUR_hrl_grassland": 2018,
     }
     grassland_check = []
+    location_keys_for_check = [
+        "lat",
+        "lon",
+        "deims_id",
+        "found",
+        "station_code",
+        "site_code",
+    ]
 
     for location in locations:
         if "lat" in location and "lon" in location:
-            site_check = copy.deepcopy(location)
+            site_check = {
+                key: location[key] for key in location_keys_for_check if key in location
+            }
             site_check.update(map_year=map_years[map_key], map_key=map_key)
 
             if map_key in deims_keys:

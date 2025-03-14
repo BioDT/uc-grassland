@@ -89,9 +89,6 @@ def resolve_infos(
 
     Returns:
         str: Resolved info entry.
-
-    Raises:
-        UserWarning: If duplicate or conflicting entries are found.
     """
     # Warning for duplicate keys
     if warn_duplicates:
@@ -752,7 +749,7 @@ def read_species_list(
 
         try:
             species_list = [
-                [line[idx] for idx in column_indexes]
+                [line[index] for index in column_indexes]
                 for line in species_data[header_lines:]
             ]
         except IndexError as e:
@@ -849,18 +846,18 @@ def user_input_info(info_dict, info_name, *, start_string="not "):
     print(f"Going through species with {info_name} '{start_string}' ...")
     print(f"You can select the new {info_name} from the following options:")
 
-    for idx, info in enumerate(valid_choices, start=1):
-        print(f"{idx}. '{info}'")
-        choice_string += f"{idx} '{info}' "
+    for index, info in enumerate(valid_choices, start=1):
+        print(f"{index}. '{info}'")
+        choice_string += f"{index} '{info}' "
 
-    print(f"{idx + 1}. Skip (leave {info_name} as is). ")
-    print(f"{idx + 2}. Exit {info_name} assignment.")
+    print(f"{index + 1}. Skip (leave {info_name} as is). ")
+    print(f"{index + 2}. Exit {info_name} assignment.")
 
     for spec, info in info_dict.items():
         if bool(spec) and info.startswith(start_string):
             print(f"Species: {spec}. Current {info_name}: '{info}'.")
             user_choice = input(
-                f"Enter your choice ({choice_string}{idx + 1} Skip {idx + 2} Exit): "
+                f"Enter your choice ({choice_string}{index + 1} Skip {index + 2} Exit): "
             )
 
             try:
@@ -947,9 +944,7 @@ def get_species_info(
     Returns:
         dict or list: Dict or list of pairs of the species names and corresponding infos.
     """
-    print(
-        f"Searching for species' {info_name} in '{lookup_source}' lookup table ..." f" "
-    )
+    print(f"Searching for species' {info_name} in '{lookup_source}' lookup table ... ")
 
     # Convert info_lookup to dictionary of only infos if not already
     info_lookup = ut.reduce_dict_to_single_info(info_lookup, info_name)
@@ -1117,7 +1112,7 @@ def get_lookup_tables(
                 lookup_table_specs[table_name]["found"] = True
 
     # Create missing lookup tables (i.e. all in case of force_create) from raw tables
-    for idx, (table_name, table_info) in enumerate(lookup_table_specs.items()):
+    for index, (table_name, table_info) in enumerate(lookup_table_specs.items()):
         if not table_info["found"]:
             # Create lookup table from raw file
             raw_file = lookup_folder / table_info["raw_file"]
@@ -1164,7 +1159,7 @@ def get_lookup_tables(
                     table_info["info_name"],
                     species_column=0,
                     new_file=lookup_folder / table_info["file_name"],
-                    info_column=table_info["raw_info_columns"][idx],
+                    info_column=table_info["raw_info_columns"][index],
                 )
             else:
                 raise FileNotFoundError(
@@ -1226,14 +1221,14 @@ def get_all_infos_and_pft(
     family_extra_found = False
 
     # Scan extra columns if they contain family information
-    for col_idx, col_name in enumerate(extra_columns):
+    for col_index, col_name in enumerate(extra_columns):
         if "family" in col_name.lower():
             # Family extra dict needs to work with original species names as keys (entry[1]),
             # because GBIF names can be the same for different original species, but
             # the extra column can contain different family information for them
             print(f"Extra column found with family information: '{col_name}'.")
             family_extra_found = True
-            family_extra = {entry[1]: entry[col_idx + 2] for entry in species_list}
+            family_extra = {entry[1]: entry[col_index + 2] for entry in species_list}
 
             # Replace empty entries and entries of several terms separated by " / " with std format
             for key, value in family_extra.items():
@@ -1343,12 +1338,12 @@ def get_all_infos_and_pft(
         family_extra = {key: "not found" for key in species_original}
 
     woodiness_combined_original_keys = {
-        species_original[idx]: woodiness_combined[species_to_lookup[idx]]
-        for idx in range(len(species_to_lookup))
+        species_original[index]: woodiness_combined[species_to_lookup[index]]
+        for index in range(len(species_to_lookup))
     }
     pft_combined_original_keys = {
-        species_original[idx]: pft_combined[species_to_lookup[idx]]
-        for idx in range(len(species_to_lookup))
+        species_original[index]: pft_combined[species_to_lookup[index]]
+        for index in range(len(species_to_lookup))
     }
     pft_family_extra_woodiness_combined = get_species_pft_from_family_woodiness(
         species_original,
@@ -1617,12 +1612,12 @@ def get_pft_from_files(
         formatted_lon = f"lon{location['lon']:.6f}"
         collect_species_pfts = {}
 
-        for idx, file_name in enumerate(species_data_specs["file_names"]):
+        for index, file_name in enumerate(species_data_specs["file_names"]):
             if (source_folder / file_name).exists():
                 # Copy file with species list to location subfolder, allow overwriting
                 shutil.copyfile(source_folder / file_name, target_subfolder / file_name)
-                species_column = species_data_specs["species_columns"][idx]
-                extra_columns = species_data_specs["extra_columns"][idx]
+                species_column = species_data_specs["species_columns"][index]
+                extra_columns = species_data_specs["extra_columns"][index]
                 infos_pft, pft_lookup = get_all_infos_and_pft(
                     target_subfolder / file_name,
                     species_column,
@@ -1739,13 +1734,13 @@ def assign_pfts_for_sites(
             "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
             "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
             "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
-            "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-            "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
+            # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
             "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
             "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
             "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
             "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
-            "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
+            # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
             "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
             "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
             "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede

@@ -212,7 +212,17 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "variables": ["cover"],
             "short_names": {"cover": "NHH-C"},
             "file_names": {"cover": "DK_NorholmHede_data_cover.csv"},
-            "observation_columns": {"cover": "default"},
+            "observation_columns": {
+                "cover": {
+                    "plot": "STATION_CODE",
+                    "subplot": "PLOT (10x10m)",
+                    "layer": "LAYER",
+                    "time": "TIME",
+                    "species": "TAXA",
+                    "value": "VALUE",
+                    "unit": "UNIT",
+                }
+            },
             "pft_lookup_files": {
                 "cover": "lat55.680000_lon8.610000__PFT__data_cover.txt"
             },
@@ -272,7 +282,8 @@ TARGET_VARIABLE_NAMES = MappingProxyType(
 DEFAULT_OBSERVATION_COLUMNS = MappingProxyType(
     {
         "plot": "STATION_CODE",
-        "event_id": "EVENT_ID",
+        # "subplot": "PLOT (10x10m)",
+        # "event_id": "EVENT_ID",  # removed because only used in excluded observation data
         "layer": "LAYER",  # layer added to use only layer 'F', could be adjusted to use also other layers
         "time": "TIME",
         "species": "TAXA",
@@ -302,7 +313,7 @@ BRAUN_BLANQUET_TO_COVER = MappingProxyType(
         "2a": 10,
         "2b": 20.5,
         "2": 15,  # ??  MDT: 5-25%, also used by: RMO (no info in method file), GSI ("Braun-Blanquet scale (1921), as modified by Pignatti (1959).")
-        "3": 38,  # also saw 37.5, val mazia: 38.5 in data, but 38 in ref file?
+        "3": 37.5,  # modified after expert consultations (was 38 or 38.5 before)
         "4": 62.5,
         "5": 87.5,
     }
@@ -370,6 +381,12 @@ def read_observation_data(
 
         # Get column names and entries in one list
         df_column_names = df.columns.tolist()
+
+        if "STATION_CODE" in df_column_names:
+            df["STATION_CODE"] = df["STATION_CODE"].fillna(
+                "nan"
+            )  # prevent NaN values in 'STATION_CODE' column
+
         observation_data = [df_column_names]
         observation_data.extend(df.values.tolist())
 
@@ -650,6 +667,12 @@ def process_observation_data(
         )
         return None
 
+    if variable == "abundance_gloria_1_8":
+        warnings.warn(
+            f"'{variable}' data not fully processed because conversion to quantitative cover values is not recommended."
+        )
+        return None
+
     if columns == "default" or columns is None:
         columns = DEFAULT_OBSERVATION_COLUMNS
 
@@ -665,7 +688,7 @@ def process_observation_data(
     columns_found = [key for key in columns if columns[key] in columns_found]
 
     # Create a new columns dict with the column names found as keys and the corresponding index in the reduced data as values
-    columns = {key: idx for idx, key in enumerate(columns_found)}
+    columns = {key: index for index, key in enumerate(columns_found)}
 
     # Process observation data
     if "plot" in columns and "time" in columns:
@@ -675,8 +698,8 @@ def process_observation_data(
         )
 
         # Format entries in 'time' column using ut.format_datestring
-        for idx, entry in enumerate(observation_data[header_lines:]):
-            observation_data[idx + header_lines][columns["time"]] = (
+        for index, entry in enumerate(observation_data[header_lines:]):
+            observation_data[index + header_lines][columns["time"]] = (
                 ut.format_datestring(entry[columns["time"]])
             )
 
@@ -715,36 +738,28 @@ def process_observation_data(
 
                             break
 
-            if "event_id" in columns:
-                # Get unique event IDs for this plot
-                event_ids = ut.get_unique_values_from_column(
-                    plot_data, columns["event_id"], header_lines=0
+            if "subplot" in columns:
+                # Get unique subplots for this plot
+                subplots = ut.get_unique_values_from_column(
+                    plot_data, columns["subplot"], header_lines=0
                 )
 
-                # Group event ids for the same subplot (same start before first underscore)
-                event_id_dict = {}
-
-                for event_id in event_ids:
-                    subplot = event_id.split("_")[0]
-
-                    if subplot in event_id_dict:
-                        event_id_dict[subplot].append(event_id)
-                    else:
-                        event_id_dict[subplot] = [event_id]
-
-                for subplot in event_id_dict.keys():
-                    subplot_data = []
-
-                    for event_id in event_id_dict[subplot]:
-                        subplot_data += ut.get_rows_with_value_in_column(
-                            plot_data, columns["event_id"], event_id
-                        )
+                for subplot in subplots:
+                    subplot_data = ut.get_rows_with_value_in_column(
+                        plot_data, columns["subplot"], subplot
+                    )
 
                     if target_folder:
+                        subplot_str = (
+                            f"{subplot:02}"  # min 2 digits
+                            if isinstance(subplot, int)
+                            else str(subplot)
+                        )
+
                         # Replace slashs in plot name with underscores and question marks with "full width question marks"
                         plot_name_str = (
                             str(plot_name).replace("/", "_").replace("?", "？")
-                            + f"__{str(subplot)}"
+                            + f"__{subplot_str}"
                         )
                         file_name = target_folder / f"{variable}__{plot_name_str}.txt"
                         ut.list_to_file(
@@ -782,7 +797,7 @@ def process_observation_data(
 
         if new_file:
             observation_pft.to_csv(new_file, sep="\t", index=False)
-            print(f"Processed observation data written to file '{new_file}'.")
+            print(f"Processed observation data written to file\n'{new_file}'.")
 
         return observation_pft
     else:
@@ -1255,13 +1270,13 @@ def data_processing(
             "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
             "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
             "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
-            "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-            "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
+            # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
             "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
             "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
             "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
             "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
-            "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
+            # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
             "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
             "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
             "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede

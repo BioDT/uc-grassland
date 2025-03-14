@@ -30,10 +30,11 @@ from copernicus import data_processing as dprc
 
 
 def prep_weather_data(
-    coordinates,
+    coordinates_list,
     years,
     *,
     months=list(range(1, 13)),
+    download_whole_area=False,
     deims_id=None,
     target_folder="weatherDataPrepared",
 ):
@@ -48,50 +49,40 @@ def prep_weather_data(
         target_folder (str or Path): Target folder for .txt files (default is 'weatherDataPrepared').
     """
     if years is None:
-        years = list(range(1998, 1999))  # list(range(..., 2023))
+        years = list(range(1998, 1999))
+        # years = list(range(1999, 2011))  # list(range(..., 2023))
 
-    if coordinates:
-        if "lat" in coordinates and "lon" in coordinates:
-            dprc.data_processing(
-                years, months, coordinates, target_folder=target_folder
-            )
-        else:
-            raise ValueError(
-                "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
-            )
+    if coordinates_list:
+        dprc.data_processing(
+            years,
+            months,
+            coordinates_list,
+            download_whole_area=download_whole_area,
+            target_folder=target_folder,
+        )
     elif deims_id:
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:
-            dprc.data_processing(years, months, location, target_folder=target_folder)
+            dprc.data_processing(
+                years,
+                months,
+                [location],
+                download_whole_area=False,
+                target_folder=target_folder,
+            )
         else:
             raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found!")
     else:
-        # Example coordinates for testing
+        # Example coordinates lists for testing
 
         # # # test location Samuel
         # coordinates = {"lat": 53.331387, "lon": 8.096045}
-
-        # dprc.data_processing(
-        #     years,
-        #     months,
-        #     coordinates,
-        # )
 
         # # test locations with larger time zone offset, eastern and western
         # coordinates_list = [
         #     # {"lat": 53, "lon": 48},
         #     {"lat": 53, "lon": -70},
-        # ]
-
-        # # # example: GCEF small scale difference
-        # coordinates_list = [
-        #     {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
-        #     {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
-        #     {
-        #         "lat": 51.3919,
-        #         "lon": 11.8787,
-        #     },  # GER, GCEF grassland site, centroid, non-grassland in HRL
         # ]
 
         # coordinates_list = [
@@ -109,10 +100,23 @@ def prep_weather_data(
         #     {"lat": 47.522020, "lon": 15.149292},
         # ]
 
-        # for coordinates in coordinates_list:
-        #     dprc.data_processing(
-        #         years, months, coordinates, target_folder=target_folder
-        #     )
+        # # example: GCEF small scale difference
+        coordinates_list = [
+            {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+            {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
+            {
+                "lat": 51.3919,
+                "lon": 11.8787,
+            },  # GER, GCEF grassland site, centroid, non-grassland in HRL
+        ]
+
+        dprc.data_processing(
+            years,
+            months,
+            coordinates_list,
+            download_whole_area=True,  # download_whole_area,
+            target_folder=target_folder,
+        )
 
         # deims_id = "102ae489-04e3-481d-97df-45905837dc1a"  # GCEF site
         # deims_id = "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1"  # Schrankogel, AT, 1994, 2004, 14
@@ -122,7 +126,13 @@ def prep_weather_data(
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:
-            dprc.data_processing(years, months, location, target_folder=target_folder)
+            dprc.data_processing(
+                years,
+                months,
+                [location],
+                download_whole_area=False,
+                target_folder=target_folder,
+            )
 
 
 def main():
@@ -135,9 +145,9 @@ def main():
 
     # Define command-line arguments
     parser.add_argument(
-        "--coordinates",
-        type=lambda s: dict(lat=float(s.split(",")[0]), lon=float(s.split(",")[1])),
-        help="Coordinates as 'lat,lon'",
+        "--coordinates_list",
+        type=list,
+        help="List of coordinates dictionaries with 'lat' and 'lon' keys.",
     )
     parser.add_argument("--years", type=list, help="List of years")
     parser.add_argument(
@@ -145,6 +155,12 @@ def main():
         type=list,
         default=list(range(1, 13)),
         help="List of months",
+    )
+    parser.add_argument(
+        "--download_single_locations",
+        action="store_false",
+        dest="download_whole_area",
+        help="Download single locations separately instead of whole area covering all coordinates in the list (default is False).",
     )
     parser.add_argument("--deims_id", help="DEIMS.iD")
     parser.add_argument(
@@ -154,9 +170,10 @@ def main():
     )
     args = parser.parse_args()
     prep_weather_data(
-        coordinates=args.coordinates,
+        coordinates_list=args.coordinates_list,
         years=args.years,
         months=args.months,
+        download_whole_area=args.download_whole_area,
         deims_id=args.deims_id,
         target_folder=args.target_folder,
     )

@@ -24,6 +24,7 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 """
 
 import argparse
+import shutil
 import warnings
 from pathlib import Path
 
@@ -34,12 +35,55 @@ import prep_weather_data
 import utils as ut
 
 
+def add_coordinate_infos(coordinates):
+    """
+    Add information to coordinates dictionary.
+
+    Parameters:
+        coordinates (dict): Coordinates dictionary with 'lat' and 'lon'.
+
+    Returns:
+        dict: Coordinates dictionary with additional information (if 'lat' and 'lon' are present, otherwise None):
+            'formatted_lat' (str): Formatted latitude string.
+            'formatted_lon' (str): Formatted longitude string.
+            'file_start' (str): Start of file name.
+            'location_head_folder' (Path): Location head folder.
+    """
+
+    if "lat" in coordinates and "lon" in coordinates:
+        # Prepare location coordinates for file names and folder
+        formatted_lat = f"lat{coordinates['lat']:.6f}"
+        formatted_lon = f"lon{coordinates['lon']:.6f}"
+        file_start = f"{formatted_lat}_{formatted_lon}"
+        coordinates.update(
+            {
+                "formatted_lat": formatted_lat,
+                "formatted_lon": formatted_lon,
+                "file_start": file_start,
+                "location_head_folder": Path(
+                    ut.get_package_root() / "grasslandModelInputFiles" / file_start
+                ),
+            }
+        )
+
+        return coordinates
+    else:
+        warnings.warn(
+            "Coordinates not correctly defined. Please provide as dictionary "
+            "({'lat': float, 'lon': float})! "
+            f"Cannot use these coordinates: {coordinates}."
+        )
+
+        return None
+
+
 def data_processing(
-    coordinates,
+    coordinates_list,
     years,
     *,
     skip_grass_check=False,
     skip_weather=False,
+    download_weather_area=True,
     skip_soil=False,
     skip_management=False,
 ):
@@ -58,109 +102,146 @@ def data_processing(
         skip_soil (bool): Skip soil data preparation (default is False).
         skip_management (bool): Skip management data preparation (default is False).
     """
-    if "lat" in coordinates and "lon" in coordinates:
-        # Init dialogue
-        print(
-            f"Preparing input data for latitude: {coordinates['lat']},",
-            f"longitude: {coordinates['lon']} ...",
-        )
+    # Init dialogue
+    location_count = len(coordinates_list)
+    print(
+        f"Preparing input data for coordinates list with {location_count} locations ..."
+    )
 
-        # Get location coordinates for file names and folder
-        formatted_lat = f"lat{coordinates['lat']:.6f}"
-        formatted_lon = f"lon{coordinates['lon']:.6f}"
-        file_start = f"{formatted_lat}_{formatted_lon}"
-        location_head_folder = Path(
-            ut.get_package_root() / "grasslandModelInputFiles" / file_start
-        )
+    # Check if grassland according to all available land cover maps
+    if skip_grass_check:
+        print("Grassland checks skipped.")
+    else:
+        default_land_cover_map_keys = [
+            "EUR_hrl_grassland",
+            "EUR_Pflugmacher",
+            "GER_Preidl",
+            "GER_Schwieder_2017",
+            "GER_Schwieder_2018",
+            "GER_Schwieder_2019",
+            "GER_Schwieder_2020",
+            "GER_Schwieder_2021",
+            "GER_Lange_2017",
+            # "GER_Lange_2018", only 1 GER_Lange map needed as both use German ATKIS digital landscape model 2015
+        ]
 
-        # Check if grassland according to all available land cover maps
-        if not skip_grass_check:
-            grassland_checks = []
-            land_cover_map_keys = [
-                "EUR_hrl_grassland",
-                "EUR_Pflugmacher",
-                "GER_Preidl",
-                "GER_Schwieder_2017",
-                "GER_Schwieder_2018",
-                "GER_Schwieder_2019",
-                "GER_Schwieder_2020",
-                "GER_Schwieder_2021",
-                "GER_Lange_2017",
-                # "GER_Lange_2018", only 1 GER_Lange map needed as both use German ATKIS digital landscape model 2015
-            ]
+        for coordinates in coordinates_list:
+            coordinates = add_coordinate_infos(coordinates)
 
-            # "EUR_eunis_habitat" only works for DEIMS.iDs
-            if coordinates.get("deims_id"):
-                land_cover_map_keys.append("EUR_eunis_habitat")
-
-            for map_key in land_cover_map_keys:
-                check_this_map = check_if_grassland.check_locations_for_grassland(
-                    [coordinates], map_key
+            if coordinates is not None:
+                print(
+                    f"Preparing grassland check data for latitude: {coordinates['lat']},",
+                    f"longitude: {coordinates['lon']} ...",
                 )
-                grassland_checks.append(check_this_map[0])
+                grassland_checks = []
+                land_cover_map_keys = default_land_cover_map_keys.copy()
 
+                # "EUR_eunis_habitat" only works for DEIMS.iDs
+                if coordinates.get("deims_id"):
+                    land_cover_map_keys.append("EUR_eunis_habitat")
+
+                for map_key in land_cover_map_keys:
+                    check_this_map = check_if_grassland.check_locations_for_grassland(
+                        [coordinates], map_key
+                    )
+                    grassland_checks.append(check_this_map[0])
+
+                file_name = (
+                    coordinates["location_head_folder"]
+                    / "landCover"
+                    / f"{coordinates['file_start']}__grasslandCheck__allMaps.txt"
+                )
+                grassland_checks.sort(key=lambda x: x["map_year"])
+                check_if_grassland.check_results_to_file(
+                    grassland_checks, file_name=file_name
+                )
+
+    # Run weather script
+    if skip_weather:
+        print("Weather data preparation skipped.")
+    else:
+        # Use preliminary target folder for all weather data, later move to each single location folder
+        target_folder = (
+            ut.get_package_root() / "grasslandModelInputFiles" / "weatherDataPrepared"
+        )
+        prep_weather_data.prep_weather_data(
+            coordinates_list,
+            years,
+            download_whole_area=download_weather_area,
+            target_folder=target_folder,
+        )
+
+        for coordinates in coordinates_list:
+            coordinates = add_coordinate_infos(coordinates)
+
+            # Check target folder for weather files containing these coordinates
+            weather_files = list(
+                target_folder.glob(
+                    f"{coordinates['formatted_lat']}_{coordinates['formatted_lon']}*weather.txt"
+                )
+            )
+
+            if len(weather_files) > 1:
+                warnings.warn(
+                    f"More than one weather file found for latitude {coordinates['formatted_lat']}, "
+                    f"longitude {coordinates['formatted_lon']}\nin target folder '{target_folder}'.\n"
+                    "Moving all files to location folder."
+                )
+
+            # Move weather files to location folder
+            for weather_file in weather_files:
+                final_file = (
+                    coordinates["location_head_folder"] / "weather" / weather_file.name
+                )
+                shutil.move(weather_file, final_file)
+
+    # Run soil script
+    if skip_soil:
+        print("Soil data preparation skipped.")
+    else:
+        for coordinates in coordinates_list:
+            coordinates = add_coordinate_infos(coordinates)
             file_name = (
-                location_head_folder
-                / "landCover"
-                / f"{file_start}__grasslandCheck__allMaps.txt"
+                coordinates["location_head_folder"]
+                / "soil"
+                / f"{coordinates['file_start']}__2020__soil.txt"
             )
-            grassland_checks.sort(key=lambda x: x["map_year"])
-            check_if_grassland.check_results_to_file(
-                grassland_checks, file_name=file_name
-            )
-
-        # Run weather script
-        if not skip_weather:
-            target_folder = location_head_folder / "weather"
-            prep_weather_data.prep_weather_data(
-                coordinates, years, target_folder=target_folder
-            )
-
-        # Run soil script
-        if not skip_soil:
-            file_name = location_head_folder / "soil" / f"{file_start}__2020__soil.txt"
             prep_soil_data.prep_soil_data(coordinates, file_name=file_name)
 
-        # Run management script
-        if not skip_management:
-            land_use_map_keys = ["GER_Lange", "GER_Schwieder"]
+    # Run management script
+    if skip_management:
+        print("Management data preparation skipped.")
+    else:
+        land_use_map_keys = ["GER_Lange", "GER_Schwieder"]
+
+        for coordinates in coordinates_list:
+            coordinates = add_coordinate_infos(coordinates)
 
             for map_key in land_use_map_keys:
                 file_name = (
-                    location_head_folder
+                    coordinates["location_head_folder"]
                     / "management"
-                    / f"{file_start}__{years[0]}-01-01_{years[-1]}-12-31__management__{map_key}.txt"
+                    / f"{coordinates['file_start']}__{years[0]}-01-01_{years[-1]}-12-31__management__{map_key}.txt"
                 )
                 prep_management_data.prep_management_data(
                     coordinates, years, map_key, file_name=file_name
                 )
 
-        # Finish dialogues
-        print(
-            f"Input data for latitude: {coordinates['lat']},",
-            f"longitude: {coordinates['lon']} finished.",
-        )
-
-        if skip_grass_check:
-            print("Grassland checks skipped.")
-
-        if skip_weather:
-            print("Weather data preparation skipped.")
-
-        if skip_soil:
-            print("Soil data preparation skipped.")
-
-        if skip_management:
-            print("Management data preparation skipped.")
-    else:
-        warnings.warn(
-            "Coordinates not correctly defined. Please provide as dictionary "
-            "({'lat': float, 'lon': float})! No input data generated."
-        )
+    # Finish dialogues
+    print(f"Input data preparation finished (for {location_count} locations).")
 
 
 def prep_grassland_model_input_data(
-    coordinates, first_year, last_year, *, deims_id=None
+    coordinates_list,
+    first_year,
+    last_year,
+    *,
+    deims_id=None,
+    skip_grass_check=False,
+    skip_weather=False,
+    download_weather_area=False,
+    skip_soil=False,
+    skip_management=False,
 ):
     """
     Prepare all necessary data to be used as grassland model input.
@@ -171,29 +252,43 @@ def prep_grassland_model_input_data(
         last_year (int): Last year of desired time period.
         deims_id (str): DEIMS.iD (default is None).
     """
-    first_year = int(first_year)
-    last_year = int(last_year)
+    if first_year and last_year:
+        first_year = int(first_year)
+        last_year = int(last_year)
 
-    if last_year < first_year:
-        warnings.warn(
-            f"First year {first_year} is after last year {last_year}! Last year set to {first_year}."
-        )
-        last_year = first_year
-
-    years = list(range(first_year, last_year + 1))
-
-    if coordinates:
-        if "lat" in coordinates and "lon" in coordinates:
-            data_processing(coordinates, years)
-        else:
-            raise ValueError(
-                "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
+        if last_year < first_year:
+            warnings.warn(
+                f"First year {first_year} is after last year {last_year}! Last year set to {first_year}."
             )
-    elif deims_id:
+            last_year = first_year
+
+        years = list(range(first_year, last_year + 1))
+    else:
+        years = None
+
+    if years and coordinates_list:
+        data_processing(
+            coordinates_list,
+            years,
+            skip_grass_check=skip_grass_check,
+            skip_weather=skip_weather,
+            download_weather_area=download_weather_area,
+            skip_soil=skip_soil,
+            skip_management=skip_management,
+        )
+    elif years and deims_id:
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:
-            data_processing(location, years)
+            data_processing(
+                [location],
+                years,
+                skip_grass_check=skip_grass_check,
+                skip_weather=skip_weather,
+                download_weather_area=False,
+                skip_soil=skip_soil,
+                skip_management=skip_management,
+            )
         else:
             raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found!")
     else:
@@ -216,41 +311,85 @@ def prep_grassland_model_input_data(
 
         # locations = ut.parse_locations("48.960629, 13.395191")
 
-        # for location in locations:
-        #     data_processing(
-        #         location,
-        #         years,
-        #         skip_weather=True,
-        #         skip_grass_check=True,
-        #         skip_soil=True,
-        #     )
+        # # # example: GCEF small scale difference
+        # coordinates_list = [
+        #     {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+        #     {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
+        #     {
+        #         "lat": 51.3919,
+        #         "lon": 11.8787,
+        #     },  # GER, GCEF grassland site, centroid, non-grassland in HRL
+        # ]
+        # years = list(range(1998, 1999))
 
-        # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
-        sites_file_name = (
-            ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        # Example to get location coordinates from CSV file (for single plots/stations) - quick run, to be generalized below
+        source_folder = Path(
+            "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/"
         )
-        site_ids = ut.get_deims_ids_from_xls(
-            sites_file_name,
-            header_row=1,
-            country="ALL",  # "DE" "AT"
+        deims_id = "11696de6-0ab9-4c94-a06b-7ce40f56c964"
+        station_file = source_folder / deims_id / "IT_Matschertal_station.csv"
+        coordinates_list = ut.get_plot_locations_from_csv(station_file)
+        first_year = 1999
+        last_year = 2010
+        years = list(range(first_year, last_year + 1))
+        download_weather_area = True
+        skip_grass_check = True
+
+        data_processing(
+            coordinates_list,
+            years,
+            skip_grass_check=skip_grass_check,
+            skip_weather=skip_weather,
+            download_weather_area=download_weather_area,
+            skip_soil=skip_soil,
+            skip_management=skip_management,
         )
-        site_ids = [
-            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
-            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
-            "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
-            "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-            "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
-            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
-            "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
-            "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
-        ]
 
-        for deims_id in site_ids:
-            location = ut.get_deims_coordinates(deims_id)
-            # print(location)
+        # # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
+        # sites_file_name = (
+        #     ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        # )
+        # site_ids = ut.get_deims_ids_from_xls(
+        #     sites_file_name,
+        #     header_row=1,
+        #     country="ALL",  # "DE" "AT"
+        # )
+        # site_ids = [
+        #     "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+        #     "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
+        #     "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
+        #     "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
+        #     "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
+        #     "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+        #     "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
+        #     "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
+        #     "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
+        #     "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
+        #     "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
+        #     "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+        #     "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
+        #     "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
+        #     "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
+        #     "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
+        #     "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
+        # ]
 
-            if location["found"]:
-                data_processing(location, years, skip_weather=True)
+        # for deims_id in site_ids:
+        #     location = ut.get_deims_coordinates(deims_id)
+
+        #     if location["found"]:
+        #         data_processing(
+        #             [location],
+        #             years,
+        #             skip_grass_check=skip_grass_check,
+        #             skip_weather=skip_weather,
+        #             download_weather_area=False,
+        #             skip_soil=skip_soil,
+        #             skip_management=skip_management,
+        #         )
+
+        # TODO: code to look for station file in subfolder, then get locations from file if exactly 1 file found ...
+        # source_subfolder = source_folder / deims_id
 
 
 def main():
@@ -263,29 +402,57 @@ def main():
 
     # Define command-line arguments
     parser.add_argument(
-        "--coordinates",
-        type=lambda s: dict(lat=float(s.split(",")[0]), lon=float(s.split(",")[1])),
-        help="Coordinates as 'lat,lon'",
+        "--coordinates_list",
+        type=list,
+        help="List of coordinates dictionaries with 'lat' and 'lon' keys.",
     )
     parser.add_argument(
         "--first_year",
-        default=2013,
         type=int,
         help="First year for which to generate input data.",
     )
     parser.add_argument(
         "--last_year",
-        default=2023,
         type=int,
         help="Last year for which to generate input data.",
     )
     parser.add_argument("--deims_id", help="DEIMS.iD")
+    parser.add_argument(
+        "--skip_grass_check",
+        action="store_true",
+        help="Skip grassland checks (default is False).",
+    )
+    parser.add_argument(
+        "--skip_weather",
+        action="store_true",
+        help="Skip weather data preparation (default is False).",
+    )
+    parser.add_argument(
+        "--download_weather_area",
+        action="store_true",
+        help="Download whole area covering all coordinates in the list (default is False).",
+    )
+    parser.add_argument(
+        "--skip_soil",
+        action="store_true",
+        help="Skip soil data preparation (default is False).",
+    )
+    parser.add_argument(
+        "--skip_management",
+        action="store_true",
+        help="Skip management data preparation (default is False).",
+    )
     args = parser.parse_args()
     prep_grassland_model_input_data(
-        coordinates=args.coordinates,
+        coordinates_list=args.coordinates_list,
         first_year=args.first_year,
         last_year=args.last_year,
         deims_id=args.deims_id,
+        skip_grass_check=args.skip_grass_check,
+        skip_weather=args.skip_weather,
+        download_weather_area=args.download_weather_area,
+        skip_soil=args.skip_soil,
+        skip_management=args.skip_management,
     )
 
 

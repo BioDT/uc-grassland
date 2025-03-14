@@ -38,6 +38,9 @@ import rasterio
 import requests
 from dateutil.parser import parse
 
+# will be "https://opendap.biodt.eu/..."
+OPENDAP_ROOT = "http://opendap.biodt.eu/grasslands-pdt/"
+
 
 def add_string_to_file_name(file_name, string_to_add, *, new_suffix=None):
     """
@@ -200,7 +203,7 @@ def get_tuple_list(
 
     if columns_to_remove:
         tuple_list = [
-            tuple(x for idx, x in enumerate(entry) if idx not in columns_to_remove)
+            tuple(x for index, x in enumerate(entry) if index not in columns_to_remove)
             for entry in tuple_list
         ]
 
@@ -395,10 +398,10 @@ def find_column_index(raw_data, column_id, *, header_lines=1, warn_not_found=Tru
                 )
         # elif isinstance(column_id, list):
         #     for col in column_id:
-        #         idx = find_column_index(raw_data, col)
+        #         index = find_column_index(raw_data, col)
 
-        #         if idx is not None:
-        #             return idx
+        #         if index is not None:
+        #             return index
         else:
             raise ValueError(
                 "Invalid column identifier. Please provide a column name (str) or column "
@@ -420,10 +423,10 @@ def find_column_index(raw_data, column_id, *, header_lines=1, warn_not_found=Tru
                 )
         # elif isinstance(column_id, list):
         #     for col in column_id:
-        #         idx = find_column_index(raw_data, col)
+        #         index = find_column_index(raw_data, col)
 
-        #         if idx is not None:
-        #             return idx
+        #         if index is not None:
+        #             return index
         else:
             raise ValueError(
                 "Invalid column identifier. Please provide a column name (str) or column "
@@ -594,7 +597,7 @@ def get_list_of_columns(input_list, columns_wanted):
             column_indexes.append(column_index)
             columns_found.append(column)
 
-    sublist = [[row[idx] for idx in column_indexes] for row in input_list]
+    sublist = [[row[index] for index in column_indexes] for row in input_list]
 
     return sublist, columns_found
 
@@ -891,10 +894,10 @@ def sort_and_cleanup_list(
                     combined_entry = first_entry
 
                     for entry in differing_entries:
-                        for idx, item in enumerate(entry):
-                            if item != combined_entry[idx]:
-                                combined_entry[idx] = combine_info_strings(
-                                    combined_entry[idx], item
+                        for index, item in enumerate(entry):
+                            if item != combined_entry[index]:
+                                combined_entry[index] = combine_info_strings(
+                                    combined_entry[index], item
                                 )
 
                     processed_list.append(combined_entry)
@@ -1301,8 +1304,7 @@ def download_file_opendap(
     Returns:
         None
     """
-    # will be "https://opendap.biodt.eu"
-    url = f"http://opendap.biodt.eu/grasslands-pdt/{source_folder}/{file_name}"
+    url = f"{OPENDAP_ROOT}{source_folder}/{file_name}"
     print(f"Trying to download '{url}' ...")
 
     while attempts > 0:
