@@ -1,3 +1,30 @@
+"""
+Module Name: prep_observation_data.py
+Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
+Date: 2024
+Description: Prepare eLTER observation data as needed for comparison to grassland model output.
+
+Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
+Tuomas Rossi (CSC) and Taimur Haider Khan (UFZ).
+
+Copyright (C) 2024
+- Helmholtz Centre for Environmental Research GmbH - UFZ, Germany
+- CSC - IT Center for Science Ltd., Finland
+
+Licensed under the EUPL, Version 1.2 or - as soon they will be approved
+by the European Commission - subsequent versions of the EUPL (the "Licence").
+You may not use this work except in compliance with the Licence.
+
+You may obtain a copy of the Licence at:
+https://joinup.ec.europa.eu/software/page/eupl
+
+This project has received funding from the European Union's Horizon Europe Research and Innovation
+Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
+The authors acknowledge the EuroHPC Joint Undertaking and CSC - IT Center for Science Ltd., Finland
+for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC - IT Center for
+Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
+"""
+
 import argparse
 import warnings
 from pathlib import Path
@@ -31,12 +58,33 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "name": "AgroScapeLab Quillow (ZALF)",
             "variables": ["cover"],
             "short_names": {"cover": "ASQ-C"},
-            "file_names": {"cover": "DE_AgroScapeQuillow_data_cover.csv"},
-            "observation_columns": {"cover": "default"},
-            "pft_lookup_files": {
-                "cover": "lat53.360000_lon13.800000__PFT__data_cover.txt"
+            # "file_names": {"cover": "DE_AgroScapeQuillow_data_cover.csv"},
+            # "observation_columns": {"cover": "default"},
+            "file_names": {
+                "cover": "DE_AgroScapeQuillow_data_cover__from_SpeciesFiles.csv"
             },
-            "pft_lookup_specs": {"cover": "default"},
+            "observation_columns": {
+                "cover": {
+                    "plot": "STATION_CODE",
+                    "subplot": "REPLICATION",
+                    "time": "TIME",
+                    "species": "TAXA",
+                    "value": "VALUE",
+                    "unit": "UNIT",
+                },
+            },
+            # "pft_lookup_files": {
+            #     "cover": "lat53.360000_lon13.800000__PFT__data_cover.txt"
+            # },
+            # "pft_lookup_specs": {"cover": "default"},
+            "pft_lookup_files": {"cover": "lat53.360000_lon13.800000__PFT__names.txt"},
+            "pft_lookup_specs": {
+                "cover": {
+                    "key_column": "Code",
+                    "info_column": "PFT combined",
+                    "info_name": "PFT",
+                }
+            },
         },
         "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
             "name": "LTSER Zone Atelier Armorique",
@@ -185,12 +233,26 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "name": "Rhine-Main-Observatory",
             "variables": ["cover_braun_blanquet"],
             "short_names": {"cover_braun_blanquet": "RMO-CBB"},
+            # "file_names": {
+            #     "cover_braun_blanquet": "DE_RhineMainObservatory_abund_data.csv"
+            # },
+            # "observation_columns": {"cover_braun_blanquet": "default"},
             "file_names": {
-                "cover_braun_blanquet": "DE_RhineMainObservatory_abund_data.csv"
+                "cover_braun_blanquet": "DE_RhineMainObservatory_data_abund_V2.csv"
             },
-            "observation_columns": {"cover_braun_blanquet": "default"},
+            "observation_columns": {
+                "cover_braun_blanquet": {
+                    "plot": "STATION_CODE",
+                    "subplot": "LAYER",
+                    "time": "TIME",
+                    "species": "TAXA",
+                    "value": "VALUE",
+                    "unit": "UNIT",
+                },
+            },
             "pft_lookup_files": {
-                "cover_braun_blanquet": "lat50.267302_lon9.269139__PFT__abund_data.txt"
+                # "cover_braun_blanquet": "lat50.267302_lon9.269139__PFT__abund_data.txt"
+                "cover_braun_blanquet": "lat50.267302_lon9.269139__PFT__data_abund_V2.txt"
             },
             "pft_lookup_specs": {"cover_braun_blanquet": "default"},
         },
@@ -245,7 +307,11 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "name": "Appennino centro-meridionale: Majella-Matese",
             "variables": ["cover"],
             "short_names": {"cover": "MAM-C"},
-            "file_names": {"cover": "IT_AppenninoCentroMeridionale_data_cover.csv"},
+            # "file_names": {"cover": "IT_AppenninoCentroMeridionale_data_cover.csv"},
+            # "observation_columns": {"cover": "default"},
+            "file_names": {
+                "cover": "IT_AppenninoCentroMeridionale_data_cover__from_FEM_Revised.csv"
+            },
             "observation_columns": {"cover": "default"},
             "pft_lookup_files": {
                 "cover": "lat42.086116_lon14.085206__PFT__data_cover.txt"
@@ -304,9 +370,9 @@ DEFAULT_PFT_LOOKUP_SPECS = MappingProxyType(
 # Define mappings of categorical codes to cover values (in %)
 BRAUN_BLANQUET_TO_COVER = MappingProxyType(
     {
-        # "x", None,   # occurs in RMO
+        # "x", presence, but value unclear, occurs in RMO
         "r": 0.1,
-        "R": 0.1,  # assuming same as "r", probably typo
+        "R": 0.1,  # assuming same as "r", typo
         "+": 0.3,
         "1": 2.8,
         "2m": 4.5,
@@ -372,15 +438,15 @@ def read_observation_data(
             df = pd.read_csv(
                 file_name,
                 header=header_lines - 1,
-                encoding="ISO-8859-1",
+                encoding="ISO-8859-1",  # encoding="utf-8-sig" would handle BOM, but cause errors with some other files
                 delimiter=csv_delimiter,
             )
         except Exception as e:
             print(f"Error reading .csv file: {e}.")
             return []
 
-        # Get column names and entries in one list
-        df_column_names = df.columns.tolist()
+        # Get column names and entries in one list, replace incorrectly handled byte order mark (BOM) if present ("\ufeff", converted to "ï»¿")
+        df_column_names = [col.replace("ï»¿", "") for col in df.columns]
 
         if "STATION_CODE" in df_column_names:
             df["STATION_CODE"] = df["STATION_CODE"].fillna(
@@ -416,7 +482,7 @@ def read_observation_data(
 
             # Remove duplicates from observation data, keep first occurrence
             observation_data = ut.remove_duplicates(
-                observation_data, duplicates=duplicate_rows
+                observation_data, duplicates=duplicate_rows, header_lines=1
             )
 
             if new_file:
@@ -474,7 +540,9 @@ def read_observation_data(
 
                 # Remove duplicates from observation data, keep first occurrence
                 observation_data = ut.remove_duplicates(
-                    observation_data, duplicates=duplicate_rows_except_scientific_name
+                    observation_data,
+                    duplicates=duplicate_rows_except_scientific_name,
+                    header_lines=1,
                 )
 
         if new_file:
@@ -596,7 +664,11 @@ def process_single_plot_observation_data(
                 unit_check = None
 
                 for entry in time_data:
-                    species = entry[columns["species"]]
+                    species = (
+                        entry[columns["species"]].rstrip()  # remove spaces at end
+                        if isinstance(entry[columns["species"]], str)
+                        else entry[columns["species"]]
+                    )
                     pft = apft.reduce_pft_info(pft_lookup.get(species, "not found"))
                     unit = entry[columns["unit"]]
                     value = check_observation_value(

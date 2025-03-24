@@ -1458,9 +1458,12 @@ def get_species_data_specs(site_id):
         },
         "270a41c4-33a8-4da6-9258-2ab10916f262": {
             "name": "AgroScapeLab Quillow (ZALF)",
-            "file_names": ["DE_AgroScapeQuillow_data_cover.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
+            "file_names": [
+                "DE_AgroScapeQuillow_data_cover.csv",
+                "Code_Species_names.csv",
+            ],
+            "species_columns": ["TAXA", "Speciesname"],
+            "extra_columns": [[], ["Code", "Family"]],
         },
         "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
             "name": "LTSER Zone Atelier Armorique",
@@ -1536,9 +1539,12 @@ def get_species_data_specs(site_id):
         },
         "9f9ba137-342d-4813-ae58-a60911c3abc1": {
             "name": "Rhine-Main-Observatory",
-            "file_names": ["DE_RhineMainObservatory_abund_data.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
+            "file_names": [
+                "DE_RhineMainObservatory_abund_data.csv",
+                "DE_RhineMainObservatory_data_abund_V2.xlsx",
+            ],
+            "species_columns": ["TAXA", "TAXA"],
+            "extra_columns": [[], []],
         },
         "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
             "name": "Torgnon grassland Tellinod (IT19 Aosta Valley)",
@@ -1563,9 +1569,12 @@ def get_species_data_specs(site_id):
         },
         "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
             "name": "Appennino centro-meridionale: Majella-Matese",
-            "file_names": ["IT_AppenninoCentroMeridionale_data_cover.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
+            "file_names": [
+                "IT_AppenninoCentroMeridionale_data_cover.csv",
+                "IT_AppenninoCentroMeridionale_data_cover__from_FEM_Revised.csv",
+            ],
+            "species_columns": ["TAXA", "TAXA"],
+            "extra_columns": [[], []],
         },
         "e13f1146-b97a-4bc5-9bc5-65322379a567": {
             "name": "Jalovecka dolina",

@@ -38,6 +38,8 @@ import rasterio
 import requests
 from dateutil.parser import parse
 
+# from uc-grassland.logger_config import logger
+
 # will be "https://opendap.biodt.eu/..."
 OPENDAP_ROOT = "http://opendap.biodt.eu/grasslands-pdt/"
 
@@ -166,6 +168,7 @@ def get_tuple_list(
     replace_none="None",
     columns_to_remove=[],
     return_sorted=False,
+    header_lines=0,
 ):
     """
     Convert a list of lists to a list of tuples.
@@ -179,7 +182,7 @@ def get_tuple_list(
     # Convert each sublist to a tuple, if not already
     tuple_list = []
 
-    for entry in input_list:
+    for entry in input_list[header_lines:]:
         if isinstance(entry, list):
             tuple_list.append(tuple(entry))
         elif isinstance(entry, tuple):
@@ -210,7 +213,7 @@ def get_tuple_list(
     if return_sorted:
         tuple_list.sort(key=lambda x: x)
 
-    return tuple_list
+    return input_list[:header_lines] + tuple_list
 
 
 def count_duplicates(input_list, *, key_column=0, columns_to_ignore=[]):
@@ -242,7 +245,7 @@ def count_duplicates(input_list, *, key_column=0, columns_to_ignore=[]):
     return duplicates
 
 
-def remove_duplicates(input_list, *, duplicates=None):
+def remove_duplicates(input_list, *, duplicates=None, header_lines=0):
     """
     Remove duplicate items from a list.
 
@@ -253,10 +256,12 @@ def remove_duplicates(input_list, *, duplicates=None):
     if duplicates is None:
         duplicates = count_duplicates(input_list, key_column="all")
 
-    tuple_list = get_tuple_list(input_list, return_sorted=True)
+    tuple_list = get_tuple_list(
+        input_list, return_sorted=True, header_lines=header_lines
+    )
     unique_list = []
 
-    for entry in tuple_list:
+    for entry in tuple_list[header_lines:]:
         if entry in duplicates:
             duplicates[entry] -= 1
 
@@ -269,7 +274,7 @@ def remove_duplicates(input_list, *, duplicates=None):
     # Sort by all columns
     unique_list.sort(key=lambda x: x)
 
-    return unique_list
+    return tuple_list[:header_lines] + unique_list
 
 
 def get_row_values(key, values):
@@ -1183,20 +1188,21 @@ def reproject_coordinates(lat, lon, target_crs):
     Parameters:
         lat (float): Latitude.
         lon (float): Longitude.
-        target_crs (str): Target Coordinate Reference System in WKT format.
+        target_crs (crs or str): Target CRS (as CRS object or str).
 
     Returns:
         tuple (float): Reprojected coordinates (easting, northing).
     """
-    # Define source CRS (EPSG:4326 - WGS 84, commonly used for lat/lon)
-    src_crs = pyproj.CRS("EPSG:4326")
+    # Define the source CRS (EPSG:4326 - WGS 84, commonly used for lat/lon)
+    src_crs = "EPSG:4326"
 
-    # Create a transformer to convert from source CRS to target CRS
+    # Create a transformer to convert from the source CRS to the target CRS
     # (always_xy: use lon/lat for source CRS and east/north for target CRS)
     transformer = pyproj.Transformer.from_crs(src_crs, target_crs, always_xy=True)
 
-    # Reproject coordinates (order is lon, lat!)
+    # Reproject the coordinates (order is lon, lat!)
     east, north = transformer.transform(lon, lat)
+
     return east, north
 
 
@@ -1219,12 +1225,21 @@ def extract_raster_value(tif_file, location, *, band_number=1, attempts=5, delay
 
         try:
             with rasterio.open(tif_file) as src:
-                # Get target CRS (as str in WKT format) from TIF file
-                target_crs = src.crs.to_wkt()
+                # Check if band number exists in the raster file
+                if band_number not in src.indexes:
+                    try:
+                        raise ValueError(
+                            f"Band number {band_number} does not exist in the raster file {tif_file}."
+                        )
+                    except ValueError:  # as e:
+                        # logger.error(e)  TODO: Implement logger
+                        raise
 
                 # Reproject coordinates to target CRS
                 east, north = reproject_coordinates(
-                    location["lat"], location["lon"], target_crs
+                    location["lat"],
+                    location["lon"],
+                    src.crs,  # TIF file CRS
                 )
 
                 # Extract value from specified band number at specified coordinates
@@ -1284,6 +1299,10 @@ def check_url(url, *, attempts=5, delay_exponential=2, delay_linear=2):
                     time.sleep(delay_linear)
 
             else:
+                # logger.error(
+                #     f"Invalid URL: {url} (Status code {response.status_code})."
+                # )
+                print(f"Invalid URL: {url} (Status code {response.status_code}).")
                 return None
         except requests.ConnectionError as e:
             print(f"Request failed {e}.")
