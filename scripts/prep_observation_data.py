@@ -53,6 +53,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover": "lat46.692800_lon10.615700__PFT__data_abund.txt"
             },
             "pft_lookup_specs": {"cover": "default"},
+            "station_file": "IT_Matschertal_station.csv",
+            "start_year": 2009,
         },
         "270a41c4-33a8-4da6-9258-2ab10916f262": {
             "name": "AgroScapeLab Quillow (ZALF)",
@@ -85,6 +87,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                     "info_name": "PFT",
                 }
             },
+            "station_file": "DE_AgroScapeQuillow_station.csv",
+            "start_year": 2000,
         },
         "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
             "name": "LTSER Zone Atelier Armorique",
@@ -116,6 +120,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 },
                 "indices": "default",
             },
+            "station_file": "FR_AtelierArmorique_station.csv",
+            "start_year": 2015,
         },
         "324f92a3-5940-4790-9738-5aa21992511c": {
             "name": "Stubai (combination of Neustift meadows and Kaserstattalm)",
@@ -127,6 +133,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover": "lat47.116700_lon11.300000__PFT__data_abund.txt"
             },
             "pft_lookup_specs": {"cover": "default"},
+            "station_file": "AT_Stubai_station.csv",
+            "start_year": 1995,
         },
         "3de1057c-a364-44f2-8a2a-350d21b58ea0": {
             "name": "Obergurgl",
@@ -140,6 +148,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "absolute_frequency": "lat46.867100_lon11.024900__PFT__data.txt"
             },
             "pft_lookup_specs": {"absolute_frequency": "default"},
+            "station_file": "AT_Obergurgl_station.csv",
+            "start_year": 2000,
         },
         "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d": {
             "name": "Hochschwab (AT-HSW) GLORIA",
@@ -161,6 +171,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "abundance_gloria_1_8": "lat47.622020_lon15.149292__PFT__data_abund.txt",
             },
             "pft_lookup_specs": {"cover": "default", "abundance_gloria_1_8": "default"},
+            "station_file": "AT_Hochschwab_station.csv",
+            "start_year": 1998,
         },
         "61c188bc-8915-4488-8d92-6d38483406c0": {
             "name": "Randu meadows",
@@ -172,6 +184,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover_braun_blanquet": "lat57.814301_lon24.339609__PFT__data_abund.txt"
             },
             "pft_lookup_specs": {"cover_braun_blanquet": "default"},
+            "station_file": "LV_RanduMeadows_station.csv",
+            "start_year": 1996,
         },
         "66431807-ebf1-477f-aa52-3716542f3378": {
             "name": "LTSER Engure",
@@ -183,6 +197,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover": "lat57.216700_lon23.135000__PFT__data_cover.txt"
             },
             "pft_lookup_specs": {"cover": "default"},
+            "station_file": "LV_Engure_station.csv",
+            "start_year": 1997,
         },
         "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1": {
             "name": "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen",
@@ -194,6 +210,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover": "lat47.041162_lon11.098057__PFT__data_cover.txt"
             },
             "pft_lookup_specs": {"cover": "default"},
+            "station_file": "AT_Schrankogel_station.csv",
+            "start_year": 1994,
         },
         "6b62feb2-61bf-47e1-b97f-0e909c408db8": {
             "name": "Montagna di Torricchio",
@@ -213,6 +231,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                     "info_name": "PFT",
                 }
             },
+            "station_file": "IT_MontagnadiTorricchio_station.csv",
+            "start_year": 2006,
         },
         "829a2bcc-79d6-462f-ae2c-13653124359d": {
             "name": "Ordesa y Monte Perdido / Huesca ES",
@@ -228,6 +248,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "absolute_frequency": "lat42.650000_lon0.030000__PFT__data_freq.txt"
             },
             "pft_lookup_specs": {"absolute_frequency": "default"},
+            "station_file": "ES_OrdesaYMontePerdido_station.csv",
+            "start_year": 1993,
         },
         "9f9ba137-342d-4813-ae58-a60911c3abc1": {
             "name": "Rhine-Main-Observatory",
@@ -255,6 +277,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover_braun_blanquet": "lat50.267302_lon9.269139__PFT__data_abund_V2.txt"
             },
             "pft_lookup_specs": {"cover_braun_blanquet": "default"},
+            "station_file": "DE_RhineMainObservatory_station.csv",
+            "start_year": 2010,
         },
         "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
             "name": "Torgnon grassland Tellinod (IT19 Aosta Valley)",
@@ -268,6 +292,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "frequency_daget_poissonet": "lat45.846063_lon7.579028__PFT__data_abund.txt"
             },
             "pft_lookup_specs": {"frequency_daget_poissonet": "default"},
+            "station_file": "IT_TorgnonGrasslandTellinod_station.csv",
+            "start_year": 2009,
         },
         "b356da08-15ac-42ad-ba71-aadb22845621": {
             "name": "Nørholm Hede",
@@ -289,6 +315,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover": "lat55.680000_lon8.610000__PFT__data_cover.txt"
             },
             "pft_lookup_specs": {"cover": "default"},
+            "station_file": "DK_NorholmHede_station.csv",
+            "start_year": 1921,
         },
         "c0738b00-854c-418f-8d4f-69b03486e9fd": {
             "name": "Appennino centrale: Gran Sasso d'Italia",
@@ -302,6 +330,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover_braun_blanquet": "lat42.446250_lon13.554978__PFT__data_abund.txt"
             },
             "pft_lookup_specs": {"cover_braun_blanquet": "default"},
+            "station_file": "IT_AppenninoCentrale_station.csv",
+            "start_year": 1986,
         },
         "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
             "name": "Appennino centro-meridionale: Majella-Matese",
@@ -317,6 +347,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover": "lat42.086116_lon14.085206__PFT__data_cover.txt"
             },
             "pft_lookup_specs": {"cover": "default"},
+            "station_file": "IT_AppenninoCentroMeridionale_station.csv",
+            "start_year": 2001,
         },
         "e13f1146-b97a-4bc5-9bc5-65322379a567": {
             "name": "Jalovecka dolina",
@@ -330,6 +362,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover_categories_1_9": "lat49.217800_lon19.671900__PFT__data_cover.txt"
             },
             "pft_lookup_specs": {"cover_categories_1_9": "default"},
+            "station_file": "SK_JaloveckaDolina_station.csv",
+            "start_year": 2002,
         },
     }
 )

@@ -174,6 +174,7 @@ def management_data_to_txt_file(
         if not management_data:
             management_data = np.empty((0, len(management_columns)), dtype=str)
 
+    file_name.parent.mkdir(parents=True, exist_ok=True)
     np.savetxt(
         file_name,
         management_data,

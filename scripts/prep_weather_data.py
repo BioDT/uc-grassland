@@ -26,7 +26,7 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 import argparse
 
 import utils as ut
-from copernicus import data_processing as dprc
+from copernicus import data_processing as cop_dprc
 
 
 def prep_weather_data(
@@ -34,7 +34,7 @@ def prep_weather_data(
     years,
     *,
     months=list(range(1, 13)),
-    download_whole_area=False,
+    download_whole_area=True,
     deims_id=None,
     target_folder="weatherDataPrepared",
 ):
@@ -53,10 +53,10 @@ def prep_weather_data(
         # years = list(range(1999, 2011))  # list(range(..., 2023))
 
     if coordinates_list:
-        dprc.data_processing(
+        cop_dprc(
             years,
-            months,
             coordinates_list,
+            months=months,
             download_whole_area=download_whole_area,
             target_folder=target_folder,
         )
@@ -64,10 +64,10 @@ def prep_weather_data(
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:
-            dprc.data_processing(
+            cop_dprc(
                 years,
-                months,
                 [location],
+                months=months,
                 download_whole_area=False,
                 target_folder=target_folder,
             )
@@ -110,11 +110,11 @@ def prep_weather_data(
             },  # GER, GCEF grassland site, centroid, non-grassland in HRL
         ]
 
-        dprc.data_processing(
+        cop_dprc(
             years,
-            months,
             coordinates_list,
-            download_whole_area=True,  # download_whole_area,
+            months=months,
+            download_whole_area=download_whole_area,
             target_folder=target_folder,
         )
 
@@ -126,10 +126,10 @@ def prep_weather_data(
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:
-            dprc.data_processing(
+            cop_dprc(
                 years,
-                months,
                 [location],
+                months=months,
                 download_whole_area=False,
                 target_folder=target_folder,
             )

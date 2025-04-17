@@ -26,6 +26,7 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 import argparse
 import shutil
 import warnings
+from datetime import datetime
 from pathlib import Path
 
 import check_if_grassland
@@ -33,6 +34,7 @@ import prep_management_data
 import prep_soil_data
 import prep_weather_data
 import utils as ut
+from prep_observation_data import OBSERVATION_DATA_SPECS_PER_SITE
 
 
 def add_coordinate_infos(coordinates):
@@ -190,9 +192,9 @@ def data_processing(
 
             # Move weather files to location folder
             for weather_file in weather_files:
-                final_file = (
-                    coordinates["location_head_folder"] / "weather" / weather_file.name
-                )
+                final_folder = coordinates["location_head_folder"] / "weather"
+                final_folder.mkdir(parents=True, exist_ok=True)
+                final_file = final_folder / weather_file.name
                 shutil.move(weather_file, final_file)
 
     # Run soil script
@@ -322,30 +324,32 @@ def prep_grassland_model_input_data(
         # ]
         # years = list(range(1998, 1999))
 
-        # Example to get location coordinates from CSV file (for single plots/stations) - quick run, to be generalized below
+        # # Example to get location coordinates from CSV file (for single plots/stations) - quick run, to be generalized below
         source_folder = Path(
             "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/"
         )
         # deims_id = "11696de6-0ab9-4c94-a06b-7ce40f56c964"
         # station_file = source_folder / deims_id / "IT_Matschertal_station.csv"
-        deims_id = "270a41c4-33a8-4da6-9258-2ab10916f262"
-        station_file = source_folder / deims_id / "DE_AgroScapeQuillow_station.csv"
-        coordinates_list = ut.get_plot_locations_from_csv(station_file)
-        first_year = 1999
-        last_year = 2010
-        years = list(range(first_year, last_year + 1))
-        download_weather_area = True
-        # skip_grass_check = True
+        # deims_id = "270a41c4-33a8-4da6-9258-2ab10916f262"
+        # station_file = source_folder / deims_id / "DE_AgroScapeQuillow_station.csv"
+        # coordinates_list = ut.get_plot_locations_from_csv(station_file)
+        # first_year = 1999
+        # last_year = 2024
+        # years = list(range(first_year, last_year + 1))
+        # download_weather_area = True
+        skip_grass_check = True
+        # skip_weather = True
+        # skip_soil = True
 
-        data_processing(
-            coordinates_list,
-            years,
-            skip_grass_check=skip_grass_check,
-            skip_weather=skip_weather,
-            download_weather_area=download_weather_area,
-            skip_soil=skip_soil,
-            skip_management=skip_management,
-        )
+        # data_processing(
+        #     coordinates_list,
+        #     years,
+        #     skip_grass_check=skip_grass_check,
+        #     skip_weather=skip_weather,
+        #     download_weather_area=download_weather_area,
+        #     skip_soil=skip_soil,
+        #     skip_management=skip_management,
+        # )
 
         # # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
         # sites_file_name = (
@@ -356,42 +360,52 @@ def prep_grassland_model_input_data(
         #     header_row=1,
         #     country="ALL",  # "DE" "AT"
         # )
-        # site_ids = [
-        #     "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
-        #     "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
-        #     "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
-        #     "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
-        #     "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-        #     "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
-        #     "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
-        #     "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
-        #     "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
-        #     "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
-        #     "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
-        #     "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
-        #     "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
-        #     "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
-        #     "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
-        #     "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
-        #     "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
-        # ]
+        site_ids = [
+            # "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+            "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
+            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
+            "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
+            # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
+            # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
+            "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
+            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
+            "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
+            # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
+            "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+            "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
+            "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
+            "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
+            "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
+            "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
+        ]
 
-        # for deims_id in site_ids:
-        #     location = ut.get_deims_coordinates(deims_id)
+        # Get the last full year from now
+        last_year = datetime.now().year - 1
 
-        #     if location["found"]:
-        #         data_processing(
-        #             [location],
-        #             years,
-        #             skip_grass_check=skip_grass_check,
-        #             skip_weather=skip_weather,
-        #             download_weather_area=False,
-        #             skip_soil=skip_soil,
-        #             skip_management=skip_management,
-        #         )
+        for deims_id in site_ids:
+            station_file = (
+                source_folder
+                / deims_id
+                / OBSERVATION_DATA_SPECS_PER_SITE[deims_id]["station_file"]
+            )
+            coordinates_list = ut.get_plot_locations_from_csv(station_file)
 
-        # TODO: code to look for station file in subfolder, then get locations from file if exactly 1 file found ...
-        # source_subfolder = source_folder / deims_id
+            # Specify site-specific time range
+            first_year = max(
+                1950, OBSERVATION_DATA_SPECS_PER_SITE[deims_id]["start_year"] - 10
+            )
+            years = list(range(first_year, last_year + 1))
+
+            data_processing(
+                coordinates_list,
+                years,
+                skip_grass_check=skip_grass_check,
+                skip_weather=skip_weather,
+                download_weather_area=download_weather_area,
+                skip_soil=skip_soil,
+                skip_management=skip_management,
+            )
 
 
 def main():
@@ -430,9 +444,10 @@ def main():
         help="Skip weather data preparation (default is False).",
     )
     parser.add_argument(
-        "--download_weather_area",
-        action="store_true",
-        help="Download whole area covering all coordinates in the list (default is False).",
+        "--download_weather_single_points",
+        action="store_false",
+        dest="download_weather_area",
+        help="Download single points, not whole area covering all coordinates in the list (default is False).",
     )
     parser.add_argument(
         "--skip_soil",

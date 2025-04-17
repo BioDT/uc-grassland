@@ -8,10 +8,10 @@
 # but reading from git should be possible via this line here:
 #        copernicus @ git+https://github.com/BioDT/general-copernicus-weather-data.git@main
 deims>=4.0
-openpyxl==3.1.2
+openpyxl>=3.1.2
 pandas>=1.5.0
 pygbif>=0.6.3
-pyproj==3.6.1
+pyproj>=3.7.1
 pytest>=8.3.3 
 python-dotenv>=1.0.1
 rasterio>=1.3.8

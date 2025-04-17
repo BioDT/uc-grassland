@@ -26,7 +26,7 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 import argparse
 
 import utils as ut
-from soilgrids import data_processing as dprc
+from soilgrids import data_processing as soil_dprc
 
 
 def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
@@ -40,12 +40,12 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
     """
 
     if coordinates:
-        dprc.data_processing(coordinates, file_name=file_name)
+        soil_dprc(coordinates, file_name=file_name)
     elif deims_id:
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:
-            dprc.data_processing(location, file_name=file_name)
+            soil_dprc(location, file_name=file_name)
         else:
             raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found!")
     else:
@@ -68,11 +68,11 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
         ]
 
         # # example: locations with missing data in one but not both of the sources
-        # # no soilgrids, hhs available
+        # # no soilgrids, hihydrosoil available
         # coordinates = {"lat": 50.311208, "lon": 9.448670}
-        # dprc.data_processing(coordinates)
+        # soil_dprc(coordinates)
 
-        # # soilgrids available, no hhs
+        # # soilgrids available, no hihydrosoil
         # coordinates_list = [
         #     {"lat": 50.279263, "lon": 9.367577},
         #     {"lat": 50.134160, "lon": 8.940724},
@@ -81,18 +81,18 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
         # ]
 
         for coordinates in coordinates_list:
-            dprc.data_processing(coordinates)
+            soil_dprc(coordinates)
 
         # example: call with single deims_id
         deims_id = "102ae489-04e3-481d-97df-45905837dc1a"  # GCEF site
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:
-            dprc.data_processing(location)
+            soil_dprc(location)
 
         # # quick test for local cache file
-        # hhs_cache = "c:/_D/biodt_data/soilMapsHiHydroSoil"
-        # dprc.data_processing(coordinates, hhs_cache=hhs_cache)
+        # hihydrosoil_cache = "c:/_D/biodt_data/soilMapsHiHydroSoil"
+        # soil_dprc(coordinates, hihydrosoil_cache=hihydrosoil_cache)
 
         # # example: get multiple coordinates from DEIMS.iDs from XLS file
         # sites_file_name = (
@@ -104,7 +104,7 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
         #     location = ut.get_deims_coordinates(deims_id)
 
         #     if location["found"]:
-        #         dprc.data_processing(location)
+        #         soil_dprc(location)
 
 
 def main():
