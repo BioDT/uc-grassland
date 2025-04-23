@@ -26,7 +26,7 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 import argparse
 
 import utils as ut
-from copernicus import data_processing as cop_dprc
+from copernicus import get_weather_data
 
 
 def prep_weather_data(
@@ -53,7 +53,7 @@ def prep_weather_data(
         # years = list(range(1999, 2011))  # list(range(..., 2023))
 
     if coordinates_list:
-        cop_dprc(
+        get_weather_data(
             years,
             coordinates_list,
             months=months,
@@ -64,7 +64,7 @@ def prep_weather_data(
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:
-            cop_dprc(
+            get_weather_data(
                 years,
                 [location],
                 months=months,
@@ -110,7 +110,7 @@ def prep_weather_data(
             },  # GER, GCEF grassland site, centroid, non-grassland in HRL
         ]
 
-        cop_dprc(
+        get_weather_data(
             years,
             coordinates_list,
             months=months,
@@ -126,7 +126,7 @@ def prep_weather_data(
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:
-            cop_dprc(
+            get_weather_data(
                 years,
                 [location],
                 months=months,

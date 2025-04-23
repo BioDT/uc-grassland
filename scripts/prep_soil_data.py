@@ -26,7 +26,7 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 import argparse
 
 import utils as ut
-from soilgrids import data_processing as soil_dprc
+from soilgrids import get_soil_data
 
 
 def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
@@ -40,12 +40,12 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
     """
 
     if coordinates:
-        soil_dprc(coordinates, file_name=file_name)
+        get_soil_data(coordinates, file_name=file_name)
     elif deims_id:
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:
-            soil_dprc(location, file_name=file_name)
+            get_soil_data(location, file_name=file_name)
         else:
             raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found!")
     else:
@@ -70,7 +70,7 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
         # # example: locations with missing data in one but not both of the sources
         # # no soilgrids, hihydrosoil available
         # coordinates = {"lat": 50.311208, "lon": 9.448670}
-        # soil_dprc(coordinates)
+        # get_soil_data(coordinates)
 
         # # soilgrids available, no hihydrosoil
         # coordinates_list = [
@@ -81,18 +81,18 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
         # ]
 
         for coordinates in coordinates_list:
-            soil_dprc(coordinates)
+            get_soil_data(coordinates)
 
         # example: call with single deims_id
         deims_id = "102ae489-04e3-481d-97df-45905837dc1a"  # GCEF site
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:
-            soil_dprc(location)
+            get_soil_data(location)
 
         # # quick test for local cache file
         # hihydrosoil_cache = "c:/_D/biodt_data/soilMapsHiHydroSoil"
-        # soil_dprc(coordinates, hihydrosoil_cache=hihydrosoil_cache)
+        # get_soil_data(coordinates, hihydrosoil_cache=hihydrosoil_cache)
 
         # # example: get multiple coordinates from DEIMS.iDs from XLS file
         # sites_file_name = (
@@ -104,7 +104,7 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
         #     location = ut.get_deims_coordinates(deims_id)
 
         #     if location["found"]:
-        #         soil_dprc(location)
+        #         get_soil_data(location)
 
 
 def main():
