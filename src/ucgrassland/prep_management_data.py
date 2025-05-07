@@ -925,7 +925,7 @@ def convert_management_data(
     return management_events
 
 
-def data_processing(
+def get_management_data(
     coordinates,
     years,
     map_key,
@@ -1032,7 +1032,7 @@ def prep_management_data(
         years = list(range(2013, 2024))  # list(range(2017, 2019))
 
     if coordinates:
-        data_processing(
+        get_management_data(
             coordinates,
             years,
             map_key,
@@ -1044,7 +1044,7 @@ def prep_management_data(
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:
-            data_processing(
+            get_management_data(
                 location,
                 years,
                 map_key,
@@ -1068,7 +1068,7 @@ def prep_management_data(
             location = ut.get_deims_coordinates(deims_id)
 
             if location["found"]:
-                data_processing(
+                get_management_data(
                     location,
                     years,
                     map_key,
@@ -1097,7 +1097,7 @@ def prep_management_data(
         ]
 
         for location in locations:
-            data_processing(
+            get_management_data(
                 location,
                 years,
                 map_key,

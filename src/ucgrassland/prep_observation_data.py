@@ -1357,7 +1357,7 @@ def observation_summaries_to_list(observation_summaries, *, new_file=None):
         )
 
 
-def data_processing(
+def prep_observation_data_for_sites(
     site_ids=None, source_folder=None, target_folder=None, target_suffix=".txt"
 ):
     """
@@ -1446,7 +1446,7 @@ def main():
     )
     args = parser.parse_args()
 
-    data_processing(
+    prep_observation_data_for_sites(
         site_ids=args.locations,
         source_folder=args.source_folder,
         target_folder=args.target_folder,
