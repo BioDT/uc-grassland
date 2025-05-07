@@ -1,6 +1,6 @@
 """
 Module Name: check_if_grassland.py
-Description: Functions for checking if coordinates are grassland according to given TIF land cover map.
+Description: Functions for checking if coordinates are grassland according to given TIF land cover maps.
 
 Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
 Tuomas Rossi (CSC) and Taimur Haider Khan (UFZ).
@@ -43,7 +43,7 @@ Data sources:
       PANGAEA, https://doi.org/10.1594/PANGAEA.896282
 
     "GER_Preidl":
-    - Preidl, S., Lange, M., Doktor, Daniel (2020).
+    - Preidl, S., Lange, M., Doktor, D. (2020).
       Land cover classification map of Germany's agricultural area based on Sentinel-2A data from 2016.
       PANGAEA, https://doi.org/10.1594/PANGAEA.910837
 
