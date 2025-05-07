@@ -1679,7 +1679,7 @@ def get_pft_from_files(
         )
 
 
-def data_processing(deims_id, source_folder, *, target_folder=None, lookup_tables=None):
+def assign_pfts(deims_id, source_folder, *, target_folder=None, lookup_tables=None):
     """
     Find and process species data for a site based on DEIMS ID.
 
@@ -1774,7 +1774,7 @@ def assign_pfts_for_sites(
         lookup_tables = get_lookup_tables(force_create=False)
 
     for deims_id in site_ids:
-        data_processing(
+        assign_pfts(
             deims_id,
             source_folder,
             target_folder=target_folder,
