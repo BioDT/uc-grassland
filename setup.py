@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 
 # Project metadata
-name = "uc-grassland"
+name = "ucgrassland"
 version = "0.1.0"
 author = "Thomas Banitz, Franziska Taubert, Tuomas Rossi, Taimur Haider Khan, BioDT"
 description = "Run scripts for BioDT pDT Grassland"
