@@ -97,10 +97,12 @@ def get_input_data(
         downloads and prepares management data.
 
     Parameters:
-        coordinates (list of dict): List of dictionaries with 'lat' and 'lon' keys.
+        coordinates_list (list of dict): List of dictionaries with 'lat' and 'lon' keys.
         years (list of int): Years list.
         skip_grass_check (bool): Skip grassland checks (default is False).
         skip_weather (bool): Skip weather data preparation (default is False).
+        download_whole_area (bool): Download raw weather data for whole area covering all locations from the coordinates list
+            (default is True). If False, data will be downloaded for each location separately.
         skip_soil (bool): Skip soil data preparation (default is False).
         skip_management (bool): Skip management data preparation (default is False).
     """
@@ -249,10 +251,17 @@ def prep_grassland_model_input_data(
     Prepare all necessary data to be used as grassland model input.
 
     Parameters:
-        coordinates (dict): Coordinates dictionary with 'lat' and 'lon', or 'None' using DEIMS.iD.
+        coordinates_list (list of dict): List of dictionaries with 'lat' and 'lon' keys,
+            or None for using DEIMS.iD to get coordinates of one location.
         first_year (int): First year of desired time period.
         last_year (int): Last year of desired time period.
-        deims_id (str): DEIMS.iD (default is None).
+        deims_id (str): DEIMS.iD to get coordinates of one location (default is None, only used if coordinates_list is None).
+        skip_grass_check (bool): Skip grassland checks (default is False).
+        skip_weather (bool): Skip weather data preparation (default is False).
+        download_whole_area (bool): Download raw weather data for whole area covering all locations from the coordinates list
+            (default is False). If False, data will be downloaded for each location separately.
+        skip_soil (bool): Skip soil data preparation (default is False).
+        skip_management (bool): Skip management data preparation (default is False).
     """
     if first_year and last_year:
         first_year = int(first_year)

@@ -42,9 +42,12 @@ def prep_weather_data(
     Prepare weather data to be used as grassland model input.
 
     Parameters:
-        coordinates (dict): Coordinates dictionary with 'lat' and 'lon', or 'None' using DEIMS.iD.
-        years (list or None): List of years to process.
-        months (list or None): List of months to process (default is [1, 2, ... 12]).
+        coordinates_list (dict): List of dictionaries with 'lat' and 'lon' keys,
+            or None for using DEIMS.iD to get coordinates of one location.
+        years (list): List of years to process.
+        months (list): List of months to process (default is [1, 2, ... 12]).
+        download_whole_area (bool): Download raw weather data for whole area covering all locations from the coordinates list
+            (default is True). If False, data will be downloaded for each location separately.
         deims_id (str): DEIMS.iD (default is None).
         target_folder (str or Path): Target folder for .txt files (default is 'weatherDataPrepared').
     """

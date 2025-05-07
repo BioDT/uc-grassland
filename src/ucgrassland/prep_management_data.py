@@ -29,7 +29,7 @@ Data sources:
     - Lange, M., Feilhauer, H., Kühn, I., Doktor, D. (2022).
       Mapping land-use intensity of grasslands in Germany with machine learning and Sentinel-2 time series,
       Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2022.112888
-    - Based on grassland classifaction according to: German ATKIS digital landscape model 2015.
+    - Based on grassland classification according to: German ATKIS digital landscape model 2015.
 
     "GER_Schwieder" map:
     - Schwieder, M., Wesemeyer, M., Frantz, D., Pfoch, K., Erasmi, S., Pickert, J., Nendel, C., Hostert, P. (2022).
