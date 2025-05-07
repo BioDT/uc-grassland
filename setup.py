@@ -21,5 +21,5 @@ setup(
     url=url,
     license=license,
     install_requires=install_requires,
-    packages=find_packages(include=["uc-grassland"]),
+    packages=find_packages(include=["ucgrassland"]),
 )
