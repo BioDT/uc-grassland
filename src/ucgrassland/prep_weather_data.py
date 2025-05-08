@@ -25,8 +25,9 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 
 import argparse
 
-import utils as ut
 from copernicus import get_weather_data
+
+from ucgrassland import utils as ut
 
 
 def prep_weather_data(

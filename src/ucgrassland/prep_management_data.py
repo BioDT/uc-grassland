@@ -55,7 +55,8 @@ import warnings
 from pathlib import Path
 
 import numpy as np
-import utils as ut
+
+from ucgrassland import utils as ut
 
 
 def construct_management_data_file_name(

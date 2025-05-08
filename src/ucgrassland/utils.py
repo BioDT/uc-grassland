@@ -38,7 +38,7 @@ import rasterio
 import requests
 from dateutil.parser import parse
 
-# from uc-grassland.logger_config import logger
+# from ucgrassland.logger_config import logger
 
 # will be "https://opendap.biodt.eu/..."
 OPENDAP_ROOT = "http://opendap.biodt.eu/grasslands-pdt/"

@@ -30,9 +30,10 @@ import warnings
 from pathlib import Path
 from types import MappingProxyType
 
-import assign_pfts as apft
 import pandas as pd
-import utils as ut
+
+from ucgrassland import assign_pfts as apft
+from ucgrassland import utils as ut
 
 # Define observation data specifications for a sites with grassland observation data, including:
 #     name (str): Site name.

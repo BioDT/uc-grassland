@@ -96,7 +96,8 @@ from pathlib import Path
 import deims
 import pandas as pd
 import requests
-import utils as ut
+
+from ucgrassland import utils as ut
 
 
 def get_map_specs(map_key):

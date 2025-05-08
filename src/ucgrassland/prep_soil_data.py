@@ -25,8 +25,9 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 
 import argparse
 
-import utils as ut
 from soilgrids import get_soil_data
+
+from ucgrassland import utils as ut
 
 
 def prep_soil_data(coordinates, *, deims_id=None, file_name=None):

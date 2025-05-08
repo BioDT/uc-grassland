@@ -69,8 +69,9 @@ import warnings
 from pathlib import Path
 
 import pandas as pd
-import utils as ut
 from pygbif import species
+
+from ucgrassland import utils as ut
 
 
 def resolve_infos(
