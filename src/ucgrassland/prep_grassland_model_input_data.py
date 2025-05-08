@@ -29,12 +29,14 @@ import warnings
 from datetime import datetime
 from pathlib import Path
 
-import check_if_grassland
-import prep_management_data
-import prep_soil_data
-import prep_weather_data
-import utils as ut
-from prep_observation_data import OBSERVATION_DATA_SPECS_PER_SITE
+from ucgrassland import (
+    check_if_grassland,
+    prep_management_data,
+    prep_soil_data,
+    prep_weather_data,
+)
+from ucgrassland import utils as ut
+from ucgrassland.prep_observation_data import OBSERVATION_DATA_SPECS_PER_SITE
 
 
 def add_coordinate_infos(coordinates):
