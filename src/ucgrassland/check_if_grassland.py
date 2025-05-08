@@ -518,9 +518,7 @@ def check_results_to_file(grassland_check, *, file_name=None, map_key=None):
         if map_key is None:
             map_key = ""
         file_name = (
-            ut.get_package_root()
-            / "landCoverCheckResults"
-            / f"grasslandCheck_{map_key}.txt"
+            Path.cwd() / "landCoverCheckResults" / f"grasslandCheck_{map_key}.txt"
         )
 
     column_names = ut.get_unique_keys(grassland_check)
@@ -734,7 +732,7 @@ def main():
     # Example coordinates
     if args.locations is None:
         # Example to get coordinates from DEIMS.iDs from XLS file
-        file_name = ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        file_name = Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"
         country_code = "DE"  # "DE" "AT"
         sites_ids = ut.get_deims_ids_from_xls(
             file_name, header_row=1, country=country_code

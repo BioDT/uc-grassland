@@ -64,9 +64,9 @@ def add_coordinate_infos(coordinates):
                 "formatted_lat": formatted_lat,
                 "formatted_lon": formatted_lon,
                 "file_start": file_start,
-                "location_head_folder": Path(
-                    ut.get_package_root() / "grasslandModelInputFiles" / file_start
-                ),
+                "location_head_folder": Path.cwd()
+                / "grasslandModelInputFiles"
+                / file_start,
             }
         )
 
@@ -168,7 +168,8 @@ def get_input_data(
     else:
         # Use preliminary target folder for all weather data, later move to each single location folder
         target_folder = (
-            ut.get_package_root() / "grasslandModelInputFiles" / "weatherDataPrepared"
+            # ut.get_package_root() / "grasslandModelInputFiles" / "weatherDataPrepared"
+            Path.cwd() / "grasslandModelInputFiles" / "weatherDataPrepared"
         )
         prep_weather_data.prep_weather_data(
             coordinates_list,
@@ -349,8 +350,8 @@ def prep_grassland_model_input_data(
         # years = list(range(first_year, last_year + 1))
         # download_weather_area = True
         skip_grass_check = True
-        # skip_weather = True
-        skip_soil = True
+        skip_weather = True
+        # skip_soil = True
         skip_management = True
 
         # get_input_data(

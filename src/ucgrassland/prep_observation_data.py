@@ -1398,7 +1398,7 @@ def prep_observation_data_for_sites(
         )
 
     if target_folder is None:
-        target_folder = ut.get_package_root() / "grasslandSites"
+        target_folder = Path.cwd() / "grasslandSites"
 
     site_observation_summary = {}
 

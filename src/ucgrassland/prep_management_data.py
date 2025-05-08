@@ -1057,9 +1057,7 @@ def prep_management_data(
             raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found!")
     else:
         # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
-        sites_file_name = (
-            ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-        )
+        sites_file_name = Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"
         sites_ids = ut.get_deims_ids_from_xls(
             sites_file_name, header_row=1, country="DE"
         )

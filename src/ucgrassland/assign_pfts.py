@@ -1092,9 +1092,7 @@ def get_lookup_tables(
     }
 
     # Define folder where lookup tables are expected, and will be stored
-    lookup_folder = (
-        ut.get_package_root() / lookup_folder_name if cache is None else Path(cache)
-    )
+    lookup_folder = Path(cache) if cache else Path.cwd() / lookup_folder_name
 
     if not force_create:
         for table_name, table_info in lookup_table_specs.items():
@@ -1769,7 +1767,8 @@ def assign_pfts_for_sites(
         )
 
     if target_folder is None:
-        target_folder = ut.get_package_root() / "grasslandSites"
+        # target_folder = ut.get_package_root() / "grasslandSites"
+        target_folder = Path.cwd() / "grasslandSites"
 
     if lookup_tables is None:
         lookup_tables = get_lookup_tables(force_create=False)
