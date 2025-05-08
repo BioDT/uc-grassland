@@ -281,6 +281,8 @@ def prep_grassland_model_input_data(
         years = None
 
     if years and coordinates_list:
+        # quick helper to avoid weather data
+        skip_weather = True
         get_input_data(
             coordinates_list,
             years,
