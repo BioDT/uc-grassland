@@ -95,9 +95,13 @@ def construct_management_data_file_name(
             / f"{formatted_lat}_{formatted_lon}__{formatted_years}__management__{map_key}__{data_specifier}{file_suffix}"
         )
     else:
-        raise ValueError(
-            "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
-        )
+        try:
+            raise ValueError(
+                "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     return file_name
 
@@ -408,9 +412,13 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
     property = map_properties[0]
 
     if property != "mowing":
-        raise ValueError(
-            f"First property to read from '{map_key}' map must be 'mowing'."
-        )
+        try:
+            raise ValueError(
+                f"First property to read from '{map_key}' map must be 'mowing'."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     # Initialize property_data array with nans
     property_data = np.full((len(years), map_bands + 1), np.nan, dtype=object)
@@ -584,9 +592,13 @@ def get_fert_days(mow_days, year):
     }
 
     if event_count not in days_ahead:
-        raise ValueError(
-            f"No fertilisation day values defined for list of {event_count} mow days."
-        )
+        try:
+            raise ValueError(
+                f"No fertilisation day values defined for list of {event_count} mow days."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     deltas = days_ahead[event_count]
     fert_days = []
@@ -954,9 +966,13 @@ def get_management_data(
             f"Preparing management data for latitude: {coordinates['lat']}, longitude: {coordinates['lon']} ..."
         )
     else:
-        raise ValueError(
-            "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
-        )
+        try:
+            raise ValueError(
+                "Coordinates not correctly defined. Please provide as dictionary ({'lat': float, 'lon': float})!"
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     if map_key == "GER_Lange":
         map_properties = ["mowing", "fertilisation", "grazing", "LUI"]
@@ -977,9 +993,13 @@ def get_management_data(
             coordinates, map_properties, years
         )
     else:
-        raise ValueError(
-            f"Map key '{map_key}' not found. Please provide valid map key!"
-        )
+        try:
+            raise ValueError(
+                f"Map key '{map_key}' not found. Please provide valid map key!"
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     management_data_to_txt_file(
         coordinates,
@@ -1057,7 +1077,11 @@ def prep_management_data(
                 file_name=file_name,
             )
         else:
-            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found.")
+            try:
+                raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found.")
+            except ValueError as e:
+                logger.error(e)
+                raise
     else:
         # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
         sites_file_name = Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"

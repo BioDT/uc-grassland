@@ -164,10 +164,7 @@ def get_input_data(
         logger.info("Weather data preparation skipped.")
     else:
         # Use preliminary target folder for all weather data, later move to each single location folder
-        target_folder = (
-            # ut.get_package_root() / "grasslandModelInputFiles" / "weatherDataPrepared"
-            Path.cwd() / "grasslandModelInputFiles" / "weatherDataPrepared"
-        )
+        target_folder = Path.cwd() / "grasslandModelInputFiles" / "weatherDataPrepared"
         prep_weather_data.prep_weather_data(
             coordinates_list,
             years,
@@ -295,7 +292,11 @@ def prep_grassland_model_input_data(
                 skip_management=skip_management,
             )
         else:
-            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found.")
+            try:
+                raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found.")
+            except ValueError as e:
+                logger.error(e)
+                raise
     else:
         # Example locations list
         # locations = ut.parse_locations(
@@ -304,12 +305,12 @@ def prep_grassland_model_input_data(
 
         # # # Example to get location coordinates from CSV file (for single plots/stations)
         # # file_name = (
-        # #     ut.get_package_root()
+        # #     Path.cwd()
         # #     / "grasslandSites"
         # #     / "DE_RhineMainObservatory_station.csv"
         # # )
         # # # file_name = (
-        # # #     ut.get_package_root() / "grasslandSites" / "AT_Hochschwab_station.csv"
+        # # #     Path.cwd() / "grasslandSites" / "AT_Hochschwab_station.csv"
         # # # )
         # # years = list(range(1992, 2024))
         # # locations = ut.get_plot_locations_from_csv(file_name)
@@ -355,7 +356,7 @@ def prep_grassland_model_input_data(
 
         # # # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
         # # sites_file_name = (
-        # #     ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        # #     Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"
         # # )
         # # site_ids = ut.get_deims_ids_from_xls(
         # #     sites_file_name,

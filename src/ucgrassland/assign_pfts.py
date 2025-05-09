@@ -318,9 +318,6 @@ def read_info_dict(
 
     Returns:
         dict: Dictionary where key_column entries are keys, and infos are values.
-
-    Raises:
-        ValueError: If unsupported info_name is used.
     """
     if file_name.is_file():
         valid_infos = get_valid_infos(info_name)
@@ -386,9 +383,13 @@ def read_info_dict(
 
         return info_dict
     else:
-        raise FileNotFoundError(
-            f"File '{file_name}' not found. Cannot read lookup table."
-        )
+        try:
+            raise FileNotFoundError(
+                f"File '{file_name}' not found. Cannot read {info_name} lookup table."
+            )
+        except FileNotFoundError as e:
+            logger.error(e)
+            raise
 
 
 def gbif_request(spec, *, kingdom="plants", attempts=5, delay=2):
@@ -631,9 +632,6 @@ def read_species_list(
 
     Returns:
         list: List of unique species names, and additional info if requested and found.
-
-    Raises:
-        ValueError: If unsupported file format is used.
     """
     file_extension = file_name.suffix.lower()
     logger.info(f"Reading species list from '{file_name}' ...")
@@ -711,7 +709,13 @@ def read_species_list(
             logger.error(f"Processing line failed ({e}). Returning empty list.")
             return []
     else:
-        raise ValueError("Unsupported file format. Must be '.xlsx', '.txt', or '.csv'.")
+        try:
+            raise ValueError(
+                "Unsupported file format. Must be '.xlsx', '.txt', or '.csv'."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     # Reduce list to unique entries only
     species_list = ut.sort_and_cleanup_list(
@@ -1096,9 +1100,13 @@ def get_lookup_tables(
                         f"'{table_name}' source file found. Reading species infos from '{raw_file}' ..."
                     )
                 else:
-                    raise FileNotFoundError(
-                        f"'{table_name}' source file '{table_info['raw_file']}' not found."
-                    )
+                    try:
+                        raise FileNotFoundError(
+                            f"'{table_name}' source file '{table_info['raw_file']}' not found."
+                        )
+                    except FileNotFoundError as e:
+                        logger.error(e)
+                        raise
 
                 # Process raw source file with info column(s) to .txt file
                 read_species_list(
@@ -1123,9 +1131,13 @@ def get_lookup_tables(
                     info_column=table_info["raw_info_columns"][index],
                 )
             else:
-                raise FileNotFoundError(
-                    f"File '{raw_list_file}' not found. Cannot retrieve '{table_name}'."
-                )
+                try:
+                    raise FileNotFoundError(
+                        f"File '{raw_list_file}' not found. Cannot retrieve '{table_name}'."
+                    )
+                except FileNotFoundError as e:
+                    logger.error(e)
+                    raise
 
     return lookup_tables
 
@@ -1406,9 +1418,6 @@ def get_species_data_specs(site_id):
             'file_names' (list): Files containing species lists.
             'species_columns' (list): Column names for species list in each file.
             'extra_columns' (list of lists): Additional columns to retrieve from the files.
-
-    Raises:
-        ValueError: If site ID is not found in species data specifications.
     """
     species_data_specs_per_site = {
         "11696de6-0ab9-4c94-a06b-7ce40f56c964": {
@@ -1548,9 +1557,13 @@ def get_species_data_specs(site_id):
     if site_id in species_data_specs_per_site.keys():
         return species_data_specs_per_site[site_id]
     else:
-        raise ValueError(
-            f"Site ID '{site_id}' not found in species data specifications."
-        )
+        try:
+            raise ValueError(
+                f"Site ID '{site_id}' not found in species data specifications."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
 
 def get_pft_from_files(
@@ -1634,10 +1647,14 @@ def get_pft_from_files(
             collect_species_pfts, file_name, column_names=["Species", "PFT combined"]
         )
     else:
-        raise ValueError(
-            f"Site name mismatch for DEIMS ID '{location['deims_id']}': "
-            f"'{location['name']}' vs. '{species_data_specs['name']}'."
-        )
+        try:
+            raise ValueError(
+                f"Site name mismatch for DEIMS ID '{location['deims_id']}': "
+                f"'{location['name']}' vs. '{species_data_specs['name']}'."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
 
 def assign_pfts(deims_id, source_folder, *, target_folder=None, lookup_tables=None):
@@ -1727,7 +1744,6 @@ def assign_pfts_for_sites(
         )
 
     if target_folder is None:
-        # target_folder = ut.get_package_root() / "grasslandSites"
         target_folder = Path.cwd() / "grasslandSites"
 
     if lookup_tables is None:

@@ -28,6 +28,7 @@ import argparse
 from soilgrids import get_soil_data
 
 from ucgrassland import utils as ut
+from ucgrassland.logger_config import logger
 
 
 def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
@@ -48,7 +49,11 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
         if location["found"]:
             get_soil_data(location, file_name=file_name)
         else:
-            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found.")
+            try:
+                raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found.")
+            except ValueError as e:
+                logger.error(e)
+                raise
     else:
         # Several example coordinates for testing
 
@@ -97,7 +102,7 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
 
         # # example: get multiple coordinates from DEIMS.iDs from XLS file
         # sites_file_name = (
-        #     ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        #     Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"
         # )
         # sites_ids = ut.get_deims_ids_from_xls(sites_file_name, header_row=1)
 

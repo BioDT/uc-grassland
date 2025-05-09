@@ -28,6 +28,7 @@ import argparse
 from copernicus import get_weather_data
 
 from ucgrassland import utils as ut
+from ucgrassland.logger_config import logger
 
 
 def prep_weather_data(
@@ -71,7 +72,11 @@ def prep_weather_data(
                 target_folder=target_folder,
             )
         else:
-            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found.")
+            try:
+                raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found.")
+            except ValueError as e:
+                logger.error(e)
+                raise
     else:
         # Example coordinates lists for testing
 

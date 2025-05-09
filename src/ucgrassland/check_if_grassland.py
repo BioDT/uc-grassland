@@ -215,7 +215,11 @@ def get_map_and_legend(map_key, *, cache=None):
         if ut.check_url(map_file):
             logger.info(f"Land cover map found. Using '{map_file}'.")
         else:
-            raise FileNotFoundError(f"Land cover map file '{map_file}' not found.")
+            try:
+                raise FileNotFoundError(f"Land cover map file '{map_file}' not found.")
+            except FileNotFoundError as e:
+                logger.error(e)
+                raise
 
     # Get categories for map values
     file_name = f"{map_specs['file_stem']}{map_specs['leg_ext']}"
@@ -243,7 +247,13 @@ def get_map_and_legend(map_key, *, cache=None):
 
         return map_file, category_mapping
     else:
-        raise FileNotFoundError(f"Land cover categories file '{leg_file}' not found.")
+        try:
+            raise FileNotFoundError(
+                f"Land cover categories file '{leg_file}' not found."
+            )
+        except FileNotFoundError as e:
+            logger.error(e)
+            raise
 
 
 def create_category_mapping(leg_file):
@@ -352,9 +362,13 @@ def get_category_deims(location):
 
         return categories, time_stamp
     else:
-        raise ValueError(
-            "No location DEIMS.iD provided, but needed with map key 'EUR_eunis_habitat' for requesting land cover information."
-        )
+        try:
+            raise ValueError(
+                "No location DEIMS.iD provided, but needed with map key 'EUR_eunis_habitat' for requesting land cover information."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
 
 def get_category_hrl_grassland(location):
@@ -633,9 +647,13 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                             category="Not found.",
                         )
                 else:
-                    raise ValueError(
-                        f"No location DEIMS.iD provided, but needed with map key '{map_key}' for requesting land cover information."
-                    )
+                    try:
+                        raise ValueError(
+                            f"No location DEIMS.iD provided, but needed with map key '{map_key}' for requesting land cover information."
+                        )
+                    except ValueError as e:
+                        logger.error(e)
+                        raise
 
                 grassland_check.append(site_check)
             elif map_key in tif_keys:
@@ -663,13 +681,21 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                 )
                 grassland_check.append(site_check)
             else:
-                raise ValueError(
-                    f"Map key '{map_key}' not found. Please provide valid map key."
-                )
+                try:
+                    raise ValueError(
+                        f"Map key '{map_key}' not found. Please provide valid map key."
+                    )
+                except ValueError as e:
+                    logger.error(e)
+                    raise
         else:
-            raise ValueError(
-                "Location not correctly defined. Please provide as dictionary containing ({'lat': float, 'lon': float})!"
-            )
+            try:
+                raise ValueError(
+                    "Location not correctly defined. Please provide as dictionary containing ({'lat': float, 'lon': float})!"
+                )
+            except ValueError as e:
+                logger.error(e)
+                raise
 
     # Save results to file
     if file_name:

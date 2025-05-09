@@ -92,7 +92,11 @@ def get_source_from_elter_data_file_name(
 
         return source
     else:
-        raise ValueError("Input must be a string or a Path object.")
+        try:
+            raise ValueError("Input must be a string or a Path object.")
+        except ValueError as e:
+            logger.error(e)
+            raise
 
 
 def replace_substrings(
@@ -155,9 +159,13 @@ def replace_substrings(
             input_data
         )  # Process both string and list of strings or list of lists
     else:
-        raise ValueError(
-            "Input data must be a string, a list of strings, or a list of lists."
-        )
+        try:
+            raise ValueError(
+                "Input data must be a string, a list of strings, or a list of lists."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
 
 def get_tuple_list(
@@ -368,11 +376,6 @@ def find_column_index(raw_data, column_id, *, header_lines=1, warn_not_found=Tru
 
     Returns:
         int: Index of specified column, if found.
-
-    Raises:
-        KeyError: If column name is not found in the data frame or list of lists.
-        ValueError: If column identifier is not a string or integer.
-        TypeError: If raw_data is not a pandas DataFrame or a list of lists.
     """
     if column_id is None:
         logger.error(
@@ -392,14 +395,18 @@ def find_column_index(raw_data, column_id, *, header_lines=1, warn_not_found=Tru
                     if col.lower() == lower_column_id:
                         return raw_data.columns.get_loc(col)
 
-                # raise KeyError(f"Column '{column_id}' not found in DataFrame.")
+                logger.error(f"Column '{column_id}' not found in DataFrame.")
         elif isinstance(column_id, int):
             if column_id in range(len(raw_data.columns)):
                 return column_id
             else:
-                raise ValueError(
-                    f"Column number '{column_id}' out of range in DataFrame."
-                )
+                try:
+                    raise ValueError(
+                        f"Column number '{column_id}' out of range in DataFrame."
+                    )
+                except ValueError as e:
+                    logger.error(e)
+                    raise
         # elif isinstance(column_id, list):
         #     for col in column_id:
         #         index = find_column_index(raw_data, col)
@@ -407,10 +414,14 @@ def find_column_index(raw_data, column_id, *, header_lines=1, warn_not_found=Tru
         #         if index is not None:
         #             return index
         else:
-            raise ValueError(
-                "Invalid column identifier. Please provide a column name (str) or column "
-                "number (int) or a list of column names (strings).",
-            )
+            try:
+                raise ValueError(
+                    "Invalid column identifier. Please provide a column name (str) or column "
+                    "number (int) or a list of column names (strings)."
+                )
+            except ValueError as e:
+                logger.error(e)
+                raise
     elif isinstance(raw_data, list):
         if isinstance(column_id, str):
             if column_id in raw_data[header_lines - 1]:
@@ -422,9 +433,13 @@ def find_column_index(raw_data, column_id, *, header_lines=1, warn_not_found=Tru
             if column_id in range(len(raw_data[header_lines - 1])):
                 return column_id
             else:
-                raise ValueError(
-                    f"Column number '{column_id}' out of range in header line of list."
-                )
+                try:
+                    raise ValueError(
+                        f"Column number '{column_id}' out of range in header line of list."
+                    )
+                except ValueError as e:
+                    logger.error(e)
+                    raise
         # elif isinstance(column_id, list):
         #     for col in column_id:
         #         index = find_column_index(raw_data, col)
@@ -432,12 +447,20 @@ def find_column_index(raw_data, column_id, *, header_lines=1, warn_not_found=Tru
         #         if index is not None:
         #             return index
         else:
-            raise ValueError(
-                "Invalid column identifier. Please provide a column name (str) or column "
-                "number (int) or a list of column names (strings).",
-            )
+            try:
+                raise ValueError(
+                    "Invalid column identifier. Please provide a column name (str) or column "
+                    "number (int) or a list of column names (strings)."
+                )
+            except ValueError as e:
+                logger.error(e)
+                raise
     else:
-        raise TypeError("Input data must be a pandas DataFrame or a list of lists.")
+        try:
+            raise TypeError("Input data must be a pandas DataFrame or a list of lists.")
+        except TypeError as e:
+            logger.error(e)
+            raise
 
     if warn_not_found:
         logger.error(f"Column '{column_id}' not found. Returning None.")
@@ -499,9 +522,13 @@ def list_to_file(list_to_write, file_name, *, column_names=None):
         df = pd.DataFrame(list_to_write, columns=column_names)
         df.to_excel(file_path, index=False)
     else:
-        raise ValueError(
-            "Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
-        )
+        try:
+            raise ValueError(
+                "Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     logger.info(f"List written to file '{file_name}'.")
 
@@ -620,15 +647,16 @@ def add_to_dict(
 
     Returns:
         dict: Updated dictionary with combined old and new values.
-
-    Raises:
-        ValueError: If keys in dict_prev and dict_to_add are not the same.
     """
     # Check if keys are the same
     if set(dict_prev.keys()) != set(dict_to_add.keys()):
-        raise ValueError(
-            "Keys in previous dictionary and added dictionary must be the same."
-        )
+        try:
+            raise ValueError(
+                "Keys in previous dictionary and added dictionary must be the same."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     # Convert dict_prev to a dictionary of dictionaries if not already
     if all(isinstance(value, dict) for value in dict_prev.values()):
@@ -653,21 +681,28 @@ def add_to_list(list_prev, list_to_add):
 
     Returns:
         list: Combined list of tuples with old and new values.
-
-    Raises:
-        ValueError: If lists are not lists of tuples or if first columns are not equal.
     """
     # Check if both lists are lists of tuples
     if not all(
         isinstance(item, tuple) and len(item) >= 2 for item in list_prev
     ) or not all(isinstance(item, tuple) and len(item) >= 2 for item in list_to_add):
-        raise ValueError("Both lists must be lists of tuples with at least two values.")
+        try:
+            raise ValueError(
+                "Both lists must be lists of tuples with at least two values."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     # Check if first columns are the same
     if any(prev[0] != to_add[0] for prev, to_add in zip(list_prev, list_to_add)):
-        raise ValueError(
-            "First columns in previous list and list to add must be the same."
-        )
+        try:
+            raise ValueError(
+                "First columns in previous list and list to add must be the same."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     # Add values from second list to the tuples of the first list
     list_added = [
@@ -706,7 +741,11 @@ def add_columns_to_list(input_list, columns_to_add):
     """
     # Ensure both lists have the same length
     if len(input_list) != len(columns_to_add):
-        raise ValueError("Both lists must have the same length!")
+        try:
+            raise ValueError("Both lists must have the same length!")
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     # Ensure each entry in input_list is a sublist
     normalized_input_list = [
@@ -779,9 +818,13 @@ def reduce_dict_to_single_info(info_lookup, info_name):
             try:
                 info_lookup[key] = value[info_name]
             except KeyError:
-                raise KeyError(
-                    f"Info '{info_name}' not found in the dictionary for key '{key}'."
-                )
+                try:
+                    raise KeyError(
+                        f"Info '{info_name}' not found in the dictionary for key '{key}'."
+                    )
+                except KeyError as e:
+                    logger.error(e)
+                    raise
 
     return info_lookup
 
@@ -846,7 +889,11 @@ def sort_and_cleanup_list(
 
     # Check if the input is a list of strings or a list of lists
     if not isinstance(input_list, list):
-        raise ValueError("Input must be a list of strings or a list of lists.")
+        try:
+            raise ValueError("Input must be a list of strings or a list of lists.")
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     # Convert all entries to strings
     input_list = [
@@ -874,7 +921,11 @@ def sort_and_cleanup_list(
         for entry in input_list:
             unique_entries[entry[unique_entry_column]].append(entry)
     else:
-        raise ValueError("Input list entries must be all strings or all lists.")
+        try:
+            raise ValueError("Input list entries must be all strings or all lists.")
+        except ValueError as e:
+            logger.error(e)
+            raise
 
     unique_entries = {key: unique_entries[key] for key in sorted(unique_entries)}
     processed_list = []
@@ -918,30 +969,6 @@ def sort_and_cleanup_list(
                 processed_list.append(first_entry)
 
     return processed_list
-
-
-def get_package_root(markers=None):
-    """
-    Get root directory of the package containing the current module.
-
-    Parameters:
-        markers (list of str): List of marker files or directories to identify the package root.
-
-    Returns:
-        Path: Path to package root directory.
-    """
-    if markers is None:
-        markers = ["setup.py", ".git", "requirements.txt"]
-
-    # Get file path of current module
-    module_path = Path(__file__).resolve()
-
-    # Navigate up from module directory until package root is found
-    for parent in module_path.parents:
-        if all((parent / marker).exists() for marker in markers):
-            return parent
-
-    raise FileNotFoundError("Could not find package root.")
 
 
 def get_deims_coordinates(deims_id):
@@ -1002,7 +1029,11 @@ def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
         list: List of dictionaries containing DEIMS.iDs.
     """
     if not xls_file.exists():
-        raise FileNotFoundError(f"File '{xls_file}' not found.")
+        try:
+            raise FileNotFoundError(f"File '{xls_file}' not found.")
+        except FileNotFoundError as e:
+            logger.error(e)
+            raise
 
     # Load Excel file into a DataFrame
     df = pd.read_excel(xls_file, header=header_row)
@@ -1032,7 +1063,11 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
               station code(s), site code(s), and DEIMS.iD, if found).
     """
     if not csv_file.exists():
-        raise FileNotFoundError(f"File '{csv_file}' not found.")
+        try:
+            raise FileNotFoundError(f"File '{csv_file}' not found.")
+        except FileNotFoundError as e:
+            logger.error(e)
+            raise
 
     # Load CSV file into a DataFrame
     df = pd.read_csv(csv_file, header=header_row, encoding="ISO-8859-1", sep=sep)
@@ -1146,16 +1181,24 @@ def parse_locations(locations_str):
                 logger.info(f"Latitude: {lat}, Longitude: {lon}")
 
             except ValueError:
-                raise argparse.ArgumentTypeError(
-                    f"Invalid coordinate input: {item}. Expected format is 'lat,lon'."
-                )
+                try:
+                    raise argparse.ArgumentTypeError(
+                        f"Invalid coordinate input: {item}. Expected format is 'lat,lon'."
+                    )
+                except argparse.ArgumentTypeError as e:
+                    logger.error(e)
+                    raise
         else:
             location = get_deims_coordinates(item)
 
             if location["found"]:
                 locations.append(location)
             else:
-                raise ValueError(f"Coordinates for DEIMS.id '{item}' not found.")
+                try:
+                    raise ValueError(f"Coordinates for DEIMS.id '{item}' not found.")
+                except ValueError as e:
+                    logger.error(e)
+                    raise
 
     return locations
 
