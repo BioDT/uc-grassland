@@ -71,7 +71,7 @@ def prep_weather_data(
                 target_folder=target_folder,
             )
         else:
-            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found!")
+            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found.")
     else:
         # Example coordinates lists for testing
 

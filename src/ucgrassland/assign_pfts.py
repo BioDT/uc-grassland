@@ -72,6 +72,7 @@ import pandas as pd
 from pygbif import species
 
 from ucgrassland import utils as ut
+from ucgrassland.logger_config import logger
 
 
 def resolve_infos(
@@ -93,14 +94,16 @@ def resolve_infos(
     """
     # Warning for duplicate keys
     if warn_duplicates:
-        warnings.warn(f"Duplicate entry found for key '{key}'.")
+        logger.warning(f"Duplicate entry found for key '{key}'.")
 
     # Check if the infos are the same, no need to change the info
     if info_1 == info_2:
         info_resolved = info_1
 
         if warn_duplicates:
-            print(f"{info_name} is equal. Keeping the {info_name} '{info_resolved}'.")
+            logger.warning(
+                f"{info_name} is equal. Keeping the {info_name} '{info_resolved}'."
+            )
     # Check if infos start with "not ", keep other one
     else:
         if info_1.startswith("not ") and not info_2.startswith("not "):
@@ -118,12 +121,12 @@ def resolve_infos(
 
             # Warn for two conflicting assigned infos
             if warn_conflict and info_resolved.startswith("conflicting "):
-                warnings.warn(
+                logger.warning(
                     f"Assigned {info_name} for key '{key}' from duplicate entries is {info_resolved}."
                 )
                 warn_duplicates = False
         if warn_duplicates:
-            print(
+            logger.warning(
                 f"{info_name} differs: '{info_1}' vs. '{info_2}'. Keeping the {info_name} '{info_resolved}'."
             )
 
@@ -153,7 +156,7 @@ def resolve_species_info_dicts(
     Returns:
         dict: Dictionary with resolved information entries for each species.
     """
-    print(
+    logger.info(
         f"Combining {info_name} information from '{info_source_1}' and '{info_source_2}' dictionaries ..."
     )
     resolved_dict = {}
@@ -321,7 +324,7 @@ def read_info_dict(
     """
     if file_name.is_file():
         valid_infos = get_valid_infos(info_name)
-        print(f"Reading {info_name} lookup table from '{file_name}' ...")
+        logger.info(f"Reading {info_name} lookup table from '{file_name}' ...")
 
         # Search for 'info_name' as column name if not specified otherwise
         if info_column is None:
@@ -356,7 +359,7 @@ def read_info_dict(
                         ("not assigned", "conflicting", "not found")
                     )
                 ):
-                    warnings.warn(
+                    logger.warning(
                         f"Invalid {info_name} found on line {line_number} for {key}: '{info}'."
                     )
 
@@ -372,8 +375,10 @@ def read_info_dict(
 
         # Sort dictionary by keys
         info_dict = dict(sorted(info_dict.items()))
-        print(f"Processed {processed_lines} lines.")
-        print(f"Final {info_name} lookup table has {len(info_dict)} entries.")
+        logger.info(
+            f"Processed {processed_lines} lines. "
+            f"Final {info_name} lookup table has {len(info_dict)} entries."
+        )
 
         # Save created dictionary to new file if file is provided
         if new_file:
@@ -402,14 +407,14 @@ def gbif_request(spec, *, kingdom="plants", attempts=5, delay=2):
             spec_gbif_dict = species.name_backbone(name=spec, kingdom=kingdom)
             return spec_gbif_dict
         except Exception as e:
-            print(f"GBIF request failed {e}.")
+            logger.error(f"GBIF request failed ({e}).")
 
             if attempts > 0:
-                print(f"Retrying in {delay} seconds ...")
+                logger.info(f"Retrying in {delay} seconds ...")
                 time.sleep(delay)
 
     # After exhausting all attempts
-    warnings.warn(
+    logger.error(
         f"GBIF request for species '{spec}' failed repeatedly. Returning 'not found'."
     )
     return "not found"
@@ -432,7 +437,7 @@ def get_gbif_species(spec, *, accepted_ranks=["GENUS"]):
         return spec
     elif spec_gbif_dict["matchType"] == "NONE":
         # No match, return input species
-        warnings.warn(f"'{spec}' not found.")
+        logger.warning(f"'{spec}' not found.")
 
         return spec
     elif spec_gbif_dict["rank"] == "SPECIES":
@@ -441,16 +446,18 @@ def get_gbif_species(spec, *, accepted_ranks=["GENUS"]):
             spec_match = spec_gbif_dict["species"]
 
             if spec_match != spec:
-                print(f"'{spec}' replaced with GBIF SPECIES '{spec_match}'.")
+                logger.info(f"'{spec}' replaced with GBIF SPECIES '{spec_match}'.")
         else:
             # No 'species' entry, use 'canonicalName' entry (should not happen)
             spec_match = spec_gbif_dict["canonicalName"]
-            warnings.warn(f"'{spec}' not exactly identified by GBIF.")
-            print(
-                f"SURPRISE: Result rank is SPECIES, but no species entry. Using CANONICALNAME '{spec_match}'."
+            logger.warning(
+                f"'{spec}' not exactly identified by GBIF. "
+                f"Result rank is SPECIES, but no species entry. Using CANONICALNAME '{spec_match}'."
             )
             if spec_match != spec:
-                print(f"'{spec}' replaced with GBIF CANONICALNAME '{spec_match}'.")
+                logger.warning(
+                    f"'{spec}' replaced with GBIF CANONICALNAME '{spec_match}'."
+                )
     elif spec_gbif_dict["rank"] == "SUBSPECIES":
         # seperated for testing, could be merged with "SPECIES" case later
         if "species" in spec_gbif_dict:
@@ -458,31 +465,35 @@ def get_gbif_species(spec, *, accepted_ranks=["GENUS"]):
             spec_match = spec_gbif_dict["species"]
 
             if spec_match != spec:
-                print(f"'{spec}' SUBSPECIES replaced with GBIF SPECIES '{spec_match}'.")
+                logger.warning(
+                    f"'{spec}' SUBSPECIES replaced with GBIF SPECIES '{spec_match}'."
+                )
         else:
             # No 'species' entry, use 'canonicalName' entry (should not happen)
             spec_match = spec_gbif_dict["canonicalName"]
-            warnings.warn(f"'{spec}' not exactly identified by GBIF.")
-            print(
-                f"SURPRISE: Result rank is SUBSPECIES, but no species entry. Using CANONICALNAME '{spec_match}'."
+            logger.warning(
+                f"'{spec}' not exactly identified by GBIF. "
+                f"Result rank is SUBSPECIES, but no species entry. Using CANONICALNAME '{spec_match}'."
             )
             if spec_match != spec:
-                print(f"'{spec}' replaced with GBIF CANONICALNAME '{spec_match}'.")
+                logger.warning(
+                    f"'{spec}' replaced with GBIF CANONICALNAME '{spec_match}'."
+                )
     elif "canonicalName" in spec_gbif_dict:
         # No exact match, use 'canonicalName' entry
         spec_match = spec_gbif_dict["canonicalName"]
-        warnings.warn(f"'{spec}' not exactly identified by GBIF.")
+        logger.warning(f"'{spec}' not exactly identified by GBIF.")
 
         if spec_match == spec:
             # No better match, keep input species
-            print(
+            logger.info(
                 f"No replacement (GBIF match was {spec_gbif_dict['rank']} '{spec_match}')."
             )
         else:
             if spec_gbif_dict["rank"] in accepted_ranks:
                 # GBIF result in accepted ranks, keep this result
                 spec_match = f"{spec_match} species"
-                print(
+                logger.warning(
                     f"'{spec}' replaced with {spec_gbif_dict['rank']} '{spec_match}'."
                 )
 
@@ -495,26 +506,26 @@ def get_gbif_species(spec, *, accepted_ranks=["GENUS"]):
                     spec_gbif_suggest = [sgs["species"] for sgs in spec_gbif_suggest]
                     spec_match = spec_gbif_suggest[0]
                     sgs_string = ", ".join([f"'{sgs}'" for sgs in spec_gbif_suggest])
-                    print(f"Candidate species: {sgs_string}.")
+                    logger.info(f"Candidate species: {sgs_string}.")
 
                     # Check if suggestions include the input species name but not at first position
                     if spec in spec_gbif_suggest and spec_gbif_suggest.index(spec) > 0:
-                        print(
-                            f"SURPRISE: '{spec}' included, but not the first GBIF suggestion!"
+                        logger.warning(
+                            f"'{spec}' included, but not the first GBIF suggestion."
                         )
 
-                    print(
+                    logger.info(
                         f"'{spec}' replaced with first GBIF suggestion '{spec_match}'."
                     )
                 else:
                     # No suggestions, return input species
-                    print(
+                    logger.info(
                         f"No replacement (GBIF match was {spec_gbif_dict['rank']} '{spec_match}')."
                     )
                     return spec
     else:
-        print(
-            f"SURPRISE: Neither 'species' nor 'canonicalName' in result, match type {spec_gbif_dict['matchType']}."
+        logger.warning(
+            f"Neither 'species' nor 'canonicalName' in result, match type {spec_gbif_dict['matchType']}."
         )
 
     return spec_match
@@ -535,69 +546,8 @@ def get_gbif_family(spec):
     if "family" in spec_gbif_dict:
         return spec_gbif_dict["family"]
     else:
-        warnings.warn(f"Family for '{spec}' not found by GBIF.")
+        logger.error(f"Family for '{spec}' not found by GBIF. Returning 'not found'.")
         return "not found"
-
-
-# def get_gbif_dict(species_info_dict, file_name="", info_name="PFT"):
-#     """
-#     Screen and correct species-info lookup table with GBIF taxonomic backbone.
-
-#     Parameters:
-#         species_info_dict (dict): Dictionary where species names are keys, and infos are values.
-#         info_name (str): Information name ('PFT' or 'Woodiness', default is 'PFT').
-
-#     Returns:
-#         dict: Processed dictionary where species names are keys, and values are dictionaries with keys:
-#             info_name('PFT' or 'Woodiness'): corresponding species info.
-#             'originalNames': List of species names from input dictionary (that were replaced or not).
-#     """
-#     print("Searching for species in GBIF taxonomic backbone ...")
-#     species_info_dict_gbif = {}
-#     processed_lines = 0
-
-#     for spec, info in species_info_dict.items():
-#         spec_match = get_gbif_species(spec, accepted_ranks=["GENUS", "FAMILY"])
-
-#         if (
-#             spec_match != spec
-#             and not info_name == "Family"  # Keep family infos
-#             and spec_match.endswith(" species")
-#             and "grass" not in info  # Keep all infos with "grass", also conflicts
-#         ):
-#             info = "not assigned"
-
-#         # Check if (replaced) species name is already in lookup table
-#         if spec_match in species_info_dict_gbif:
-#             # Check info for existing species
-#             species_info_dict_gbif[spec_match][info_name] = resolve_infos(
-#                 spec_match,
-#                 info_name,
-#                 info,
-#                 species_info_dict_gbif[spec_match][info_name],
-#             )
-#             species_info_dict_gbif[spec_match]["originalNames"].append(spec)
-#         else:
-#             # Add new species, info and replaced species name to lookup table
-#             species_info_dict_gbif[spec_match] = {
-#                 info_name: info,
-#                 "originalNames": [spec],
-#             }
-
-#         processed_lines += 1
-
-#     # Sort dictionary by species keys
-#     species_info_dict_gbif = dict(sorted(species_info_dict_gbif.items()))
-#     print(f"Processed {processed_lines} lines.")
-#     print(f"Final {info_name} lookup table has {len(species_info_dict_gbif)} entries.")
-
-#     # Save created dictionary to new file
-#     if file_name:
-#         ut.dict_to_file(
-#             species_info_dict_gbif, file_name, column_names=["Species", info_name, "Original names"]
-#         )
-
-#     return species_info_dict_gbif
 
 
 def get_pft_from_family_woodiness(spec, family_dict, woodiness_dict):
@@ -616,14 +566,18 @@ def get_pft_from_family_woodiness(spec, family_dict, woodiness_dict):
     if spec in family_dict:
         family = family_dict[spec]
     else:
-        warnings.warn(f"Family for '{spec}' not found in lookup table.")
+        logger.warning(
+            f"Family for '{spec}' not found in lookup table. Returning 'not found'."
+        )
         family = "not found"
 
     # Get woodiness or throw warning if not found
     if spec in woodiness_dict:
         woodiness = woodiness_dict[spec]
     else:
-        warnings.warn(f"Woodiness for '{spec}' not found in lookup table.")
+        logger.warning(
+            f"Woodiness for '{spec}' not found in lookup table. Returning 'not found'."
+        )
         woodiness = "not found"
 
     # Return "not found" as PFT if no info was found
@@ -682,13 +636,13 @@ def read_species_list(
         ValueError: If unsupported file format is used.
     """
     file_extension = file_name.suffix.lower()
-    print(f"Reading species list from '{file_name}' ...")
+    logger.info(f"Reading species list from '{file_name}' ...")
 
     if file_extension == ".xlsx":
         try:
             df = pd.read_excel(file_name, header=header_lines - 1)
         except Exception as e:
-            warnings.warn(f"Error reading .xlsx file: {e}.")
+            logger.error(f"Reading .xlsx file failed ({e}).")
             return []
 
         # Determine species name column index
@@ -698,7 +652,7 @@ def read_species_list(
             try:
                 column_indexes.append(ut.find_column_index(df, col_name))
             except (KeyError, ValueError):
-                warnings.warn(
+                logger.error(
                     f"Failed to find column '{col_name}'. Omitted in species list."
                 )
 
@@ -713,7 +667,7 @@ def read_species_list(
                 delimiter=csv_delimiter,
             )
         except Exception as e:
-            warnings.warn(f"Error reading .csv file: {e}.")
+            logger.error(f"Reading .csv file failed ({e}).")
             return []
 
         # Determine species name column index
@@ -723,7 +677,7 @@ def read_species_list(
             try:
                 column_indexes.append(ut.find_column_index(df, col_name))
             except (KeyError, ValueError):
-                warnings.warn(
+                logger.error(
                     f"Failed to find column '{col_name}'. Omitted in species list."
                 )
 
@@ -734,7 +688,7 @@ def read_species_list(
             with open(file_name, "r", encoding="utf-8", errors="replace") as file:
                 species_data = [line.strip().split("\t") for line in file]
         except Exception as e:
-            warnings.warn(f"Error reading text file: {e}.")
+            logger.error(f"Reading text file failed ({e}).")
             return []
 
         # Determine species name column index
@@ -744,7 +698,7 @@ def read_species_list(
             try:
                 column_indexes.append(ut.find_column_index(species_data, col_name))
             except (KeyError, ValueError):
-                warnings.warn(
+                logger.error(
                     f"Failed to find column '{col_name}'. Omitted in species list."
                 )
 
@@ -754,10 +708,10 @@ def read_species_list(
                 for line in species_data[header_lines:]
             ]
         except IndexError as e:
-            warnings.warn(f"Error processing line: {e}. Returning empty list.")
+            logger.error(f"Processing line failed ({e}). Returning empty list.")
             return []
     else:
-        raise ValueError("Unsupported file format! Must be '.xlsx', '.txt', or '.csv'.")
+        raise ValueError("Unsupported file format. Must be '.xlsx', '.txt', or '.csv'.")
 
     # Reduce list to unique entries only
     species_list = ut.sort_and_cleanup_list(
@@ -766,7 +720,7 @@ def read_species_list(
 
     # GBIF check and correction if selected
     if check_gbif:
-        print("Searching for species in GBIF taxonomic backbone ...")
+        logger.info("Searching for species in GBIF taxonomic backbone ...")
         species_list_renamed = []
 
         for entry in species_list:
@@ -813,7 +767,7 @@ def read_species_list(
 
     # No removal of 'nan' or duplicate species entries in renamed list, assigned infos to be matched with original list later
     empty_strings = species_list.count("")
-    print(
+    logger.info(
         f"Species list has {len(species_list)} entries, including {empty_strings} empty entries."
     )
 
@@ -821,10 +775,10 @@ def read_species_list(
         duplicates = ut.count_duplicates(species_list)
 
         if len(duplicates) > 0:
-            print("Duplicates: ", end="")
-            print(
-                ", ".join([f"'{spec}' ({count})" for spec, count in duplicates.items()])
+            duplicates_string = ", ".join(
+                [f"'{spec}' ({count})" for spec, count in duplicates.items()]
             )
+            logger.info(f"Duplicates: {duplicates_string}.")
 
     return species_list_renamed
 
@@ -844,7 +798,7 @@ def user_input_info(info_dict, info_name, *, start_string="not "):
     valid_choices = get_valid_infos(info_name)
     valid_choices.append("not assigned")
     choice_string = ""
-    print(f"Going through species with {info_name} '{start_string}' ...")
+    logger.info(f"Going through species with {info_name} '{start_string}' ...")
     print(f"You can select the new {info_name} from the following options:")
 
     for index, info in enumerate(valid_choices, start=1):
@@ -864,12 +818,14 @@ def user_input_info(info_dict, info_name, *, start_string="not "):
             try:
                 user_choice = int(user_choice)
             except ValueError:
-                warnings.warn(f"Invalid choice. Leaving {info_name} as is.")
+                warnings.warn(
+                    f"Invalid choice. Leaving {info_name} as is.", UserWarning
+                )
             else:
                 if 1 <= user_choice <= len(valid_choices):
                     user_info = f"{valid_choices[user_choice - 1]} (user input)"
                     info_dict[spec] = user_info
-                    print(f"Changing {info_name} to '{user_info}'.")
+                    logger.info(f"Changing {info_name} to '{user_info}'.")
                 elif user_choice == len(valid_choices) + 1:
                     pass  # Leave as is, no change needed
                 elif user_choice == len(valid_choices) + 2:
@@ -878,7 +834,9 @@ def user_input_info(info_dict, info_name, *, start_string="not "):
                     )
                     break  # Exit the loop
                 else:
-                    warnings.warn(f"Invalid choice. Leaving {info_name} as is.")
+                    warnings.warn(
+                        f"Invalid choice. Leaving {info_name} as is.", UserWarning
+                    )
 
     return info_dict
 
@@ -905,7 +863,9 @@ def check_unclear_infos(info_name, info_dict, *, ask_user_input=True):
 
         if count_unclear:
             # Inform about unclear infos
-            print(f"Species with {info_name} '{unclear_info}': {count_unclear}.")
+            logger.warning(
+                f"Species with {info_name} '{unclear_info}': {count_unclear}."
+            )
 
             if ask_user_input:
                 # Ask user if species with unclear info shall be modified manually
@@ -945,7 +905,9 @@ def get_species_info(
     Returns:
         dict or list: Dict or list of pairs of the species names and corresponding infos.
     """
-    print(f"Searching for species' {info_name} in '{lookup_source}' lookup table ... ")
+    logger.info(
+        f"Searching for species' {info_name} in '{lookup_source}' lookup table ... "
+    )
 
     # Convert info_lookup to dictionary of only infos if not already
     info_lookup = ut.reduce_dict_to_single_info(info_lookup, info_name)
@@ -982,7 +944,7 @@ def get_species_family_gbif(species_list, *, file_name=""):
         dict or list: Resulting dictionary or list with species and their Family information.
     """
     info_name = "Family"
-    print("Searching for species' Family in GBIF taxonomic backbone ...")
+    logger.info("Searching for species' Family in GBIF taxonomic backbone ...")
     info_dict = {}
 
     for spec in species_list:
@@ -1023,7 +985,7 @@ def get_species_pft_from_family_woodiness(
         dict or list: Resulting dictionary or list with species and their PFT information.
     """
     info_name = "PFT"
-    print(
+    logger.info(
         f"Obtaining species' {info_name} from lookup tables, "
         f"Family: '{lookup_source_family}' and Woodiness: '{lookup_source_woodiness}' ..."
     )
@@ -1130,12 +1092,12 @@ def get_lookup_tables(
                     )
 
                 if raw_file.is_file():
-                    print(
+                    logger.info(
                         f"'{table_name}' source file found. Reading species infos from '{raw_file}' ..."
                     )
                 else:
                     raise FileNotFoundError(
-                        f"'{table_name}' source file '{table_info['raw_file']}' not found!"
+                        f"'{table_name}' source file '{table_info['raw_file']}' not found."
                     )
 
                 # Process raw source file with info column(s) to .txt file
@@ -1162,7 +1124,7 @@ def get_lookup_tables(
                 )
             else:
                 raise FileNotFoundError(
-                    f"File '{raw_list_file}' not found. Cannot retrieve '{table_name}'!"
+                    f"File '{raw_list_file}' not found. Cannot retrieve '{table_name}'."
                 )
 
     return lookup_tables
@@ -1225,7 +1187,7 @@ def get_all_infos_and_pft(
             # Family extra dict needs to work with original species names as keys (entry[1]),
             # because GBIF names can be the same for different original species, but
             # the extra column can contain different family information for them
-            print(f"Extra column found with family information: '{col_name}'.")
+            logger.info(f"Extra column found with family information: '{col_name}'.")
             family_extra_found = True
             family_extra = {entry[1]: entry[col_index + 2] for entry in species_list}
 
@@ -1660,7 +1622,7 @@ def get_pft_from_files(
                 else:
                     collect_species_pfts = pft_lookup
             else:
-                warnings.warn(
+                logger.error(
                     f"File '{file_name}' not found in '{source_folder}'. Skipping file."
                 )
 
@@ -1691,7 +1653,7 @@ def assign_pfts(deims_id, source_folder, *, target_folder=None, lookup_tables=No
     try:
         species_data_specs = get_species_data_specs(deims_id)
     except ValueError:
-        warnings.warn(
+        logger.error(
             f"DEIMS ID '{deims_id}' not found in species data specifications. Skipping site."
         )
         return
@@ -1717,9 +1679,7 @@ def assign_pfts(deims_id, source_folder, *, target_folder=None, lookup_tables=No
             target_folder=target_subfolder,
         )
     else:
-        warnings.warn(
-            f"Coordinates not found for DEIMS ID '{deims_id}'. Skipping site."
-        )
+        logger.error(f"Coordinates not found for DEIMS ID '{deims_id}'. Skipping site.")
 
 
 def assign_pfts_for_sites(

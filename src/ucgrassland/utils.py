@@ -26,7 +26,6 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 import argparse
 import csv
 import time
-import warnings
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -38,7 +37,7 @@ import rasterio
 import requests
 from dateutil.parser import parse
 
-# from ucgrassland.logger_config import logger
+from ucgrassland.logger_config import logger
 
 # will be "https://opendap.biodt.eu/..."
 OPENDAP_ROOT = "http://opendap.biodt.eu/grasslands-pdt/"
@@ -147,7 +146,7 @@ def replace_substrings(
         elif isinstance(item, list):
             return [process_item(sub_item) for sub_item in item]
         elif warning_no_string:
-            warnings.warn(f"{item} is not a string. No replacements performed.")
+            logger.warning(f"{item} is not a string. No replacements performed.")
         return item  # If it's not a string or list, return as is
 
     # Process input_data, which can be a string, list, or list of lists
@@ -190,7 +189,7 @@ def get_tuple_list(
         elif isinstance(entry, str):
             tuple_list.append((entry,))
         else:
-            warnings.warn(f"List entry '{entry}' is not a list, tuple, or string.")
+            logger.warning(f"List entry '{entry}' is not a list, tuple, or string.")
 
     if replace_nan:
         tuple_list = [
@@ -350,11 +349,11 @@ def dict_to_file(dict_to_write, file_name, *, column_names=["key", "value"]):
 
             df.to_excel(file_path, index=False)
         else:
-            print(
-                "Error: Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
+            logger.error(
+                "Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
             )
 
-        print(f"Dictionary written to file '{file_name}'.")
+        logger.info(f"Dictionary written to file '{file_name}'.")
 
 
 def find_column_index(raw_data, column_id, *, header_lines=1, warn_not_found=True):
@@ -376,7 +375,7 @@ def find_column_index(raw_data, column_id, *, header_lines=1, warn_not_found=Tru
         TypeError: If raw_data is not a pandas DataFrame or a list of lists.
     """
     if column_id is None:
-        warnings.warn(
+        logger.error(
             "Column identifier is None. Cannot find column in data. Returning None."
         )
         return None
@@ -441,7 +440,7 @@ def find_column_index(raw_data, column_id, *, header_lines=1, warn_not_found=Tru
         raise TypeError("Input data must be a pandas DataFrame or a list of lists.")
 
     if warn_not_found:
-        warnings.warn(f"Column '{column_id}' not found. Returning None.")
+        logger.error(f"Column '{column_id}' not found. Returning None.")
 
     return None
 
@@ -470,8 +469,8 @@ def list_to_file(list_to_write, file_name, *, column_names=None):
     elif column_names is not None and not all(
         len(entry) == len(column_names) for entry in list_to_write
     ):
-        print(
-            f"Error: All tuples in the list must have {len(column_names)} entries (same as column_names)."
+        logger.error(
+            f"All tuples in the list must have {len(column_names)} entries (same as column_names)."
         )
         return
 
@@ -504,7 +503,7 @@ def list_to_file(list_to_write, file_name, *, column_names=None):
             "Unsupported file format. Supported formats are '.txt', '.csv' and '.xlsx'."
         )
 
-    print(f"List written to file '{file_name}'.")
+    logger.info(f"List written to file '{file_name}'.")
 
 
 def format_datestring(input_str, *, target_format="%Y-%m-%d", indicator_dayfirst="."):
@@ -522,12 +521,12 @@ def format_datestring(input_str, *, target_format="%Y-%m-%d", indicator_dayfirst
         str: Formatted date string.
     """
     if not isinstance(input_str, str):
-        # warnings.warn(f"Input date '{input_str}' is not a string. Returning unchanged.")
+        # logger.warning(f"Input date '{input_str}' is not a string. Returning unchanged.")
         return input_str
 
     # Apply only to full data strings (length 10)
     if len(input_str) != 10:
-        warnings.warn(
+        logger.warning(
             f"Input date string '{input_str}' is not of length 10. Returning unchanged."
         )
         return input_str
@@ -538,7 +537,7 @@ def format_datestring(input_str, *, target_format="%Y-%m-%d", indicator_dayfirst
         formatted_date_str = parse(input_str, dayfirst=dayfirst).strftime(target_format)
         return formatted_date_str
     except ValueError:
-        warnings.warn(
+        logger.warning(
             f"Could not parse input date string '{input_str}'. Returning unchanged."
         )
         return input_str
@@ -890,7 +889,7 @@ def sort_and_cleanup_list(
             differing_entries = [entry for entry in group if entry != first_entry]
 
             if differing_entries:
-                warnings.warn(
+                logger.warning(
                     f"Entries with the same unique column value '{key}' differ in other columns."
                 )
 
@@ -906,14 +905,14 @@ def sort_and_cleanup_list(
                                 )
 
                     processed_list.append(combined_entry)
-                    print(f"Combining all unique entries for '{key}'.")
+                    logger.info(f"Combining all unique entries for '{key}'.")
                 else:
                     # If there are differing entries, keep all of them as separate entries
                     processed_list.append(first_entry)
                     processed_list.extend(differing_entries)
-                    print("Keeping all unique entries.")
+                    logger.info("Keeping all unique entries.")
             else:
-                # warnings.warn(
+                # logger.warning(
                 #     f"{len(group)} entries with the same first column value '{key}' are identical. Keeping only one."
                 # )
                 processed_list.append(first_entry)
@@ -961,7 +960,7 @@ def get_deims_coordinates(deims_id):
             'name': Site name (str), if found.
     """
     if deims_id != deims._normaliseDeimsID(deims_id):
-        print(
+        logger.error(
             f"Coordinates for DEIMS.iD '{deims_id}' not found (iD deviates from standard format)!"
         )
     else:
@@ -973,8 +972,10 @@ def get_deims_coordinates(deims_id):
             lon = deims_gdf.geometry[0].x
             lat = deims_gdf.geometry[0].y
             name = deims_gdf.name[0]
-            print(f"Coordinates for DEIMS.iD '{deims_id}' found ({name}).")
-            print(f"Latitude: {lat}, Longitude: {lon}")
+            logger.info(
+                f"Coordinates for DEIMS.iD '{deims_id}' found ({name}). "
+                f"Latitude: {lat}, Longitude: {lon}"
+            )
             return {
                 "lat": lat,
                 "lon": lon,
@@ -983,7 +984,7 @@ def get_deims_coordinates(deims_id):
                 "name": name,
             }
         except Exception as e:
-            print(f"Coordinates for DEIMS.iD '{deims_id}' not found ({e})!")
+            logger.error(f"Coordinates for DEIMS.iD '{deims_id}' not found ({e}).")
 
     return {"deims_id": deims_id, "found": False}
 
@@ -1011,7 +1012,7 @@ def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
         df = df[df["Country"] == country]
 
         if df.empty:
-            warnings.warn(f"No entries found for country code '{country}'.")
+            logger.warning(f"No entries found for country code '{country}'.")
 
     # Extract column containing list of DEIMS.iDs and return as list of dicts
     return df["DEIMS.ID"].tolist()
@@ -1037,7 +1038,7 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
     df = pd.read_csv(csv_file, header=header_row, encoding="ISO-8859-1", sep=sep)
 
     if df.empty:
-        warnings.warn(
+        logger.warning(
             f"No entries found in file '{csv_file}'. Returning empty plot locations list."
         )
         return []
@@ -1061,7 +1062,7 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
 
             for item in entries_required:
                 if item not in entries_raw:
-                    warnings.warn(
+                    logger.warning(
                         f"No '{item}' entry found. Skipping plot location row."
                     )
                     entries_missing = True
@@ -1075,7 +1076,7 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
                 site_code = entries_raw["site_code"]
 
                 if pd.isna(lat) or pd.isna(lon):
-                    warnings.warn(
+                    logger.warning(
                         f"Latitude and/or longitude 'nan' found for station code '{station_code}' "
                         f"and site code '{site_code}'. Skipping plot location row."
                     )
@@ -1086,7 +1087,7 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
 
                 # if deims_id_check["found"]:
                 #     if lat != deims_id_check["lat"] or lon != deims_id_check["lon"]:
-                #         warnings.warn(
+                #         logger.warning(
                 #             f"Station coordinates (lat.: {lat}, lon.: {lon}) differ from "
                 #             f"representative coordinates for DEIMS.iD (lat.: {deims_id_check["lat"]}, "
                 #             f"lon: {deims_id_check["lon"]})! Using station coordinates."
@@ -1135,14 +1136,14 @@ def parse_locations(locations_str):
               and keys 'deims_id' (str), 'found' (TRUE), 'name' (str) if DEIMS.iD was provided and found.
     """
     locations = []
-    print("Parsing locations from input string ...")
+    logger.info("Parsing locations from input string ...")
 
     for item in locations_str.split(";"):
         if "," in item:
             try:
                 lat, lon = map(float, item.split(","))
                 locations.append({"lat": lat, "lon": lon})
-                print(f"Latitude: {lat}, Longitude: {lon}")
+                logger.info(f"Latitude: {lat}, Longitude: {lon}")
 
             except ValueError:
                 raise argparse.ArgumentTypeError(
@@ -1154,7 +1155,7 @@ def parse_locations(locations_str):
             if location["found"]:
                 locations.append(location)
             else:
-                raise ValueError(f"Coordinates for DEIMS.id '{item}' not found!")
+                raise ValueError(f"Coordinates for DEIMS.id '{item}' not found.")
 
     return locations
 
@@ -1231,8 +1232,8 @@ def extract_raster_value(tif_file, location, *, band_number=1, attempts=5, delay
                         raise ValueError(
                             f"Band number {band_number} does not exist in the raster file {tif_file}."
                         )
-                    except ValueError:  # as e:
-                        # logger.error(e)  TODO: Implement logger
+                    except ValueError as e:
+                        logger.error(e)  # TODO: Implement logger
                         raise
 
                 # Reproject coordinates to target CRS
@@ -1248,10 +1249,10 @@ def extract_raster_value(tif_file, location, *, band_number=1, attempts=5, delay
             return value[0], time_stamp
         except rasterio.errors.RasterioIOError as e:
             attempts -= 1
-            print(f"Reading TIF file failed (Error {e}).")
+            logger.error(f"Reading TIF file failed ({e}).")
 
             if attempts > 0:
-                print(f"Retrying in {delay} seconds ...")
+                logger.info(f"Retrying in {delay} seconds ...")
                 time.sleep(delay)
             else:
                 return None, time_stamp
@@ -1285,30 +1286,31 @@ def check_url(url, *, attempts=5, delay_exponential=2, delay_linear=2):
             if response.status_code == 200:
                 return response.url
             elif response.status_code in status_codes_rate:
-                print(f"Request rate limited (Error {response.status_code}).")
+                logger.error(
+                    f"Request rate limited (Status code {response.status_code})."
+                )
 
                 if attempts > 0:
-                    print(f"Retrying in {delay_exponential} seconds ...")
+                    logger.info(f"Retrying in {delay_exponential} seconds ...")
                     time.sleep(delay_exponential)
                     delay_exponential *= 2
             elif response.status_code in status_codes_gateway:
-                print(f"Request failed (Error {response.status_code}).")
+                logger.error(f"Request failed (Status code {response.status_code}).")
 
                 if attempts > 0:
-                    print(f"Retrying in {delay_linear} seconds ...")
+                    logger.info(f"Retrying in {delay_linear} seconds ...")
                     time.sleep(delay_linear)
 
             else:
-                # logger.error(
-                #     f"Invalid URL: {url} (Status code {response.status_code})."
-                # )
-                print(f"Invalid URL: {url} (Status code {response.status_code}).")
+                logger.error(
+                    f"Invalid URL: {url} (Status code {response.status_code})."
+                )
                 return None
         except requests.ConnectionError as e:
-            print(f"Request failed {e}.")
+            logger.error(f"Request failed ({e}).")
 
             if attempts > 0:
-                print(f"Retrying in {delay_linear} seconds ...")
+                logger.info(f"Retrying in {delay_linear} seconds ...")
                 time.sleep(delay_linear)
 
     return None
@@ -1332,7 +1334,7 @@ def download_file_opendap(
         None
     """
     url = f"{OPENDAP_ROOT}{source_folder}/{file_name}"
-    print(f"Trying to download '{url}' ...")
+    logger.info(f"Trying to download '{url}' ...")
 
     while attempts > 0:
         try:
@@ -1354,10 +1356,10 @@ def download_file_opendap(
                 with open(target_file, "wb") as file:
                     file.write(response.content)
 
-                print(f"File downloaded successfully to '{target_file}'.")
+                logger.info(f"File downloaded successfully to '{target_file}'.")
                 return
             elif response.status_code == 404:
-                warnings.warn(f"File '{file_name}' not found on OPeNDAP server.")
+                logger.error(f"File '{file_name}' not found on OPeNDAP server.")
                 return
             else:
                 attempts -= 1
@@ -1370,7 +1372,7 @@ def download_file_opendap(
             if attempts > 0:
                 time.sleep(delay)
 
-    warnings.warn(f"File '{file_name}' download failed repeatedly.")
+    logger.error(f"File '{file_name}' download failed repeatedly.")
 
 
 def day_of_year_to_date(year, day_of_year, leap_year_considered=True):

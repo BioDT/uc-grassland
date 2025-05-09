@@ -48,7 +48,7 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
         if location["found"]:
             get_soil_data(location, file_name=file_name)
         else:
-            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found!")
+            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found.")
     else:
         # Several example coordinates for testing
 

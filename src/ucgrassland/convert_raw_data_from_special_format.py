@@ -25,11 +25,12 @@ for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CS
 Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
 """
 
-import warnings
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+
+from ucgrassland.logger_config import logger
 
 
 def convert_raw_data_MAM_C():
@@ -122,9 +123,8 @@ def convert_raw_data_ASQ_C():
             # set date to 15th of month in format DD.MM.YYYY
             time = f"15.{months[0]:02d}.{year}"
         elif len(months) == 0:
-            warnings.warn(
-                f"No month found in time data for Plot {station_code}, Year {year}, Replication {replication}",
-                UserWarning,
+            logger.warning(
+                f"No month found in time data for Plot {station_code}, Year {year}, Replication {replication}."
             )
             time = f"{year}"
         else:
@@ -134,10 +134,9 @@ def convert_raw_data_ASQ_C():
                 int(sum(dates_ordinal) / len(dates_ordinal))
             ).strftime("%d.%m.%Y")
 
-            warnings.warn(
+            logger.warning(
                 f"Multiple months found ({months}) in time data for Plot {station_code}, Year {year}, Replication {replication}. "
-                f"Using mean date: {time}.",
-                UserWarning,
+                f"Using mean date: {time}."
             )
 
         # Extract values for each species column (E to end)
@@ -149,17 +148,15 @@ def convert_raw_data_ASQ_C():
                 # replace commas
                 if isinstance(column_value, str):
                     if "," in column_value:
-                        warnings.warn(
-                            f"Replacing comma(s) in value '{column_value}' in column {column}.",
-                            UserWarning,
+                        logger.warning(
+                            f"Replacing comma(s) in value '{column_value}' in column {column}."
                         )
                         column_value = column_value.replace(",", "")
 
                     column_value = float(column_value)
                 else:
-                    warnings.warn(
-                        f"Value '{column_value}' in column {column} is not a float, string or nan.",
-                        UserWarning,
+                    logger.warning(
+                        f"Value '{column_value}' in column {column} is not a float, string or nan."
                     )
                     column_value = None
 

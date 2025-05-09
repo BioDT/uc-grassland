@@ -88,7 +88,6 @@ Data sources:
 """
 
 import argparse
-import warnings
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
@@ -98,6 +97,7 @@ import pandas as pd
 import requests
 
 from ucgrassland import utils as ut
+from ucgrassland.logger_config import logger
 
 
 def get_map_specs(map_key):
@@ -150,7 +150,7 @@ def get_map_specs(map_key):
                 "url_folder": "https://zenodo.org/records/10640528/files/",
             }
         else:
-            warnings.warn(f"Land cover map for key '{map_key}' not found!")
+            logger.error(f"Land cover map for key '{map_key}' not found.")
             return None
     elif map_key.startswith("GER_Lange_"):
         map_year = map_key.split("_")[-1]  # get year from map key
@@ -170,10 +170,10 @@ def get_map_specs(map_key):
                 "url_folder": "https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/",
             }
         else:
-            warnings.warn(f"Land cover map for key '{map_key}' not found!")
+            logger.error(f"Land cover map for key '{map_key}' not found.")
             return None
     else:
-        warnings.warn(f"Land cover map for key '{map_key}' not found!")
+        logger.error(f"Land cover map for key '{map_key}' not found.")
         return None
 
     return map_specs
@@ -202,20 +202,20 @@ def get_map_and_legend(map_key, *, cache=None):
         map_file = Path(cache) / map_specs["subfolder"] / file_name
 
         if map_file.is_file():
-            print(f"Land cover map found. Using '{map_file}'.")
+            logger.info(f"Land cover map found. Using '{map_file}'.")
             map_found = True
         else:
-            print(f"Land cover map file '{map_file}' not found!")
-            print("Trying to access via URL ...")
+            logger.info(f"Land cover map file '{map_file}' not found.")
+            logger.info("Trying to access via URL ...")
 
     if not map_found:
         # Get map directly from URL, no download
         map_file = f"{map_specs['url_folder']}{file_name}"
 
         if ut.check_url(map_file):
-            print(f"Land cover map found. Using '{map_file}'.")
+            logger.info(f"Land cover map found. Using '{map_file}'.")
         else:
-            raise FileNotFoundError(f"Land cover map file '{map_file}' not found!")
+            raise FileNotFoundError(f"Land cover map file '{map_file}' not found.")
 
     # Get categories for map values
     file_name = f"{map_specs['file_stem']}{map_specs['leg_ext']}"
@@ -225,12 +225,12 @@ def get_map_and_legend(map_key, *, cache=None):
         leg_file = Path(cache) / map_specs["subfolder"] / file_name
 
         if leg_file.is_file():
-            print(f"Land cover categories found. Using '{leg_file}'.")
+            logger.info(f"Land cover categories found. Using '{leg_file}'.")
             category_mapping = create_category_mapping(leg_file)
 
             return map_file, category_mapping
         else:
-            print(f"Land cover categories file '{leg_file}' not found!")
+            logger.info(f"Land cover categories file '{leg_file}' not found.")
 
     # Get legend directly from URL, no download
     leg_file = (
@@ -238,12 +238,12 @@ def get_map_and_legend(map_key, *, cache=None):
     )
 
     if ut.check_url(leg_file):
-        print(f"Land cover categories found. Using '{leg_file}'.")
+        logger.info(f"Land cover categories found. Using '{leg_file}'.")
         category_mapping = create_category_mapping(leg_file)
 
         return map_file, category_mapping
     else:
-        raise FileNotFoundError(f"Land cover categories file '{leg_file}' not found!")
+        raise FileNotFoundError(f"Land cover categories file '{leg_file}' not found.")
 
 
 def create_category_mapping(leg_file):
@@ -273,7 +273,7 @@ def create_category_mapping(leg_file):
             # # Alternative using the row names 'code' and 'class_name'
             # category_mapping = (df[["code", "class_name"]].set_index("code")["class_name"].to_dict())
         except Exception as e:
-            print(f"Error reading XLSX file: {str(e)}")
+            logger.error(f"Reading XLSX file failed ({str(e)}).")
     elif leg_file_suffix == "xml":
         # Not implemented for URL, only local files
         try:
@@ -288,7 +288,7 @@ def create_category_mapping(leg_file):
                     category_name = category.text
                     category_mapping[index] = category_name
         except Exception as e:
-            print(f"Error reading XML file: {str(e)}")
+            logger.error(f"Reading XML file failed ({str(e)}).")
 
     return category_mapping
 
@@ -310,7 +310,7 @@ def get_category_tif(map_file, category_mapping, location):
     category = category_mapping.get(value, "Unknown Category")
 
     if category == "Unknown Category":
-        print(f"Unknown category value ({value})!")  # just info on unknown value
+        logger.warning(f"Unknown category value ({value}).")
 
     return category, time_stamp
 
@@ -337,23 +337,23 @@ def get_category_deims(location):
                 .get("eunisHabitat")
             )
         except Exception as e:
-            print(
-                f"Error: Access failed to DEIMS site record ('https://deims.org/api/sites/{location['deims_id']}')."
+            logger.error(
+                f"Access failed to DEIMS site record ('https://deims.org/api/sites/{location['deims_id']}'). "
+                f"({str(e)})."
             )
-            print(f" Exception: {str(e)}.")
 
         if "eunis_habitats" in locals() and isinstance(eunis_habitats, list):
             for item in eunis_habitats:
-                print(f"Habitat: {item['label']}")
+                logger.info(f"Habitat: {item['label']}")
                 categories.append(item["label"])
         else:
-            print("Habitat: Not found.")
+            logger.warning("Habitat: Not found.")
             categories.append("Not found.")
 
         return categories, time_stamp
     else:
         raise ValueError(
-            "No location DEIMS.iD provided, but needed with map key 'EUR_eunis_habitat' for requesting land cover information!"
+            "No location DEIMS.iD provided, but needed with map key 'EUR_eunis_habitat' for requesting land cover information."
         )
 
 
@@ -413,12 +413,12 @@ def get_category_hrl_grassland(location):
                 return "outside area", time_stamp
 
             # Handle unknown values
-            warnings.warn(f"Unknown value for specified location: {value}.")
+            logger.error(f"Unknown value for specified location: {value}.")
             return value, time_stamp
         else:
-            warnings.warn("No value for specified location.")
+            logger.error("No value for specified location.")
     else:
-        print(f"Error: {response.status_code}")
+        logger.error(f"{response.status_code}: {response.text}")
 
     return None, time_stamp
 
@@ -439,16 +439,16 @@ def check_desired_categories(category, target_categories, location, map_key):
     # Check if extracted categories are in any of the target categories
     is_target_categories = category in target_categories
 
-    # Print check results
+    # Log check results
     if is_target_categories:
-        print(
-            f"Confirmed: Lat. {location['lat']}, Lon. {location['lon']}",
-            f"is '{category}' according to '{map_key}' land cover classification.",
+        logger.info(
+            f"Confirmed: Lat. {location['lat']}, Lon. {location['lon']} "
+            f"is '{category}' according to '{map_key}' land cover classification."
         )
     else:
-        print(
-            f"Not in target categories: Lat. {location['lat']}, Lon. {location['lon']}",
-            f"is '{category}' according to '{map_key}' land cover classification.",
+        logger.warning(
+            f"Not in target categories: Lat. {location['lat']}, Lon. {location['lon']} "
+            f"is '{category}' according to '{map_key}' land cover classification."
         )
 
     return is_target_categories
@@ -536,7 +536,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
     Returns:
         list of dict: List of dicioniaries containing the check results for each location.
     """
-    print("Starting grassland check ...")
+    logger.info("Starting grassland check ...")
     deims_keys = ["EUR_eunis_habitat"]
     tif_keys = [
         "EUR_Pflugmacher",
@@ -606,26 +606,26 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                             category=all_categories,
                         )
 
-                        # Print check results
+                        # Log check results
                         if is_grass:
-                            print(
-                                "Confirmed: Site with centroid Lat.",
-                                f"{site_check['lat']}, Lon. {site_check['lon']}",
-                                "contains habitat classified as grassland",
-                                f"according to '{map_key}' land cover classification.",
+                            logger.info(
+                                "Confirmed: Site with centroid Lat. "
+                                f"{site_check['lat']}, Lon. {site_check['lon']} "
+                                "contains habitat classified as grassland "
+                                f"according to '{map_key}' land cover classification."
                             )
                         else:
-                            print(
-                                "Not in target categories: Site with centroid Lat.",
-                                f"{site_check['lat']}, Lon. {site_check['lon']}",
-                                "contains no habitat classified as grassland",
-                                f"according to '{map_key}' land cover classification.",
+                            logger.warning(
+                                "Not in target categories: Site with centroid Lat. "
+                                f"{site_check['lat']}, Lon. {site_check['lon']} "
+                                "contains no habitat classified as grassland "
+                                f"according to '{map_key}' land cover classification."
                             )
                     else:
-                        print(
-                            f"Error: Valid DEIMS.iD needed with map key '{map_key}' for requesting land cover information!"
+                        logger.error(
+                            f"Valid DEIMS.iD needed with map key '{map_key}' for requesting land cover information."
                         )
-                        print("Habitat: Not found.")
+                        logger.warning("Habitat: Not found.")
                         site_check.update(
                             map_source="",
                             map_query_time_stamp="",
@@ -634,7 +634,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                         )
                 else:
                     raise ValueError(
-                        f"No location DEIMS.iD provided, but needed with map key '{map_key}' for requesting land cover information!"
+                        f"No location DEIMS.iD provided, but needed with map key '{map_key}' for requesting land cover information."
                     )
 
                 grassland_check.append(site_check)
@@ -664,7 +664,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                 grassland_check.append(site_check)
             else:
                 raise ValueError(
-                    f"Map key '{map_key}' not found. Please provide valid map key!"
+                    f"Map key '{map_key}' not found. Please provide valid map key."
                 )
         else:
             raise ValueError(

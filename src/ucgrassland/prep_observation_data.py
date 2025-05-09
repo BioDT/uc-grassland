@@ -26,7 +26,6 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 """
 
 import argparse
-import warnings
 from pathlib import Path
 from types import MappingProxyType
 
@@ -34,6 +33,7 @@ import pandas as pd
 
 from ucgrassland import assign_pfts as apft
 from ucgrassland import utils as ut
+from ucgrassland.logger_config import logger
 
 # Define observation data specifications for a sites with grassland observation data, including:
 #     name (str): Site name.
@@ -466,7 +466,7 @@ def read_observation_data(
         list: List of lists with observation data.
     """
     file_extension = file_name.suffix.lower()
-    print(f"Reading observation data from '{file_name}' ...")
+    logger.info(f"Reading observation data from '{file_name}' ...")
 
     if file_extension == ".csv":
         try:
@@ -477,7 +477,7 @@ def read_observation_data(
                 delimiter=csv_delimiter,
             )
         except Exception as e:
-            print(f"Error reading .csv file: {e}.")
+            logger.error(f"Reading .csv file failed ({e}).")
             return []
 
         # Get column names and entries in one list, replace incorrectly handled byte order mark (BOM) if present ("\ufeff", converted to "ï»¿")
@@ -498,8 +498,8 @@ def read_observation_data(
         duplicate_rows = ut.count_duplicates(observation_data, key_column="all")
 
         if len(duplicate_rows) > 0:
-            warnings.warn(
-                "Observation data have identical entries! Removing duplicates for subsequent processing.\n"
+            logger.warning(
+                "Observation data have identical entries. Removing duplicates for subsequent processing.\n"
                 "Duplicates:\n"
                 + "\n".join(
                     [f"'{entry}' ({count})" for entry, count in duplicate_rows.items()]
@@ -551,8 +551,8 @@ def read_observation_data(
             )
 
             if len(duplicate_rows_except_scientific_name) > 0:
-                warnings.warn(
-                    "Observation data have entries that only differ in 'Scientific Name GBIF'!\n"
+                logger.warning(
+                    "Observation data have entries that only differ in 'Scientific Name GBIF'.\n"
                     "Duplicates:\n"
                     + "\n".join(
                         [
@@ -601,8 +601,8 @@ def read_observation_data(
             )
 
             if len(duplicate_rows_except_value) > 0:
-                warnings.warn(
-                    "Observation data have entries that only differ in 'VALUE'!\n"
+                logger.warning(
+                    "Observation data have entries that only differ in 'VALUE'.\n"
                     "Duplicates:\n"
                     + "\n".join(
                         [
@@ -627,9 +627,7 @@ def read_observation_data(
 
         return observation_data
     else:
-        warnings.warn(
-            f"File extension '{file_extension}' not supported. Skipping file."
-        )
+        logger.error(f"File extension '{file_extension}' not supported. Skipping file.")
         return []
 
 
@@ -657,9 +655,9 @@ def process_single_plot_observation_data(
             duplicates = ut.count_duplicates(time_data, key_column="all")
 
             if len(duplicates) > 0:
-                warnings.warn(
+                logger.warning(
                     f"Duplicate species entries remain in retrieved observation data for plot '{plot_name}' "
-                    f"at time '{time_point}'! Removing duplicates for subsequent processing.\n"
+                    f"at time '{time_point}'. Removing duplicates for subsequent processing.\n"
                     "Duplicate species entries:\n"
                     + "\n".join(
                         [f"'{entry}' ({count})" for entry, count in duplicates.items()]
@@ -675,7 +673,7 @@ def process_single_plot_observation_data(
             )
 
             if len(duplicates) > 0:
-                warnings.warn(
+                logger.warning(
                     f"Duplicate species entries in plot '{plot_name}' at time '{time_point}'. Cannot process data from values. Skipping time point."
                     " Duplicate species entries:\n"
                     + "\n".join(
@@ -769,13 +767,13 @@ def process_observation_data(
     """
     # Skip indices because conversion to PFT is not clear
     if variable in ["indices", "absolute_frequency"]:
-        warnings.warn(
+        logger.warning(
             f"'{variable}' data not fully processed because conversion to PFT is not clear."
         )
         return None
 
     if variable == "abundance_gloria_1_8":
-        warnings.warn(
+        logger.warning(
             f"'{variable}' data not fully processed because conversion to quantitative cover values is not recommended."
         )
         return None
@@ -839,7 +837,7 @@ def process_observation_data(
 
                         if len(plot_data_F) > 0:
                             plot_data = plot_data_F
-                            warnings.warn(
+                            logger.warning(
                                 f"{len(layer_entries)} different layer entries found for plot '{plot_name}' ({layer_entries}). Using only layer '{layer}'."
                             )
 
@@ -904,11 +902,11 @@ def process_observation_data(
 
         if new_file:
             observation_pft.to_csv(new_file, sep="\t", index=False)
-            print(f"Processed observation data written to file\n'{new_file}'.")
+            logger.info(f"Processed observation data written to file\n'{new_file}'.")
 
         return observation_pft
     else:
-        warnings.warn(
+        logger.error(
             f"Column 'plot' and/or 'time' not found in observation data for '{variable}'. Skipping processing."
         )
         return None
@@ -945,7 +943,7 @@ def check_observation_value(
             value = float(value_in)
 
             if value < 0 or value > 100:
-                warnings.warn(
+                logger.error(
                     f"Invalid cover value '{value}' for species '{species}' "
                     f"in plot '{plot_name}' at time '{time_point}'. "
                     "Cover values must be between 0 and 100 %. Skipping invalid entry."
@@ -956,13 +954,13 @@ def check_observation_value(
             value = BRAUN_BLANQUET_TO_COVER.get(value_in)
 
             if value is not None:
-                warnings.warn(
+                logger.warning(
                     f"Value '{value_in}' for '{variable}' of species '{species}' "
                     f"in plot '{plot_name}' at time '{time_point}' is not a number, "
                     f"but a Braun-Blanquet code. Mapped to cover value '{value}'."
                 )
             else:
-                warnings.warn(
+                logger.error(
                     f"Value '{value_in}' for '{variable}' of species '{species}' "
                     f"in plot '{plot_name}' at time '{time_point}' is not a number "
                     "(and not a Braun-Blanquet code). Skipping invalid entry."
@@ -970,7 +968,7 @@ def check_observation_value(
                 return None
 
         if not pd.isna(unit) and unit not in ["%", "percent", "abundance"]:
-            warnings.warn(
+            logger.warning(
                 f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
                 f"in plot '{plot_name}' at time '{time_point}'. Unit should be '%'."
             )
@@ -979,7 +977,7 @@ def check_observation_value(
         value = BRAUN_BLANQUET_TO_COVER.get(value_in)
 
         if value is None:
-            warnings.warn(
+            logger.error(
                 f"Invalid Braun-Blanquet code '{value_in}' for species '{species}' "
                 f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
             )
@@ -991,7 +989,7 @@ def check_observation_value(
                 "dimless",
                 "dimles",  # account for typo in raw data
             ]:
-                warnings.warn(
+                logger.warning(
                     f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
                     f"in plot '{plot_name}' at time '{time_point}'."
                 )
@@ -1000,14 +998,14 @@ def check_observation_value(
         value = CATEGORIES_1_9_TO_COVER.get(value_in)
 
         if value is None:
-            warnings.warn(
+            logger.error(
                 f"Invalid categories 1-9 code '{value_in}' for species '{species}' "
                 f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
             )
             return None
         else:
             if not pd.isna(unit) and unit.lower() != "dimless":
-                warnings.warn(
+                logger.warning(
                     f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
                     f"in plot '{plot_name}' at time '{time_point}'. Unit should be 'dimless'."
                 )
@@ -1016,14 +1014,14 @@ def check_observation_value(
         value = ABUNDANCE_GLORIA_1_8_TO_COVER.get(value_in)
 
         if value is None:
-            warnings.warn(
+            logger.error(
                 f"Invalid Gloria abundance code '{value}' for species '{species}' "
                 f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
             )
             return None
         else:
             if not pd.isna(unit) and unit.lower() not in ["category"]:
-                warnings.warn(
+                logger.warning(
                     f"Invalid unit '{unit}' for '{variable}' of species '{species}' "
                     f"in plot '{plot_name}' at time '{time_point}'. Unit should be 'category'."
                 )
@@ -1033,28 +1031,28 @@ def check_observation_value(
             value = float(value_in)
 
             if value < 0 or value > 100:
-                warnings.warn(
+                logger.error(
                     f"Invalid frequency value '{value}' for species '{species}' "
                     f"in plot '{plot_name}' at time '{time_point}'. "
                     "Frequency values must be between 0 and 100 %. Skipping invalid entry."
                 )
                 return None
         except ValueError:
-            warnings.warn(
+            logger.error(
                 f"Invalid frequency value '{value_in}' for species '{species}' "
                 f"in plot '{plot_name}' at time '{time_point}'. Skipping invalid entry."
             )
             return None
 
     else:
-        warnings.warn(
+        logger.error(
             f"Variable '{variable}' not supported. Skipping observation value {value_in} "
             f"for species '{species}' in plot '{plot_name}' at time '{time_point}'."
         )
         return None
 
     if unit is not None and unit_check is not None and unit != unit_check:
-        warnings.warn(
+        logger.warning(
             f"Unit mismatch for '{variable}' of species '{species}' in plot "
             f"'{plot_name}' at time '{time_point}': {unit_check} vs. {unit}."
         )
@@ -1282,7 +1280,7 @@ def prep_observation_data(
     observation_data_specs = OBSERVATION_DATA_SPECS_PER_SITE.get(deims_id)
 
     if observation_data_specs is None:
-        warnings.warn(
+        logger.error(
             f"DEIMS ID '{deims_id}' not found in observation data specifications. Skipping site."
         )
         return
@@ -1305,9 +1303,7 @@ def prep_observation_data(
 
         return location_summary
     else:
-        warnings.warn(
-            f"Coordinates not found for DEIMS ID '{deims_id}'. Skipping site."
-        )
+        logger.error(f"Coordinates not found for DEIMS ID '{deims_id}'. Skipping site.")
         return
 
 
@@ -1346,7 +1342,7 @@ def observation_summaries_to_list(observation_summaries, *, new_file=None):
                 if column_names is None:
                     column_names = list(variable_summary.keys())
                 elif column_names != list(variable_summary.keys()):
-                    warnings.warn(
+                    logger.warning(
                         f"Column names for '{key}' do not match previous entries. Keeping column names from first entry."
                     )
 

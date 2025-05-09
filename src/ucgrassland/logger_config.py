@@ -1,6 +1,6 @@
 """
 Module Name: logger_config.py
-Description: Logging configuration for uc-grassland building block.
+Description: Logging configuration for ucgrassland building block.
 
 Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ)
 and Tuomas Rossi (CSC).
@@ -25,18 +25,36 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        TimedRotatingFileHandler(
-            "uc-grassland_app.log", when="midnight", interval=1, backupCount=7
-        ),  # rotate daily, keep 7 backups
-        logging.StreamHandler(),
-    ],
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+
+# Define log file path
+log_file = Path("logs") / "ucgrassland_app.log"
+log_file.parent.mkdir(parents=True, exist_ok=True)
+
+# Create a logger specific to this package
+logger = logging.getLogger("ucgrassland")
+logger.setLevel(logging.INFO)
+
+# Create a file handler with daily rotation
+file_handler = TimedRotatingFileHandler(
+    log_file, when="midnight", interval=1, backupCount=7
+)  # rotate daily, keep 7 backups
+file_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 )
 
-# Create a logger object
-logger = logging.getLogger(__name__)
+# Create a stream handler for console output
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+)
+
+# Add handlers to the logger
+logger.addHandler(file_handler)
+logger.addHandler(stream_handler)
+
+# Capture warnings and log them
+logging.captureWarnings(True)

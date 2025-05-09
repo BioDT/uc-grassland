@@ -51,12 +51,12 @@ Data sources:
 """
 
 import argparse
-import warnings
 from pathlib import Path
 
 import numpy as np
 
 from ucgrassland import utils as ut
+from ucgrassland.logger_config import logger
 
 
 def construct_management_data_file_name(
@@ -145,7 +145,7 @@ def management_data_to_txt_file(
         # Header line, capitalize only the first letter of each string
         management_columns = [s.capitalize() for s in ["Year"] + map_properties]
         management_fmt = "%.0f" + "\t%.4f" * len(map_properties)  # no digits for year
-        print_message = (
+        log_message = (
             f"Raw management data from '{map_key}' map written to file '{file_name}'."
         )
     else:
@@ -169,7 +169,7 @@ def management_data_to_txt_file(
             "Data source",
         ]
         management_fmt = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s"
-        print_message = f"Processed management data from '{map_key}' map written to file '{file_name}'."
+        log_message = f"Processed management data from '{map_key}' map written to file '{file_name}'."
 
         # Prepare empty management data for writing to file
         if not management_data:
@@ -184,7 +184,7 @@ def management_data_to_txt_file(
         header="\t".join(management_columns),
         comments="",
     )
-    print(print_message)
+    logger.info(log_message)
 
     if data_query_protocol:
         file_name = ut.add_string_to_file_name(file_name, "__data_query_protocol")
@@ -222,8 +222,9 @@ def get_management_map_file(
             if map_file.is_file():
                 return map_file
             else:
-                print(f"Error: Local file '{map_file}' not found!")
-                print("Trying to access via URL ...")
+                logger.error(
+                    f"Local file '{map_file}' not found. Trying to access via URL ..."
+                )
 
         # Nested dictionary for file names
         file_names = {
@@ -260,7 +261,7 @@ def get_management_map_file(
         try:
             file_name = file_names[year][applicability][property]
         except KeyError:
-            warnings.warn(f"'{map_key}' {property} map not available for {year}!")
+            logger.warning(f"'{map_key}' {property} map not available for {year}.")
             return None
 
         map_file = (
@@ -271,7 +272,7 @@ def get_management_map_file(
         if year in [2017, 2018, 2019, 2020, 2021]:
             file_name = f"GLU_GER_{year}_SUM_DOY_COG.tif"
         else:
-            warnings.warn(f"'{map_key}' {property} map not available for {year}!")
+            logger.warning(f"'{map_key}' {property} map not available for {year}.")
             return None
 
         if cache is not None:
@@ -280,8 +281,9 @@ def get_management_map_file(
             if map_file.is_file():
                 return map_file
             else:
-                print(f"Error: Local file '{map_file}' not found!")
-                print("Trying to access via URL ...")
+                logger.error(
+                    f"Local file '{map_file}' not found. Trying to access via URL ..."
+                )
 
         # Get map file URL
         map_file = f"https://zenodo.org/records/10609590/files/{file_name}"
@@ -290,7 +292,7 @@ def get_management_map_file(
     if ut.check_url(map_file):
         return map_file
     else:
-        print(f"Error: File '{map_file}' not found!")
+        logger.error(f"File '{map_file}' not found. Returning None.")
         return None
 
 
@@ -318,7 +320,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
             and list of query sources and time stamps.
     """
     map_key = "GER_Lange"
-    print(f"Reading management data from '{map_key}' map ...")
+    logger.info(f"Reading management data from '{map_key}' map ...")
     query_protocol = []
 
     # Initialize property_data array with nans
@@ -338,7 +340,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
             )
 
             if map_file:
-                print(
+                logger.info(
                     f"{property[0].upper() + property[1:]} map for {year} found. Using '{map_file}'."
                 )
 
@@ -348,7 +350,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                 )
 
                 if aoa_file:
-                    print(
+                    logger.info(
                         f"{property[0].upper() + property[1:]} map AOA for {year} found. Using '{aoa_file}'."
                     )
                     within_aoa, time_stamp = ut.extract_raster_value(
@@ -358,7 +360,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
 
                     if within_aoa == -1:
                         if warn_no_grassland:
-                            warnings.warn(
+                            logger.warning(
                                 f"Location not classified as grassland in '{map_key}' map."
                             )
                             warn_no_grassland = False
@@ -370,13 +372,13 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                     query_protocol.append([map_file, time_stamp])
 
                     if within_aoa:
-                        print(
+                        logger.info(
                             f"{year}, {property} : {property_value}. Within area of applicability."
                         )
                         property_data[y_index, p_index] = property_value
                     else:
-                        print(
-                            f"{year}, {property} : {property_value}. Not used, outside area of applicability!"
+                        logger.warning(
+                            f"{year}, {property} : {property_value}. Not used, outside area of applicability."
                         )
 
     return property_data, query_protocol
@@ -400,14 +402,14 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
             and list of query sources and time stamps.
     """
     map_key = "GER_Schwieder"
-    print(f"Reading management data from '{map_key}' map ...")
+    logger.info(f"Reading management data from '{map_key}' map ...")
     query_protocol = []
     map_bands = len(map_properties)
     property = map_properties[0]
 
     if property != "mowing":
         raise ValueError(
-            f"First property to read from '{map_key}' map must be 'mowing'!"
+            f"First property to read from '{map_key}' map must be 'mowing'."
         )
 
     # Initialize property_data array with nans
@@ -421,7 +423,9 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
         map_file = get_management_map_file(map_key, year)
 
         if map_file:
-            print(f"{property.capitalize()} map for {year} found. Using '{map_file}'.")
+            logger.info(
+                f"{property.capitalize()} map for {year} found. Using '{map_file}'."
+            )
 
             # Read mowing events (band 1)
             band_index = 1
@@ -432,13 +436,13 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
 
             if band_value == -9999:
                 if warn_no_grassland:
-                    warnings.warn(
+                    logger.warning(
                         f"Location not classified as grassland in '{map_key}' map."
                     )
                     warn_no_grassland = False
             else:
                 property_data[y_index, band_index] = band_value
-                print(f"{year}, {property}: {band_value} event(s).")
+                logger.info(f"{year}, {property}: {band_value} event(s).")
 
                 # Add mowing dates if available (bands 2 to end)
                 for band_index in range(2, map_bands + 1):
@@ -450,7 +454,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
                         property_data[y_index, band_index] = band_value
                         query_protocol.append([map_file, time_stamp])
                         band_date = ut.day_of_year_to_date(year, int(band_value))
-                        print(
+                        logger.info(
                             f"{property.capitalize()} event {band_index - 1}: {band_date.strftime('%Y-%m-%d')}."
                         )
 
@@ -517,20 +521,20 @@ def get_mow_schedule(year, mow_count, data_source, mow_height=0.05):
     """
     # Check if mow_count is NaN
     if np.isnan(mow_count):
-        warnings.warn("mow_count is NaN. No schedule will be generated.")
+        logger.warning("mow_count is NaN. No schedule will be generated.")
 
         return np.array([])
 
     # Check if mow_count is between 1 and 5
     if mow_count < 1:
         mow_count = 1
-        warnings.warn(
-            "'mow_count' is smaller than 1! Value between 1 and 5 expected. Set to 1."
+        logger.warning(
+            "'mow_count' is smaller than 1. Value between 1 and 5 expected. Set to 1."
         )
     elif mow_count > 5:
         mow_count = 5
-        warnings.warn(
-            "'mow_count' is greater than 5! Value between 1 and 5 expected. Set to 5."
+        logger.warning(
+            "'mow_count' is greater than 5. Value between 1 and 5 expected. Set to 5."
         )
 
     # Convert mow_count to int
@@ -598,10 +602,10 @@ def get_fert_days(mow_days, year):
         fert_day = mow_day - deltas[index]
 
         if fert_day < earliest_fert_day:
-            warnings.warn(
+            logger.warning(
                 "Calculated fertilisation date"
                 f" {ut.day_of_year_to_date(year, fert_day).strftime('%Y-%m-%d')}"
-                f" is before earliest date allowed! Set to {earliest_fert_date_str}."
+                f" is before earliest date allowed. Set to {earliest_fert_date_str}."
             )
             fert_day = earliest_fert_day
 
@@ -653,20 +657,20 @@ def get_fert_schedule(year, fert_count, data_source, fert_days=None):
     """
     # Check if fert_count is NaN
     if np.isnan(fert_count):
-        warnings.warn("fert_count is NaN. No schedule will be generated.")
+        logger.warning("fert_count is NaN. No schedule will be generated.")
 
         return np.array([])
 
     # Check if fert_count is between 1 and 5
     if fert_count < 1:
         fert_count = 1
-        warnings.warn(
-            "'fert_count' is smaller than 1! Value between 1 and 5 expected. Set to 1."
+        logger.warning(
+            "'fert_count' is smaller than 1. Value between 1 and 5 expected. Set to 1."
         )
     elif fert_count > 5:
         fert_count = 5
-        warnings.warn(
-            "'fert_count' is greater than 5! Value between 1 and 5 expected. Set to 5."
+        logger.warning(
+            "'fert_count' is greater than 5. Value between 1 and 5 expected. Set to 5."
         )
 
     # Convert fert_count to int
@@ -675,14 +679,14 @@ def get_fert_schedule(year, fert_count, data_source, fert_days=None):
     # Check if specific days for fertilisation events are provided
     if fert_days:
         if len(fert_days) > fert_count:
-            warnings.warn(
+            logger.warning(
                 f"List of fertilisation days for {year} has more entries than 'fert_count'."
-                f" Only first {fert_count} days will be used!"
+                f" Only first {fert_count} days will be used."
             )
         elif len(fert_days) < fert_count:
-            warnings.warn(
+            logger.warning(
                 f"List of fertilisation days for {year} has fewer entries than expected for 'fert_count' = {fert_count}."
-                " List not used, replaced by standard schedule!"
+                " List not used, replaced by standard schedule."
             )
             fert_days = None
 
@@ -802,12 +806,12 @@ def convert_management_data(
 
     if fill_mode == "mean":
         # Use means of data retrieved for remaining years as well
-        print("Completing management data with means from years with data ...")
+        logger.info("Completing management data with means from years with data ...")
 
         if years_with_mow_data.size > 0:
             mow_count_float = np.nanmean(mow_count_per_year)
             mow_count_fill = round(mow_count_float + epsilon)
-            print(
+            logger.info(
                 f"Mean annual mowing events: {mow_count_float:.4f} "
                 f"(from {years_with_mow_data.size} years). "
                 f"Using {mow_count_fill} events per year."
@@ -815,15 +819,15 @@ def convert_management_data(
             data_source_str = f"event assumed (fill mode: {fill_mode}, date: schedule)"
         else:
             # No data for any of the years, use default option instead
-            print(
-                "No mowing data for any year to calculate mean and complete other years!"
+            logger.warning(
+                "No mowing data for any year to calculate mean and complete other years."
             )
             no_mow_data_for_mean = True
 
     if fill_mode == "default" or no_mow_data_for_mean:
         # Use default management settings for years without data
         mow_count_fill = mow_count_default
-        print(
+        logger.info(
             "Completing management data with default values ... "
             f"Using {mow_count_fill} events per year."
         )
@@ -864,7 +868,7 @@ def convert_management_data(
                     fert_count_per_year[~np.isnan(fertilised_per_year)]
                 )
                 fert_count_fill = round(fert_count_float + epsilon)
-                print(
+                logger.info(
                     f"Mean number of fertilisation events: {fert_count_float:.4f} per year. "
                     f"Using {fert_count_fill} events per year (but never more than mowing events of the same year)."
                 )
@@ -878,14 +882,14 @@ def convert_management_data(
                 )
             else:
                 # No data for any of the years, use default option instead
-                print(
-                    "No fertilisation data for any year to calculate mean and complete other years!"
+                logger.warning(
+                    "No fertilisation data for any year to calculate mean and complete other years."
                 )
                 no_fert_data_for_mean = True
 
         if fill_mode == "default" or no_fert_data_for_mean:
             # Use number of mowing events as default for years without fertilisation data
-            print(
+            logger.info(
                 "Using the same number of fertilisation events as mowing events for each year."
             )
             fert_count_per_year[index_to_fill] = mow_count_per_year[index_to_fill]
@@ -897,8 +901,8 @@ def convert_management_data(
 
         if fill_mode in ["mean", "default"]:
             # No fertilisation data, use number of mowing events as default
-            print(f"'{map_key}' map has no fertilisation data!")
-            print(
+            logger.warning(
+                f"'{map_key}' map has no fertilisation data. "
                 "Using the same number of fertilisation events as mowing events for each year."
             )
             fert_count_per_year = mow_count_per_year
@@ -920,9 +924,8 @@ def convert_management_data(
 
     try:
         management_events.sort(key=lambda x: x[0])
-    except TypeError:
-        print("Sorting failed due to incompatible data types.")
-
+    except TypeError as e:
+        logger.error(f"Sorting failed due to incompatible data types ({e}).")
     return management_events
 
 
@@ -947,7 +950,7 @@ def get_management_data(
         file_name (str or Path): File name to save final management data (default is None, default file name used if not provided).
     """
     if "lat" in coordinates and "lon" in coordinates:
-        print(
+        logger.info(
             f"Preparing management data for latitude: {coordinates['lat']}, longitude: {coordinates['lon']} ..."
         )
     else:
@@ -1054,7 +1057,7 @@ def prep_management_data(
                 file_name=file_name,
             )
         else:
-            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found!")
+            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found.")
     else:
         # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
         sites_file_name = Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"

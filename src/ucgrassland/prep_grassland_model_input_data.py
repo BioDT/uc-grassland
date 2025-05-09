@@ -25,7 +25,6 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 
 import argparse
 import shutil
-import warnings
 from datetime import datetime
 from pathlib import Path
 
@@ -36,6 +35,7 @@ from ucgrassland import (
     prep_weather_data,
 )
 from ucgrassland import utils as ut
+from ucgrassland.logger_config import logger
 from ucgrassland.prep_observation_data import OBSERVATION_DATA_SPECS_PER_SITE
 
 
@@ -72,7 +72,7 @@ def add_coordinate_infos(coordinates):
 
         return coordinates
     else:
-        warnings.warn(
+        logger.warning(
             "Coordinates not correctly defined. Please provide as dictionary "
             "({'lat': float, 'lon': float})! "
             f"Cannot use these coordinates: {coordinates}."
@@ -107,13 +107,13 @@ def get_input_data(
     """
     # Init dialogue
     location_count = len(coordinates_list)
-    print(
+    logger.info(
         f"Preparing input data for coordinates list with {location_count} locations ..."
     )
 
     # Check if grassland according to all available land cover maps
     if skip_grass_check:
-        print("Grassland checks skipped.")
+        logger.info("Grassland checks skipped.")
     else:
         default_land_cover_map_keys = [
             "EUR_hrl_grassland",
@@ -132,8 +132,8 @@ def get_input_data(
             coordinates = add_coordinate_infos(coordinates)
 
             if coordinates is not None:
-                print(
-                    f"Preparing grassland check data for latitude: {coordinates['lat']},",
+                logger.info(
+                    f"Preparing grassland check data for latitude: {coordinates['lat']}, "
                     f"longitude: {coordinates['lon']} ...",
                 )
                 grassland_checks = []
@@ -161,7 +161,7 @@ def get_input_data(
 
     # Run weather script
     if skip_weather:
-        print("Weather data preparation skipped.")
+        logger.info("Weather data preparation skipped.")
     else:
         # Use preliminary target folder for all weather data, later move to each single location folder
         target_folder = (
@@ -185,7 +185,7 @@ def get_input_data(
             )
 
             if len(weather_files) > 1:
-                warnings.warn(
+                logger.warning(
                     f"More than one weather file found for latitude {coordinates['formatted_lat']}, "
                     f"longitude {coordinates['formatted_lon']}\nin target folder '{target_folder}'.\n"
                     "Moving all files to location folder."
@@ -200,7 +200,7 @@ def get_input_data(
 
     # Run soil script
     if skip_soil:
-        print("Soil data preparation skipped.")
+        logger.info("Soil data preparation skipped.")
     else:
         for coordinates in coordinates_list:
             coordinates = add_coordinate_infos(coordinates)
@@ -213,7 +213,7 @@ def get_input_data(
 
     # Run management script
     if skip_management:
-        print("Management data preparation skipped.")
+        logger.info("Management data preparation skipped.")
     else:
         land_use_map_keys = ["GER_Lange", "GER_Schwieder"]
 
@@ -231,7 +231,7 @@ def get_input_data(
                 )
 
     # Finish dialogues
-    print(f"Input data preparation finished (for {location_count} locations).")
+    logger.info(f"Input data preparation finished (for {location_count} locations).")
 
 
 def prep_grassland_model_input_data(
@@ -264,7 +264,7 @@ def prep_grassland_model_input_data(
         last_year = int(last_year)
 
         if last_year < first_year:
-            warnings.warn(
+            logger.warning(
                 f"First year {first_year} is after last year {last_year}! Last year set to {first_year}."
             )
             last_year = first_year
@@ -295,7 +295,7 @@ def prep_grassland_model_input_data(
                 skip_management=skip_management,
             )
         else:
-            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found!")
+            raise ValueError(f"Coordinates for DEIMS.id '{deims_id}' not found.")
     else:
         # Example locations list
         # locations = ut.parse_locations(
@@ -325,7 +325,7 @@ def prep_grassland_model_input_data(
                 "lon": 11.8787,
             },  # GER, GCEF grassland site, centroid, non-grassland in HRL
         ]
-        # years = list(range(1998, 1999))
+        years = list(range(1998, 1999))
 
         # # Example to get location coordinates from CSV file (for single plots/stations) - quick run, to be generalized below
         source_folder = Path(
@@ -344,24 +344,24 @@ def prep_grassland_model_input_data(
         skip_soil = True
         skip_management = True
 
-        get_input_data(
-            coordinates_list,
-            years,
-            skip_grass_check=skip_grass_check,
-            skip_weather=skip_weather,
-            skip_soil=skip_soil,
-            skip_management=skip_management,
-        )
+        # get_input_data(
+        #     coordinates_list,
+        #     years,
+        #     skip_grass_check=skip_grass_check,
+        #     skip_weather=skip_weather,
+        #     skip_soil=skip_soil,
+        #     skip_management=skip_management,
+        # )
 
-        # # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
-        # sites_file_name = (
-        #     ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
-        # )
-        # site_ids = ut.get_deims_ids_from_xls(
-        #     sites_file_name,
-        #     header_row=1,
-        #     country="ALL",  # "DE" "AT"
-        # )
+        # # # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
+        # # sites_file_name = (
+        # #     ut.get_package_root() / "grasslandSites" / "_elter_call_sites.xlsx"
+        # # )
+        # # site_ids = ut.get_deims_ids_from_xls(
+        # #     sites_file_name,
+        # #     header_row=1,
+        # #     country="ALL",  # "DE" "AT"
+        # # )
         site_ids = [
             # "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
             # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
