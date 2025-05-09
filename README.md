@@ -6,6 +6,11 @@ The current development version can be installed as:
 
     pip install git+https://github.com/BioDT/uc-grassland.git@main
     
+It requires also installing the following packages:
+
+    pip install git+https://github.com/BioDT/general-copernicus-weather-data.git@main
+    pip install git+https://github.com/BioDT/general-soilgrids-soil-data.git@main
+    
 ## Usage
 Download all input data and prepare as needed for grassland model simulations:
 
@@ -16,18 +21,15 @@ from ucgrassland import prep_grassland_model_input_data
 coordinates_list = [{"lat": 51.123456, "lon": 11.987654}]
 first_year = 2010
 last_year = 2024
-
 prep_grassland_model_input_data(coordinates_list, first_year, last_year)
 
-# several locations, download raw weather data for all of them together
+# several locations
 coordinates_list = [{"lat": 51.123456, "lon": 11.987654}, {"lat": 51.456, "lon": 11.654}, {"lat": 51.789, "lon": 11.321}]
-
-prep_grassland_model_input_data(coordinates_list, first_year, last_year, download_weather_area=True)
+prep_grassland_model_input_data(coordinates_list, first_year, last_year)
 
 # use DEIMS.iD to obtain location (centroid or representative coordinates, valid DEIMS.ID required)
 coordinates_list = None
 deims_id = '00000000-0000-0000-0000-000000000000'
-
 prep_grassland_model_input_data(coordinates_list, first_year, last_year, deims_id = deims_id)
 ```
 
@@ -40,7 +42,6 @@ Full function signature:
     deims_id=None,
     skip_grass_check=False,
     skip_weather=False,
-    download_weather_area=False,
     skip_soil=False,
     skip_management=False
 )`
@@ -52,7 +53,6 @@ Parameters:
 - deims_id (str): DEIMS.iD to get coordinates of one location (default is None, only used if coordinates_list is None).
 - skip_grass_check (bool): Skip grassland checks (default is False).
 - skip_weather (bool): Skip weather data preparation (default is False).
-- download_whole_area (bool): Download raw weather data for whole area covering all locations from the coordinates list (default is False). If False, data will be downloaded for each location separately.
 - skip_soil (bool): Skip soil data preparation (default is False).
 - skip_management (bool): Skip management data preparation (default is False).
 

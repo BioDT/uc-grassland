@@ -35,7 +35,6 @@ def prep_weather_data(
     years,
     *,
     months=list(range(1, 13)),
-    download_whole_area=True,
     deims_id=None,
     target_folder="weatherDataPrepared",
 ):
@@ -47,8 +46,6 @@ def prep_weather_data(
             or None for using DEIMS.iD to get coordinates of one location.
         years (list): List of years to process.
         months (list): List of months to process (default is [1, 2, ... 12]).
-        download_whole_area (bool): Download raw weather data for whole area covering all locations from the coordinates list
-            (default is True). If False, data will be downloaded for each location separately.
         deims_id (str): DEIMS.iD (default is None).
         target_folder (str or Path): Target folder for .txt files (default is 'weatherDataPrepared').
     """
@@ -61,7 +58,6 @@ def prep_weather_data(
             years,
             coordinates_list,
             months=months,
-            download_whole_area=download_whole_area,
             target_folder=target_folder,
         )
     elif deims_id:
@@ -72,7 +68,6 @@ def prep_weather_data(
                 years,
                 [location],
                 months=months,
-                download_whole_area=False,
                 target_folder=target_folder,
             )
         else:
@@ -118,7 +113,6 @@ def prep_weather_data(
             years,
             coordinates_list,
             months=months,
-            download_whole_area=download_whole_area,
             target_folder=target_folder,
         )
 
@@ -134,7 +128,6 @@ def prep_weather_data(
                 years,
                 [location],
                 months=months,
-                download_whole_area=False,
                 target_folder=target_folder,
             )
 
@@ -160,12 +153,6 @@ def main():
         default=list(range(1, 13)),
         help="List of months",
     )
-    parser.add_argument(
-        "--download_single_locations",
-        action="store_false",
-        dest="download_whole_area",
-        help="Download single locations separately instead of whole area covering all coordinates in the list (default is False).",
-    )
     parser.add_argument("--deims_id", help="DEIMS.iD")
     parser.add_argument(
         "--target_folder",
@@ -177,7 +164,6 @@ def main():
         coordinates_list=args.coordinates_list,
         years=args.years,
         months=args.months,
-        download_whole_area=args.download_whole_area,
         deims_id=args.deims_id,
         target_folder=args.target_folder,
     )

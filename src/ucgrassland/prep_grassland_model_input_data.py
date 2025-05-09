@@ -87,7 +87,6 @@ def get_input_data(
     *,
     skip_grass_check=False,
     skip_weather=False,
-    download_weather_area=True,
     skip_soil=False,
     skip_management=False,
 ):
@@ -103,8 +102,6 @@ def get_input_data(
         years (list of int): Years list.
         skip_grass_check (bool): Skip grassland checks (default is False).
         skip_weather (bool): Skip weather data preparation (default is False).
-        download_whole_area (bool): Download raw weather data for whole area covering all locations from the coordinates list
-            (default is True). If False, data will be downloaded for each location separately.
         skip_soil (bool): Skip soil data preparation (default is False).
         skip_management (bool): Skip management data preparation (default is False).
     """
@@ -174,7 +171,6 @@ def get_input_data(
         prep_weather_data.prep_weather_data(
             coordinates_list,
             years,
-            download_whole_area=download_weather_area,
             target_folder=target_folder,
         )
 
@@ -246,7 +242,6 @@ def prep_grassland_model_input_data(
     deims_id=None,
     skip_grass_check=False,
     skip_weather=False,
-    download_weather_area=False,
     skip_soil=False,
     skip_management=False,
 ):
@@ -261,8 +256,6 @@ def prep_grassland_model_input_data(
         deims_id (str): DEIMS.iD to get coordinates of one location (default is None, only used if coordinates_list is None).
         skip_grass_check (bool): Skip grassland checks (default is False).
         skip_weather (bool): Skip weather data preparation (default is False).
-        download_whole_area (bool): Download raw weather data for whole area covering all locations from the coordinates list
-            (default is False). If False, data will be downloaded for each location separately.
         skip_soil (bool): Skip soil data preparation (default is False).
         skip_management (bool): Skip management data preparation (default is False).
     """
@@ -286,7 +279,6 @@ def prep_grassland_model_input_data(
             years,
             skip_grass_check=skip_grass_check,
             skip_weather=skip_weather,
-            download_weather_area=download_weather_area,
             skip_soil=skip_soil,
             skip_management=skip_management,
         )
@@ -299,7 +291,6 @@ def prep_grassland_model_input_data(
                 years,
                 skip_grass_check=skip_grass_check,
                 skip_weather=skip_weather,
-                download_weather_area=False,
                 skip_soil=skip_soil,
                 skip_management=skip_management,
             )
@@ -326,14 +317,14 @@ def prep_grassland_model_input_data(
         # locations = ut.parse_locations("48.960629, 13.395191")
 
         # # # example: GCEF small scale difference
-        # coordinates_list = [
-        #     {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
-        #     {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
-        #     {
-        #         "lat": 51.3919,
-        #         "lon": 11.8787,
-        #     },  # GER, GCEF grassland site, centroid, non-grassland in HRL
-        # ]
+        coordinates_list = [
+            # {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+            # {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
+            {
+                "lat": 51.3919,
+                "lon": 11.8787,
+            },  # GER, GCEF grassland site, centroid, non-grassland in HRL
+        ]
         # years = list(range(1998, 1999))
 
         # # Example to get location coordinates from CSV file (for single plots/stations) - quick run, to be generalized below
@@ -348,21 +339,19 @@ def prep_grassland_model_input_data(
         # first_year = 1999
         # last_year = 2024
         # years = list(range(first_year, last_year + 1))
-        # download_weather_area = True
         skip_grass_check = True
-        skip_weather = True
-        # skip_soil = True
+        # skip_weather = True
+        skip_soil = True
         skip_management = True
 
-        # get_input_data(
-        #     coordinates_list,
-        #     years,
-        #     skip_grass_check=skip_grass_check,
-        #     skip_weather=skip_weather,
-        #     download_weather_area=download_weather_area,
-        #     skip_soil=skip_soil,
-        #     skip_management=skip_management,
-        # )
+        get_input_data(
+            coordinates_list,
+            years,
+            skip_grass_check=skip_grass_check,
+            skip_weather=skip_weather,
+            skip_soil=skip_soil,
+            skip_management=skip_management,
+        )
 
         # # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
         # sites_file_name = (
@@ -415,7 +404,6 @@ def prep_grassland_model_input_data(
                 years,
                 skip_grass_check=skip_grass_check,
                 skip_weather=skip_weather,
-                download_weather_area=download_weather_area,
                 skip_soil=skip_soil,
                 skip_management=skip_management,
             )
@@ -457,12 +445,6 @@ def main():
         help="Skip weather data preparation (default is False).",
     )
     parser.add_argument(
-        "--download_weather_single_points",
-        action="store_false",
-        dest="download_weather_area",
-        help="Download single points, not whole area covering all coordinates in the list (default is False).",
-    )
-    parser.add_argument(
         "--skip_soil",
         action="store_true",
         help="Skip soil data preparation (default is False).",
@@ -480,7 +462,6 @@ def main():
         deims_id=args.deims_id,
         skip_grass_check=args.skip_grass_check,
         skip_weather=args.skip_weather,
-        download_weather_area=args.download_weather_area,
         skip_soil=args.skip_soil,
         skip_management=args.skip_management,
     )
