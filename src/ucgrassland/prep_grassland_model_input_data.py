@@ -298,6 +298,11 @@ def prep_grassland_model_input_data(
                 logger.error(e)
                 raise
     else:
+        skip_grass_check = True
+        skip_weather = True
+        skip_soil = True
+        # skip_management = True
+
         # Example locations list
         # locations = ut.parse_locations(
         #     "51.390427,11.876855;51.392331,11.883838;102ae489-04e3-481d-97df-45905837dc1a"
@@ -319,19 +324,20 @@ def prep_grassland_model_input_data(
 
         # # # example: GCEF small scale difference
         coordinates_list = [
-            # {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
-            # {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
+            {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+            {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
             {
                 "lat": 51.3919,
                 "lon": 11.8787,
             },  # GER, GCEF grassland site, centroid, non-grassland in HRL
         ]
-        years = list(range(1998, 1999))
+        # years = list(range(1998, 1999))
+        years = list(range(2013, 2024))
 
         # # Example to get location coordinates from CSV file (for single plots/stations) - quick run, to be generalized below
-        source_folder = Path(
-            "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/"
-        )
+        # source_folder = Path(
+        #     "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/"
+        # )
         # deims_id = "11696de6-0ab9-4c94-a06b-7ce40f56c964"
         # station_file = source_folder / deims_id / "IT_Matschertal_station.csv"
         # deims_id = "270a41c4-33a8-4da6-9258-2ab10916f262"
@@ -340,21 +346,20 @@ def prep_grassland_model_input_data(
         # first_year = 1999
         # last_year = 2024
         # years = list(range(first_year, last_year + 1))
-        skip_grass_check = True
-        # skip_weather = True
-        skip_soil = True
-        skip_management = True
 
-        # get_input_data(
-        #     coordinates_list,
-        #     years,
-        #     skip_grass_check=skip_grass_check,
-        #     skip_weather=skip_weather,
-        #     skip_soil=skip_soil,
-        #     skip_management=skip_management,
-        # )
+        get_input_data(
+            coordinates_list,
+            years,
+            skip_grass_check=skip_grass_check,
+            skip_weather=skip_weather,
+            skip_soil=skip_soil,
+            skip_management=skip_management,
+        )
 
-        # # # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
+        source_folder = Path(
+            "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/"
+        )
+
         # # sites_file_name = (
         # #     Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"
         # # )

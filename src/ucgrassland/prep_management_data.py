@@ -713,6 +713,9 @@ def get_fert_schedule(year, fert_count, data_source, fert_days=None):
         }
         fert_days = fert_days_default[fert_count]
 
+        if ut.is_leap_year(year):
+            fert_days = [day + 1 for day in fert_days]  # Adjust for leap year
+
     # Define specific amounts for each number of fertilisation events (cf. Filipiak et al. 2022, Table S6)
     fert_amounts = {  # in g/m²
         1: [5.5],
@@ -726,9 +729,7 @@ def get_fert_schedule(year, fert_count, data_source, fert_days=None):
     fert_events = []
 
     for d_index, day_of_year in enumerate(fert_days):
-        fert_date = ut.day_of_year_to_date(
-            year, day_of_year, leap_year_considered=False
-        )
+        fert_date = ut.day_of_year_to_date(year, day_of_year)
         row = [
             fert_date.strftime("%Y-%m-%d"),
             "NaN",
