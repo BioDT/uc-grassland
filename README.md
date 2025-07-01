@@ -142,7 +142,7 @@ Plant species traits data:
 - TRY categorical traits table:
     - Kattge, J., Bönisch, G., Günther, A., Wright, I., Zanne, A.E., Wirth, C., Reich, P.B. and the TRY Consortium (2012).
       TRY - Categorical Traits Dataset. Data from: TRY - a global database of plant traits.
-      TRY File Archive https://www.try-db.org/TryWeb/Data.php#3.
+      TRY File Archive. https://www.try-db.org/TryWeb/Data.php#3
     - Kattge, J., Díaz, S., Lavorel, S., Prentice, I., Leadley, P., et al. (2011).
       TRY - a global database of plant traits.
       Global Change Biology 17: 2905-2935. https://doi.org/10.1111/j.1365-2486.2011.02451.x

@@ -55,7 +55,7 @@ Data sources:
         - Python package 'pygbif': https://github.com/gbif/pygbif
 
     Growth form table:
-    - Cornwell W. (2019):
+    - Cornwell, W. (2019):
       traitecoevo/growthform v0.2.3 (v0.2.3).
       Zenodo. https://doi.org/10.5281/zenodo.2543013
     - Supplement to: https://github.com/traitecoevo/growthform/tree/v0.2.3
