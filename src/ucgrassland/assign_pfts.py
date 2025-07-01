@@ -29,14 +29,19 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 
 Data sources:
     TRY categorical traits table:
-    - Kattge J., Bönisch G., Günther A., Wright I., Zanne A., Wirth C., Reich P.B. and the TRY Consortium (2012):
+    - Kattge, J., Bönisch, G., Günther, A., Wright, I., Zanne, A.E., Wirth, C., Reich, P.B. and the TRY Consortium (2012):
       TRY - Categorical Traits Dataset. Data from: TRY - a global database of plant traits.
       TRY File Archive https://www.try-db.org/TryWeb/Data.php#3.
     - Website: https://doi.org/10.17871/TRY.3
-    - Publication:
-      Kattge J., Díaz S., Lavorel S., Prentice I., Leadley P., et al. (2011):
-      TRY - a global database of plant traits.
-      Global Change Biology 17: 2905-2935. https://doi.org/10.1111/j.1365-2486.2011.02451.x
+    - Licence: Creative Commons Attribution 3.0 (CC BY 3.0)
+    - Publications:
+      - Kattge, J., Díaz, S., Lavorel, S., Prentice, I., Leadley, P., et al. (2011):
+        TRY - a global database of plant traits.
+        Global Change Biology 17: 2905-2935. https://doi.org/10.1111/j.1365-2486.2011.02451.x
+      - Kattge, J., Bönisch, G., Díaz S., et al. (2020):
+        TRY plant trait database - enhanced coverage and open access.
+        Global Change Biology 26: 119-188. https://doi.org/10.1111/gcb.14904
+
     - Table redistributed without changes at:
       http://opendap.biodt.eu/grasslands-pdt/speciesMappingLookupTables/
 
@@ -50,7 +55,7 @@ Data sources:
         - Python package 'pygbif': https://github.com/gbif/pygbif
 
     Growth form table:
-    - Will Cornwell (2019).
+    - Cornwell W. (2019):
       traitecoevo/growthform v0.2.3 (v0.2.3).
       Zenodo. https://doi.org/10.5281/zenodo.2543013
     - Supplement to: https://github.com/traitecoevo/growthform/tree/v0.2.3
@@ -67,12 +72,153 @@ import shutil
 import time
 import warnings
 from pathlib import Path
+from types import MappingProxyType
 
 import pandas as pd
+from dotenv import dotenv_values
 from pygbif import species
 
 from ucgrassland import utils as ut
 from ucgrassland.logger_config import logger
+
+# Define species data specifications for selected eLTER sites.
+# Cf. data at https://b2share.eudat.eu/records/?q=biodt&sort=-&page=1&size=25.
+SPECIES_DATA_SPECS_PER_SITE = MappingProxyType(
+    {
+        "11696de6-0ab9-4c94-a06b-7ce40f56c964": {
+            "name": "IT25 - Val Mazia/Matschertal",
+            "file_names": ["IT_Matschertal_data_abund.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "270a41c4-33a8-4da6-9258-2ab10916f262": {
+            "name": "AgroScapeLab Quillow (ZALF)",
+            "file_names": [
+                "DE_AgroScapeQuillow_data_cover.csv",
+                "Code_Species_names.csv",
+            ],
+            "species_columns": ["TAXA", "Speciesname"],
+            "extra_columns": [[], ["Code", "Family"]],
+        },
+        "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
+            "name": "LTSER Zone Atelier Armorique",
+            "file_names": [
+                "FR_AtelierArmorique_reference.csv",
+                "FR_AtelierArmorique_data_indices.csv",
+            ],
+            "species_columns": ["NAME", "Dominant species"],
+            "extra_columns": [["CODE", "FAMILY_NAME"], []],
+        },
+        "324f92a3-5940-4790-9738-5aa21992511c": {
+            "name": "Stubai (combination of Neustift meadows and Kaserstattalm)",
+            "file_names": ["AT_Stubai_data_abund.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "3de1057c-a364-44f2-8a2a-350d21b58ea0": {
+            "name": "Obergurgl",
+            "file_names": [
+                "AT_Obergurgl_reference.csv",
+                "AT_Obergurgl_data.csv",
+            ],
+            "species_columns": ["NAME", "TAXA"],
+            "extra_columns": [[], []],
+        },
+        "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d": {
+            "name": "Hochschwab (AT-HSW) GLORIA",
+            "file_names": [
+                "AT_Hochschwab_reference.csv",
+                "AT_Hochschwab_data_cover.csv",
+                "AT_Hochschwab_data_abund.csv",
+            ],
+            "species_columns": ["NAME", "TAXA", "TAXA"],
+            "extra_columns": [["CODE"], [], []],
+        },
+        "61c188bc-8915-4488-8d92-6d38483406c0": {
+            "name": "Randu meadows",
+            "file_names": ["LV_RanduMeadows_data_abund.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "66431807-ebf1-477f-aa52-3716542f3378": {
+            "name": "LTSER Engure",
+            "file_names": ["LV_Engure_data_cover.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1": {
+            "name": "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen",
+            "file_names": [
+                "AT_Schrankogel_reference.csv",
+                "AT_Schrankogel_data_cover.csv",
+            ],
+            "species_columns": ["NAME", "TAXA"],
+            "extra_columns": [["CODE"], []],
+        },
+        "6b62feb2-61bf-47e1-b97f-0e909c408db8": {
+            "name": "Montagna di Torricchio",
+            "file_names": [
+                "IT_MontagnadiTorricchio_reference.csv",
+                "IT_MontagnaTorricchio_data_abund.csv",
+            ],
+            "species_columns": ["NAME", "TAXA"],
+            "extra_columns": [["CODE"], []],
+        },
+        "829a2bcc-79d6-462f-ae2c-13653124359d": {
+            "name": "Ordesa y Monte Perdido / Huesca ES",
+            "file_names": [
+                "ES_OrdesaYMontePerdido_data_freq.csv"
+            ],  # "ES_OrdesaYMontePerdido_reference.csv",
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "9f9ba137-342d-4813-ae58-a60911c3abc1": {
+            "name": "Rhine-Main-Observatory",
+            "file_names": [
+                "DE_RhineMainObservatory_abund_data.csv",
+                "DE_RhineMainObservatory_data_abund_V2.xlsx",
+            ],
+            "species_columns": ["TAXA", "TAXA"],
+            "extra_columns": [[], []],
+        },
+        "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
+            "name": "Torgnon grassland Tellinod (IT19 Aosta Valley)",
+            "file_names": ["IT_TorgnonGrasslandTellinod_data_abund.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "b356da08-15ac-42ad-ba71-aadb22845621": {
+            "name": "Nørholm Hede",
+            "file_names": ["DK_NorholmHede_data_cover.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+        "c0738b00-854c-418f-8d4f-69b03486e9fd": {
+            "name": "Appennino centrale: Gran Sasso d'Italia",
+            "file_names": [
+                "IT_AppenninoCentrale_reference.csv",
+                "IT_AppenninoCentrale_data_abund.csv",
+            ],
+            "species_columns": ["CODE", "TAXA"],
+            "extra_columns": [[], []],
+        },
+        "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
+            "name": "Appennino centro-meridionale: Majella-Matese",
+            "file_names": [
+                "IT_AppenninoCentroMeridionale_data_cover.csv",
+                "IT_AppenninoCentroMeridionale_data_cover__from_FEM_Revised.csv",
+            ],
+            "species_columns": ["TAXA", "TAXA"],
+            "extra_columns": [[], []],
+        },
+        "e13f1146-b97a-4bc5-9bc5-65322379a567": {
+            "name": "Jalovecka dolina",
+            "file_names": ["SK_JaloveckaDolina_data_cover.csv"],
+            "species_columns": ["TAXA"],
+            "extra_columns": [[]],
+        },
+    }
+)
 
 
 def resolve_infos(
@@ -1419,143 +1565,9 @@ def get_species_data_specs(site_id):
             'species_columns' (list): Column names for species list in each file.
             'extra_columns' (list of lists): Additional columns to retrieve from the files.
     """
-    species_data_specs_per_site = {
-        "11696de6-0ab9-4c94-a06b-7ce40f56c964": {
-            "name": "IT25 - Val Mazia/Matschertal",
-            "file_names": ["IT_Matschertal_data_abund.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "270a41c4-33a8-4da6-9258-2ab10916f262": {
-            "name": "AgroScapeLab Quillow (ZALF)",
-            "file_names": [
-                "DE_AgroScapeQuillow_data_cover.csv",
-                "Code_Species_names.csv",
-            ],
-            "species_columns": ["TAXA", "Speciesname"],
-            "extra_columns": [[], ["Code", "Family"]],
-        },
-        "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
-            "name": "LTSER Zone Atelier Armorique",
-            "file_names": [
-                "FR_AtelierArmorique_reference.csv",
-                "FR_AtelierArmorique_data_indices.csv",
-            ],
-            "species_columns": ["NAME", "Dominant species"],
-            "extra_columns": [["CODE", "FAMILY_NAME"], []],
-        },
-        "324f92a3-5940-4790-9738-5aa21992511c": {
-            "name": "Stubai (combination of Neustift meadows and Kaserstattalm)",
-            "file_names": ["AT_Stubai_data_abund.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "3de1057c-a364-44f2-8a2a-350d21b58ea0": {
-            "name": "Obergurgl",
-            "file_names": [
-                "AT_Obergurgl_reference.csv",
-                "AT_Obergurgl_data.csv",
-            ],
-            "species_columns": ["NAME", "TAXA"],
-            "extra_columns": [[], []],
-        },
-        "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d": {
-            "name": "Hochschwab (AT-HSW) GLORIA",
-            "file_names": [
-                "AT_Hochschwab_reference.csv",
-                "AT_Hochschwab_data_cover.csv",
-                "AT_Hochschwab_data_abund.csv",
-            ],
-            "species_columns": ["NAME", "TAXA", "TAXA"],
-            "extra_columns": [["CODE"], [], []],
-        },
-        "61c188bc-8915-4488-8d92-6d38483406c0": {
-            "name": "Randu meadows",
-            "file_names": ["LV_RanduMeadows_data_abund.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "66431807-ebf1-477f-aa52-3716542f3378": {
-            "name": "LTSER Engure",
-            "file_names": ["LV_Engure_data_cover.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1": {
-            "name": "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen",
-            "file_names": [
-                "AT_Schrankogel_reference.csv",
-                "AT_Schrankogel_data_cover.csv",
-            ],
-            "species_columns": ["NAME", "TAXA"],
-            "extra_columns": [["CODE"], []],
-        },
-        "6b62feb2-61bf-47e1-b97f-0e909c408db8": {
-            "name": "Montagna di Torricchio",
-            "file_names": [
-                "IT_MontagnadiTorricchio_reference.csv",
-                "IT_MontagnaTorricchio_data_abund.csv",
-            ],
-            "species_columns": ["NAME", "TAXA"],
-            "extra_columns": [["CODE"], []],
-        },
-        "829a2bcc-79d6-462f-ae2c-13653124359d": {
-            "name": "Ordesa y Monte Perdido / Huesca ES",
-            "file_names": [
-                "ES_OrdesaYMontePerdido_data_freq.csv"
-            ],  # "ES_OrdesaYMontePerdido_reference.csv",
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "9f9ba137-342d-4813-ae58-a60911c3abc1": {
-            "name": "Rhine-Main-Observatory",
-            "file_names": [
-                "DE_RhineMainObservatory_abund_data.csv",
-                "DE_RhineMainObservatory_data_abund_V2.xlsx",
-            ],
-            "species_columns": ["TAXA", "TAXA"],
-            "extra_columns": [[], []],
-        },
-        "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
-            "name": "Torgnon grassland Tellinod (IT19 Aosta Valley)",
-            "file_names": ["IT_TorgnonGrasslandTellinod_data_abund.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "b356da08-15ac-42ad-ba71-aadb22845621": {
-            "name": "Nørholm Hede",
-            "file_names": ["DK_NorholmHede_data_cover.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "c0738b00-854c-418f-8d4f-69b03486e9fd": {
-            "name": "Appennino centrale: Gran Sasso d'Italia",
-            "file_names": [
-                "IT_AppenninoCentrale_reference.csv",
-                "IT_AppenninoCentrale_data_abund.csv",
-            ],
-            "species_columns": ["CODE", "TAXA"],
-            "extra_columns": [[], []],
-        },
-        "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
-            "name": "Appennino centro-meridionale: Majella-Matese",
-            "file_names": [
-                "IT_AppenninoCentroMeridionale_data_cover.csv",
-                "IT_AppenninoCentroMeridionale_data_cover__from_FEM_Revised.csv",
-            ],
-            "species_columns": ["TAXA", "TAXA"],
-            "extra_columns": [[], []],
-        },
-        "e13f1146-b97a-4bc5-9bc5-65322379a567": {
-            "name": "Jalovecka dolina",
-            "file_names": ["SK_JaloveckaDolina_data_cover.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-    }
-
-    if site_id in species_data_specs_per_site.keys():
-        return species_data_specs_per_site[site_id]
+    # Check if site_id is found in predefined species data specifications
+    if site_id in SPECIES_DATA_SPECS_PER_SITE.keys():
+        return SPECIES_DATA_SPECS_PER_SITE[site_id]
     else:
         try:
             raise ValueError(
@@ -1713,7 +1725,7 @@ def assign_pfts_for_sites(
     """
     # Examples if not specified otherwise in function call
     if site_ids is None:
-        # Specify selected site IDs, these need to be in species_data_specs
+        # Specify selected site IDs, these need to be in SPECIES_DATA_SPECS_PER_SITE
         site_ids = [
             "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
             "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
@@ -1733,15 +1745,10 @@ def assign_pfts_for_sites(
             "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
             "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
         ]
-        # # site_ids = ["3de1057c-a364-44f2-8a2a-350d21b58ea0"]  # Obergurgl
-        # site_ids = [
-        #     "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6"
-        # ]  # LTSER Zone Atelier Armorique
 
     if source_folder is None:
-        source_folder = Path(
-            "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/"
-        )
+        dotenv_config = dotenv_values(".env")
+        source_folder = Path(dotenv_config["ELTER_DATA_PROCESSED"])
 
     if target_folder is None:
         target_folder = Path.cwd() / "grasslandSites"

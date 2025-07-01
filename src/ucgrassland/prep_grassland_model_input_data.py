@@ -28,6 +28,8 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+from dotenv import dotenv_values
+
 from ucgrassland import (
     check_if_grassland,
     prep_management_data,
@@ -73,9 +75,8 @@ def add_coordinate_infos(coordinates):
         return coordinates
     else:
         logger.warning(
-            "Coordinates not correctly defined. Please provide as dictionary "
-            "({'lat': float, 'lon': float})! "
-            f"Cannot use these coordinates: {coordinates}."
+            f"Coordinates not correctly defined ({coordinates}). Required as dictionary "
+            "({'lat': float, 'lon': float})."
         )
 
         return None
@@ -262,7 +263,7 @@ def prep_grassland_model_input_data(
 
         if last_year < first_year:
             logger.warning(
-                f"First year {first_year} is after last year {last_year}! Last year set to {first_year}."
+                f"First year {first_year} is after last year {last_year}. Last year set to {first_year}."
             )
             last_year = first_year
 
@@ -299,8 +300,8 @@ def prep_grassland_model_input_data(
                 raise
     else:
         skip_grass_check = True
-        skip_weather = True
-        skip_soil = True
+        # skip_weather = True
+        # skip_soil = True
         # skip_management = True
 
         # Example locations list
@@ -322,22 +323,23 @@ def prep_grassland_model_input_data(
 
         # locations = ut.parse_locations("48.960629, 13.395191")
 
-        # # # example: GCEF small scale difference
-        coordinates_list = [
-            {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
-            {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
-            {
-                "lat": 51.3919,
-                "lon": 11.8787,
-            },  # GER, GCEF grassland site, centroid, non-grassland in HRL
-        ]
-        # years = list(range(1998, 1999))
-        years = list(range(2013, 2024))
+        # # # # example: GCEF small scale difference
+        # coordinates_list = [
+        #     {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+        #     {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
+        #     {
+        #         "lat": 51.3919,
+        #         "lon": 11.8787,
+        #     },  # GER, GCEF grassland site, centroid, non-grassland in HRL
+        # ]
+        # # years = list(range(1998, 1999))
+
+        # coordinates_list = ut.parse_locations("102ae489-04e3-481d-97df-45905837dc1a")
+        # years = list(range(2013, 2025))
 
         # # Example to get location coordinates from CSV file (for single plots/stations) - quick run, to be generalized below
-        # source_folder = Path(
-        #     "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/"
-        # )
+        # dotenv_config = dotenv_values(".env")
+        # source_folder = Path(dotenv_config['ELTER_DATA_PROCESSED'])
         # deims_id = "11696de6-0ab9-4c94-a06b-7ce40f56c964"
         # station_file = source_folder / deims_id / "IT_Matschertal_station.csv"
         # deims_id = "270a41c4-33a8-4da6-9258-2ab10916f262"
@@ -347,18 +349,17 @@ def prep_grassland_model_input_data(
         # last_year = 2024
         # years = list(range(first_year, last_year + 1))
 
-        get_input_data(
-            coordinates_list,
-            years,
-            skip_grass_check=skip_grass_check,
-            skip_weather=skip_weather,
-            skip_soil=skip_soil,
-            skip_management=skip_management,
-        )
+        # get_input_data(
+        #     coordinates_list,
+        #     years,
+        #     skip_grass_check=skip_grass_check,
+        #     skip_weather=skip_weather,
+        #     skip_soil=skip_soil,
+        #     skip_management=skip_management,
+        # )
 
-        source_folder = Path(
-            "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/"
-        )
+        dotenv_config = dotenv_values(".env")
+        source_folder = Path(dotenv_config["ELTER_DATA_PROCESSED"])
 
         # # sites_file_name = (
         # #     Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"
@@ -376,12 +377,12 @@ def prep_grassland_model_input_data(
             # # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
             # # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
             # "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
-            "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
-            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
-            "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
-            # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
-            "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
-            "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
+            # "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
+            # "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
+            # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
+            # # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
+            # "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+            # "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
             "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
             "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
             "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
@@ -399,9 +400,9 @@ def prep_grassland_model_input_data(
             )
             coordinates_list = ut.get_plot_locations_from_csv(station_file)
 
-            # Specify site-specific time range
+            # Specify site-specific time range, 1951 min year because dataset starts 1950 and last month of previous year needed
             first_year = max(
-                1950, OBSERVATION_DATA_SPECS_PER_SITE[deims_id]["start_year"] - 10
+                1951, OBSERVATION_DATA_SPECS_PER_SITE[deims_id]["start_year"] - 10
             )
             years = list(range(first_year, last_year + 1))
 

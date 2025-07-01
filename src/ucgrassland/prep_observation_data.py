@@ -30,12 +30,13 @@ from pathlib import Path
 from types import MappingProxyType
 
 import pandas as pd
+from dotenv import dotenv_values
 
 from ucgrassland import assign_pfts as apft
 from ucgrassland import utils as ut
 from ucgrassland.logger_config import logger
 
-# Define observation data specifications for a sites with grassland observation data, including:
+# Define observation data specifications for selected sites with grassland observation data, including:
 #     name (str): Site name.
 #     variables (list): List of observation variables.
 #     file_names (dict): Dictionary with file names for observation variables.
@@ -1389,9 +1390,8 @@ def prep_observation_data_for_sites(
         ]
 
     if source_folder is None:
-        source_folder = Path(
-            "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/BYODE/eLTER_DataCall/data_processed/"
-        )
+        dotenv_config = dotenv_values(".env")
+        source_folder = Path(dotenv_config["ELTER_DATA_PROCESSED"])
 
     if target_folder is None:
         target_folder = Path.cwd() / "grasslandSites"

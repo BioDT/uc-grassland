@@ -29,6 +29,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+from dotenv import dotenv_values
 
 from ucgrassland.logger_config import logger
 
@@ -38,9 +39,9 @@ def convert_raw_data_MAM_C():
     Convert raw data from xls file to standard format for eLTER site
     c85fc568-df0c-4cbc-bd1e-02606a36c2bb (Appennino centro-meridionale: Majella-Matese).
     """
+    dotenv_config = dotenv_values(".env")
     source_folder = Path(
-        "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/"
-        "BYODE/eLTER_DataCall/data_processed/c85fc568-df0c-4cbc-bd1e-02606a36c2bb"
+        f"{dotenv_config['ELTER_DATA_PROCESSED']}/c85fc568-df0c-4cbc-bd1e-02606a36c2bb"
     )
     file_name = "FEM_Revised.xlsx"
 
@@ -89,9 +90,9 @@ def convert_raw_data_ASQ_C():
     Convert raw data from xls file to standard format for eLTER site
     270a41c4-33a8-4da6-9258-2ab10916f262 (AgroScapeLab Quillow (ZALF))"
     """
+    dotenv_config = dotenv_values(".env")
     source_folder = Path(
-        "c:/Users/banitz/Nextcloud/Cloud/BioDT_ExchangeFranziThomas/"
-        "BYODE/eLTER_DataCall/data_processed/270a41c4-33a8-4da6-9258-2ab10916f262"
+        f"{dotenv_config['ELTER_DATA_PROCESSED']}/270a41c4-33a8-4da6-9258-2ab10916f262"
     )
     file_name = "Coverage_per_species_ReplicationPlotYear.csv"
     site_code = "https://deims.org/270a41c4-33a8-4da6-9258-2ab10916f262"
@@ -182,5 +183,5 @@ def convert_raw_data_ASQ_C():
 
 
 if __name__ == "__main__":
-    # convert_raw_data_MAM_C()
+    convert_raw_data_MAM_C()
     convert_raw_data_ASQ_C()

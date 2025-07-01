@@ -1125,7 +1125,7 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
                 #         logger.warning(
                 #             f"Station coordinates (lat.: {lat}, lon.: {lon}) differ from "
                 #             f"representative coordinates for DEIMS.iD (lat.: {deims_id_check["lat"]}, "
-                #             f"lon: {deims_id_check["lon"]})! Using station coordinates."
+                #             f"lon: {deims_id_check["lon"]}). Using station coordinates."
                 #         )
 
                 # Check if coordinates already exist in locations

@@ -137,3 +137,24 @@ management and climate change scenarios, https://doi.org/10.1016/j.heliyon.2023.
 - Schmid, J. (2022).
 Modeling species-rich ecosystems to understand community dynamics and structures emerging from
 individual plant interactions, PhD thesis, Chapter 4, Table C.7, https://doi.org/10.48693/160
+
+Plant species traits data:
+- TRY categorical traits table:
+    - Kattge, J., Bönisch, G., Günther, A., Wright, I., Zanne, A.E., Wirth, C., Reich, P.B. and the TRY Consortium (2012).
+      TRY - Categorical Traits Dataset. Data from: TRY - a global database of plant traits.
+      TRY File Archive https://www.try-db.org/TryWeb/Data.php#3.
+    - Kattge, J., Díaz, S., Lavorel, S., Prentice, I., Leadley, P., et al. (2011).
+      TRY - a global database of plant traits.
+      Global Change Biology 17: 2905-2935. https://doi.org/10.1111/j.1365-2486.2011.02451.x
+    - Kattge, J., Bönisch, G., Díaz S., et al. (2020).
+      TRY plant trait database - enhanced coverage and open access. 
+      Global Change Biology 26: 119-188. https://doi.org/10.1111/gcb.14904 
+
+- GBIF taxonomic backbone:
+    - GBIF Secretariat (2023). GBIF Backbone Taxonomy. Checklist dataset.
+
+- Growth form table:
+    - Cornwell, W. (2019). traitecoevo/growthform v0.2.3 (v0.2.3). Zenodo. https://doi.org/10.5281/zenodo.2543013
+    - Zanne, A.E., Tank, D.C., Cornwell, W.K., Eastman, J.M., Smith, S.A., et al. (2014). 
+      Three keys to the radiation of angiosperms into freezing environments.
+      Nature 506: 89-92. https://doi.org/10.1038/nature12872
