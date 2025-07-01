@@ -24,6 +24,7 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 """
 
 import argparse
+import calendar
 import csv
 import time
 from collections import Counter, defaultdict
@@ -1431,24 +1432,9 @@ def day_of_year_to_date(year, day_of_year, leap_year_considered=True):
         datetime: Corresponding date.
     """
     # Adjust days after Feb 29 for leap year, if not correct already
-    if (not leap_year_considered) and is_leap_year(year) and (day_of_year > 59):
+    if (not leap_year_considered) and calendar.isleap(year) and (day_of_year > 59):
         delta_days = day_of_year
     else:
         delta_days = day_of_year - 1
 
     return datetime(year, 1, 1) + timedelta(days=delta_days)
-
-
-def is_leap_year(year):
-    """
-    Check if a given year is a leap year.
-
-    Parameters:
-        year (int): Year.
-
-    Returns:
-        bool: True if the year is a leap year, False otherwise.
-    """
-    # A year is a leap year if it is divisible by 4,
-    # except for years that are divisible by 100 but not by 400
-    return (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)

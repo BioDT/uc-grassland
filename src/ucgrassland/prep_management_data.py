@@ -51,6 +51,7 @@ Data sources:
 """
 
 import argparse
+import calendar
 from pathlib import Path
 
 import numpy as np
@@ -604,7 +605,7 @@ def get_fert_days(mow_days, year):
     fert_days = []
 
     # Set earliest possible fertilisation date to 03-01
-    earliest_fert_day = 61 if ut.is_leap_year(year) else 60
+    earliest_fert_day = 61 if calendar.isleap(year) else 60
     earliest_fert_date_str = ut.day_of_year_to_date(year, earliest_fert_day).strftime(
         "%Y-%m-%d"
     )
@@ -713,7 +714,7 @@ def get_fert_schedule(year, fert_count, data_source, fert_days=None):
         }
         fert_days = fert_days_default[fert_count]
 
-        if ut.is_leap_year(year):
+        if calendar.isleap(year):
             fert_days = [day + 1 for day in fert_days]  # Adjust for leap year
 
     # Define specific amounts for each number of fertilisation events (cf. Filipiak et al. 2022, Table S6)

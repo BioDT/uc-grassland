@@ -124,8 +124,6 @@ def prep_weather_data(
         # deims_id = "102ae489-04e3-481d-97df-45905837dc1a"  # GCEF site
         # deims_id = "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1"  # Schrankogel, AT, 1994, 2004, 14
         deims_id = "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d"  # Hochschwab, AT,  1998, 2001, 02, 08, 15
-        # # deims_id = "51d0598a-e9e1-4252-8850-60fc8f329aab"  # test Veronika
-        # # deims_id = "474916b5-8734-407f-9179-109083c031d8"  # Doode Bemde site, Belgium
         location = ut.get_deims_coordinates(deims_id)
 
         if location["found"]:

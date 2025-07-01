@@ -96,10 +96,6 @@ def prep_soil_data(coordinates, *, deims_id=None, file_name=None):
         if location["found"]:
             get_soil_data(location)
 
-        # # quick test for local cache file
-        # hihydrosoil_cache = "c:/_D/biodt_data/soilMapsHiHydroSoil"
-        # get_soil_data(coordinates, hihydrosoil_cache=hihydrosoil_cache)
-
         # # example: get multiple coordinates from DEIMS.iDs from XLS file
         # sites_file_name = (
         #     Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"
