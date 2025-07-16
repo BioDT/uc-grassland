@@ -43,6 +43,8 @@ from ucgrassland.logger_config import logger
 #     observation_columns (dict): Dictionary with observation columns for observation variables.
 #     pft_lookup_files (dict): Dictionary with PFT lookup file names for observation variables.
 #     pft_lookup_specs (dict): Dictionary with PFT lookup specifications for observation variables.
+
+# TODO: have layer in obs columns only if exisiting in data tables (can be empty though)
 OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
     {
         "11696de6-0ab9-4c94-a06b-7ce40f56c964": {
@@ -650,11 +652,13 @@ def process_single_plot_observation_data(
             )
 
             if "layer" in columns:
-                time_data = filter_grass_layer(
+                grass_layer_check = check_for_grass_layer(
                     time_data, columns, plot_name=plot_name, time_point=time_point
                 )
+            else:
+                grass_layer_check = True
 
-            if len(time_data) > 0:
+            if grass_layer_check is True:
                 # Remove remaining duplicates from retrieved observation data for this plot and time point
                 duplicates = ut.count_duplicates(time_data, key_column="all")
 
@@ -743,13 +747,13 @@ def process_single_plot_observation_data(
                     new_row.update(pft_values)
                     new_row.update(pft_counts)
             else:
-                # Grass layer filtering resulted in no data for this plot and time point
+                # Grass layer check failed. Store error message string
                 new_row = {key: "" for key in observation_pft.columns}
                 new_row.update(
                     {
                         "plot": plot_name,
                         "time": time_point,
-                        "invalid_observation": "cannot safely filter grass layer data",
+                        "invalid_observation": grass_layer_check,
                     }
                 )
         else:
@@ -770,7 +774,7 @@ def process_single_plot_observation_data(
     return observation_pft
 
 
-def filter_grass_layer(
+def check_for_grass_layer(
     data_snippet,
     columns,
     *,
@@ -779,17 +783,17 @@ def filter_grass_layer(
     grass_layer_names=["F", "COVE_F", "herb layer"],
 ):
     """
-    Filter plot data to only include entries from the grass layer.
+    Check if data snippet only includes entries from the grass layer.
 
     Parameters:
-        data_snippet (list): List of lists with plot data.
-        columns (dict): Dictionary with column names for the plot data.
-        plot_name (str): Name of the plot to filter data for (default is "not specified").
-        time_point (str): Time point to filter data for (default is "not specified").
-        grass_layer_names (list): List of grass layer names to look for (default is ["F", "COVE_F", "herb layer"]).
+        data_snippet (list): List of lists with observation data.
+        columns (dict): Dictionary with column names for the data.
+        plot_name (str): Plot name of the data (default is "not specified").
+        time_point (str): Time point of the data (default is "not specified").
+        grass_layer_names (list): List of valid grass layer names to look for (default is ["F", "COVE_F", "herb layer"]).
 
     Returns:
-        list: Filtered plot data containing only entries from the grass layer.
+        bool or str: True if grass layer check is successful, otherwise a string with an error message.
     """
     if "layer" in columns:
         layer_entries = ut.get_unique_values_from_column(
@@ -799,6 +803,8 @@ def filter_grass_layer(
         if len(layer_entries) == 1:
             if layer_entries[0] == "nan" or layer_entries[0] in grass_layer_names:
                 # Only one valid layer entry found, use this layer
+                # Problem: nan could point to missing info, potentially not all data from grass layer,
+                #          might be cause for duplicates, but also go unnoticed if no duplicates are found
                 logger.info(
                     f"Only '{layer_entries[0]}' found as layer entry for plot '{plot_name}' at time '{time_point}'."
                     " No grass layer filtering needed. Using all data."
@@ -810,57 +816,21 @@ def filter_grass_layer(
                     " No grass layer available. Skipping data."
                 )
 
-                return []
+                return "No grass layer available."
         else:
-            if "nan" in layer_entries:
-                # Different layer entries and some are NaN, cannot use data, skip data
-                logger.warning(
-                    f"{len(layer_entries)} different layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
-                    " Layers include 'nan'. Cannot safely filter grass layer. Skipping data."
-                )
+            # Different layer entries, cannot use data, skip data
+            logger.warning(
+                f"{len(layer_entries)} different layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
+                " Cannot safely filter grass layer and/or assume the data are reasonable for grassland (if affected by vegetation in other layers). Skipping data."
+            )
 
-                return []
-            else:
-                # Search for grass layer entries
-                grass_layers_found = []
-
-                for layer in grass_layer_names:
-                    data_layer = ut.get_rows_with_value_in_column(
-                        data_snippet, columns["layer"], layer
-                    )
-
-                    if len(data_layer) > 0:
-                        grass_layers_found = grass_layers_found + [layer]
-                        data_filtered = data_layer
-
-                if len(grass_layers_found) == 0:
-                    logger.warning(
-                        f"{len(layer_entries)} different layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
-                        " No grass layer available. Skipping data."
-                    )
-
-                    return []
-                elif len(grass_layers_found) > 1:
-                    logger.warning(
-                        f"{len(layer_entries)} different layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
-                        f" More than one grass layer ({grass_layers_found}). Cannot safely filter grass layer. Skipping data."
-                    )
-
-                    return []
-                else:
-                    # Only one grass layer found, use this layer
-                    data_snippet = data_filtered
-                    logger.info(
-                        f"{len(layer_entries)} different layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
-                        f" Using only data from grass layer ('{grass_layers_found[0]}')."
-                    )
-                    # TODO: pass some info that multiple layers were found, but only one grass layer was used - should be visible in the processed data
+            return "Different layer entries. Data not usable."
     else:
         logger.warning(
-            "No 'layer' column found in data. Cannot filter grass layer. Using all data."
+            "No 'layer' column found. Assuming all data belong to grass layer."
         )
 
-    return data_snippet
+    return True
 
 
 def process_observation_data(
