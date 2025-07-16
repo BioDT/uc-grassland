@@ -262,12 +262,13 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             # },
             # "observation_columns": {"cover_braun_blanquet": "default"},
             "file_names": {
-                "cover_braun_blanquet": "DE_RhineMainObservatory_data_abund_V2.csv"
+                "cover_braun_blanquet": "DE_RhineMainObservatory_data_abund_V3.csv"
             },
             "observation_columns": {
                 "cover_braun_blanquet": {
                     "plot": "STATION_CODE",
-                    "subplot": "LAYER",
+                    "subplot": "SUBAREA",
+                    "layer": "LAYER",
                     "time": "TIME",
                     "species": "TAXA",
                     "value": "VALUE",
@@ -652,86 +653,109 @@ def process_single_plot_observation_data(
                 plot_data, columns["time"], time_point
             )
 
-            # Remove remaining duplicates from retrieved observation data for this plot and time point
-            duplicates = ut.count_duplicates(time_data, key_column="all")
-
-            if len(duplicates) > 0:
-                logger.warning(
-                    f"Duplicate species entries remain in retrieved observation data for plot '{plot_name}' "
-                    f"at time '{time_point}'. Removing duplicates for subsequent processing.\n"
-                    "Duplicate species entries:\n"
-                    + "\n".join(
-                        [f"'{entry}' ({count})" for entry, count in duplicates.items()]
-                    )
+            if "layer" in columns:
+                time_data = filter_grass_layer(
+                    time_data, columns, plot_name=plot_name, time_point=time_point
                 )
-                time_data = ut.remove_duplicates(time_data, duplicates=duplicates)
 
-            # Check for remaining duplicates that only differ in value, skip these from processing
-            duplicates = ut.count_duplicates(
-                time_data,
-                key_column=columns["species"],
-                columns_to_ignore=[columns["value"]],
-            )
+            if len(time_data) > 0:
+                # Remove remaining duplicates from retrieved observation data for this plot and time point
+                duplicates = ut.count_duplicates(time_data, key_column="all")
 
-            if len(duplicates) > 0:
-                logger.warning(
-                    f"Duplicate species entries in plot '{plot_name}' at time '{time_point}'. Cannot process data from values. Skipping time point."
-                    " Duplicate species entries:\n"
-                    + "\n".join(
-                        [f"'{entry}' ({count})" for entry, count in duplicates.items()]
+                if len(duplicates) > 0:
+                    logger.warning(
+                        f"Duplicate species entries remain in retrieved observation data for plot '{plot_name}' "
+                        f"at time '{time_point}'. Removing duplicates for subsequent processing.\n"
+                        "Duplicate species entries:\n"
+                        + "\n".join(
+                            [
+                                f"'{entry}' ({count})"
+                                for entry, count in duplicates.items()
+                            ]
+                        )
                     )
+                    time_data = ut.remove_duplicates(time_data, duplicates=duplicates)
+
+                # Check for remaining duplicates that only differ in value, skip these from processing
+                duplicates = ut.count_duplicates(
+                    time_data,
+                    key_column=columns["species"],
+                    columns_to_ignore=[columns["value"]],
                 )
+
+                if len(duplicates) > 0:
+                    logger.warning(
+                        f"Duplicate species entries in plot '{plot_name}' at time '{time_point}'. Cannot process data from values. Skipping time point."
+                        " Duplicate species entries:\n"
+                        + "\n".join(
+                            [
+                                f"'{entry}' ({count})"
+                                for entry, count in duplicates.items()
+                            ]
+                        )
+                    )
+                    new_row = {key: "" for key in observation_pft.columns}
+                    new_row.update(
+                        {
+                            "plot": plot_name,
+                            "time": time_point,
+                            "invalid_observation": f"{len(duplicates)} non-unique species entries",
+                        }
+                    )
+                else:
+                    # Collect entries and add to PFTs
+                    pft_values = {key: 0 for key in pfts}
+                    pft_counts = {
+                        key: 0
+                        for key in [f"#{pft}" for pft in pfts] + ["#invalid_value"]
+                    }
+                    unit_check = None
+
+                    for entry in time_data:
+                        species = (
+                            entry[columns["species"]].rstrip()  # remove spaces at end
+                            if isinstance(entry[columns["species"]], str)
+                            else entry[columns["species"]]
+                        )
+                        pft = apft.reduce_pft_info(pft_lookup.get(species, "not found"))
+                        unit = entry[columns["unit"]]
+                        value = check_observation_value(
+                            entry[columns["value"]],
+                            variable,
+                            unit=unit,
+                            unit_check=unit_check,
+                            plot_name=plot_name,
+                            time_point=time_point,
+                            species=species,
+                        )
+
+                        if pd.isna(value):
+                            pft_counts["#invalid_value"] += 1
+                        else:
+                            pft_values[pft] += value
+                            pft_counts[f"#{pft}"] += 1
+
+                            if not pd.isna(unit):
+                                unit_check = unit
+
+                    # Add PFT values to observation data
+                    new_row = {
+                        "plot": plot_name,
+                        "time": time_point,
+                        "unit": target_unit,
+                    }
+                    new_row.update(pft_values)
+                    new_row.update(pft_counts)
+            else:
+                # Grass layer filtering resulted in no data for this plot and time point
                 new_row = {key: "" for key in observation_pft.columns}
                 new_row.update(
                     {
                         "plot": plot_name,
                         "time": time_point,
-                        "invalid_observation": f"{len(duplicates)} non-unique species entries",
+                        "invalid_observation": "cannot safely filter grass layer data",
                     }
                 )
-            else:
-                # Collect entries and add to PFTs
-                pft_values = {key: 0 for key in pfts}
-                pft_counts = {
-                    key: 0 for key in [f"#{pft}" for pft in pfts] + ["#invalid_value"]
-                }
-                unit_check = None
-
-                for entry in time_data:
-                    species = (
-                        entry[columns["species"]].rstrip()  # remove spaces at end
-                        if isinstance(entry[columns["species"]], str)
-                        else entry[columns["species"]]
-                    )
-                    pft = apft.reduce_pft_info(pft_lookup.get(species, "not found"))
-                    unit = entry[columns["unit"]]
-                    value = check_observation_value(
-                        entry[columns["value"]],
-                        variable,
-                        unit=unit,
-                        unit_check=unit_check,
-                        plot_name=plot_name,
-                        time_point=time_point,
-                        species=species,
-                    )
-
-                    if pd.isna(value):
-                        pft_counts["#invalid_value"] += 1
-                    else:
-                        pft_values[pft] += value
-                        pft_counts[f"#{pft}"] += 1
-
-                        if not pd.isna(unit):
-                            unit_check = unit
-
-                # Add PFT values to observation data
-                new_row = {
-                    "plot": plot_name,
-                    "time": time_point,
-                    "unit": target_unit,
-                }
-                new_row.update(pft_values)
-                new_row.update(pft_counts)
         else:
             # No 'value' column found, add empty row for this plot and time point
             new_row = {key: "" for key in observation_pft.columns}
@@ -748,6 +772,99 @@ def process_single_plot_observation_data(
         observation_pft = pd.concat([observation_pft, new_row_df], ignore_index=True)
 
     return observation_pft
+
+
+def filter_grass_layer(
+    data_snippet,
+    columns,
+    *,
+    plot_name="not specified",
+    time_point="not specified",
+    grass_layer_names=["F", "COVE_F", "herb layer"],
+):
+    """
+    Filter plot data to only include entries from the grass layer.
+
+    Parameters:
+        data_snippet (list): List of lists with plot data.
+        columns (dict): Dictionary with column names for the plot data.
+        plot_name (str): Name of the plot to filter data for (default is "not specified").
+        time_point (str): Time point to filter data for (default is "not specified").
+        grass_layer_names (list): List of grass layer names to look for (default is ["F", "COVE_F", "herb layer"]).
+
+    Returns:
+        list: Filtered plot data containing only entries from the grass layer.
+    """
+    if "layer" in columns:
+        layer_entries = ut.get_unique_values_from_column(
+            data_snippet, columns["layer"], header_lines=0
+        )
+
+        if len(layer_entries) == 1:
+            if layer_entries[0] == "nan" or layer_entries[0] in grass_layer_names:
+                # Only one valid layer entry found, use this layer
+                logger.info(
+                    f"Only '{layer_entries[0]}' found as layer entry for plot '{plot_name}' at time '{time_point}'."
+                    " No grass layer filtering needed. Using all data."
+                )
+            else:
+                # Only one invalid layer entry found, skip data
+                logger.warning(
+                    f"Only '{layer_entries[0]}' found as layer entry for plot '{plot_name}' at time '{time_point}'."
+                    " No grass layer available. Skipping data."
+                )
+
+                return []
+        else:
+            if "nan" in layer_entries:
+                # Different layer entries and some are NaN, cannot use data, skip data
+                logger.warning(
+                    f"{len(layer_entries)} different layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
+                    " Layers include 'nan'. Cannot safely filter grass layer. Skipping data."
+                )
+
+                return []
+            else:
+                # Search for grass layer entries
+                grass_layers_found = []
+
+                for layer in grass_layer_names:
+                    data_layer = ut.get_rows_with_value_in_column(
+                        data_snippet, columns["layer"], layer
+                    )
+
+                    if len(data_layer) > 0:
+                        grass_layers_found = grass_layers_found + [layer]
+                        data_filtered = data_layer
+
+                if len(grass_layers_found) == 0:
+                    logger.warning(
+                        f"{len(layer_entries)} different layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
+                        " No grass layer available. Skipping data."
+                    )
+
+                    return []
+                elif len(grass_layers_found) > 1:
+                    logger.warning(
+                        f"{len(layer_entries)} different layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
+                        f" More than one grass layer ({grass_layers_found}). Cannot safely filter grass layer. Skipping data."
+                    )
+
+                    return []
+                else:
+                    # Only one grass layer found, use this layer
+                    data_snippet = data_filtered
+                    logger.info(
+                        f"{len(layer_entries)} different layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
+                        f" Using only data from grass layer ('{grass_layers_found[0]}')."
+                    )
+                    # TODO: pass some info that multiple layers were found, but only one grass layer was used - should be visible in the processed data
+    else:
+        logger.warning(
+            "No 'layer' column found in data. Cannot filter grass layer. Using all data."
+        )
+
+    return data_snippet
 
 
 def process_observation_data(
@@ -824,25 +941,37 @@ def process_observation_data(
                 observation_data, columns["plot"], plot_name
             )
 
-            if "layer" in columns:
-                layer_entries = ut.get_unique_values_from_column(
-                    plot_data, columns["layer"], header_lines=0
-                )
+            # if "layer" in columns:
+            #     plot_data = filter_grass_layer(plot_data, columns)
 
-                if len(layer_entries) > 1:
-                    # try to use only entries with layer 'F', or otherwise 'COVE_F'
-                    for layer in ["F", "COVE_F"]:
-                        plot_data_F = ut.get_rows_with_value_in_column(
-                            plot_data, columns["layer"], layer
-                        )
+            # --> move to data part for each time point separately
 
-                        if len(plot_data_F) > 0:
-                            plot_data = plot_data_F
-                            logger.warning(
-                                f"{len(layer_entries)} different layer entries found for plot '{plot_name}' ({layer_entries}). Using only layer '{layer}'."
-                            )
+            # if "layer" in columns:
+            #     # Filter plot data entries by specific layer
+            #     layer_entries = ut.get_unique_values_from_column(
+            #         plot_data, columns["layer"], header_lines=0
+            #     )
 
-                            break
+            #     if len(layer_entries) > 1:
+            #         # if "nan" in layer_entries:
+            #         #     # Different layer entries and some are NaN, cannot use data, skip this plot
+            #         #     logger.error(
+            #         #         f"{len(layer_entries)} different layer entries found for plot '{plot_name}' ({layer_entries})"
+            #         #         ", including 'nan'. Skipping plot."
+            #         #     )
+            #         # try to use only entries with layer 'F', or otherwise 'COVE_F'
+            #         for layer in ["F", "COVE_F", "herb layer"]:
+            #             plot_data_F = ut.get_rows_with_value_in_column(
+            #                 plot_data, columns["layer"], layer
+            #             )
+
+            #             if len(plot_data_F) > 0:
+            #                 plot_data = plot_data_F
+            #                 logger.warning(
+            #                     f"{len(layer_entries)} different layer entries found for plot '{plot_name}' ({layer_entries}). Using only layer '{layer}'."
+            #                 )
+
+            #                 break
 
             if "subplot" in columns:
                 # Get unique subplots for this plot
@@ -1370,17 +1499,17 @@ def prep_observation_data_for_sites(
     if site_ids is None:
         # Specify selected site IDs, these need to be in species_data_specs
         site_ids = [
-            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
-            "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
-            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
-            "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
-            # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-            # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
-            "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
-            "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
-            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
-            "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
-            # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
+            # "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+            # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
+            # "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
+            # "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
+            # # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
+            # # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            # "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
+            # "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
+            # "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
+            # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
+            # # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
             "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
             "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
             "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
