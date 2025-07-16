@@ -46,7 +46,7 @@ from ucgrassland.logger_config import logger
 OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
     {
         "11696de6-0ab9-4c94-a06b-7ce40f56c964": {
-            "name": "IT25 - Val Mazia/Matschertal",
+            "name": "IT25 - Val Mazia-Matschertal",
             "variables": ["cover"],
             "short_names": {"cover": "VMM-C"},
             "file_names": {"cover": "IT_Matschertal_data_abund.csv"},
@@ -257,12 +257,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "name": "Rhine-Main-Observatory",
             "variables": ["cover_braun_blanquet"],
             "short_names": {"cover_braun_blanquet": "RMO-CBB"},
-            # "file_names": {
-            #     "cover_braun_blanquet": "DE_RhineMainObservatory_abund_data.csv"
-            # },
-            # "observation_columns": {"cover_braun_blanquet": "default"},
             "file_names": {
-                "cover_braun_blanquet": "DE_RhineMainObservatory_data_abund_V3.csv"
+                "cover_braun_blanquet": "DE_RhineMainObservatory_data_abund_V3__2016_2020.csv"
             },
             "observation_columns": {
                 "cover_braun_blanquet": {
@@ -1389,7 +1385,18 @@ def get_observations_from_files(
                     )
                     location_summary[variable].update(observation_summary)
 
-    return location_summary
+        return location_summary
+    else:
+        # Stop with error if location names do not match (apparently can be changed in DEIMS package)
+        try:
+            raise ValueError(
+                f"Location names for DEIMS.iD '{location['deims_id']}' do not match "
+                f"('{location['name']}' vs.'{observation_data_specs['name']}'). "
+                "Cannot process observation data."
+            )
+        except ValueError as e:
+            logger.error(e)
+            raise
 
 
 def prep_observation_data(
@@ -1499,17 +1506,17 @@ def prep_observation_data_for_sites(
     if site_ids is None:
         # Specify selected site IDs, these need to be in species_data_specs
         site_ids = [
-            # "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
-            # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
-            # "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
-            # "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
-            # # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-            # # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
-            # "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
-            # "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
-            # "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
-            # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
-            # # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
+            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+            "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
+            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
+            "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
+            # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
+            # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
+            "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
+            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
+            "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
+            # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
             "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
             "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
             "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
@@ -1568,7 +1575,7 @@ def main():
         type=str,
         default=".csv",
         choices=[".txt", ".csv"],
-        help="Suffix to be used raw and cleaned from duplicates data files ('.txt' or '.csv').",
+        help="Suffix for raw and cleaned from duplicates data files ('.txt' or '.csv').",
     )
     args = parser.parse_args()
 
