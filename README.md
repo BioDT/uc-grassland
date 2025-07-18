@@ -1,6 +1,8 @@
 # BioDT - pDT Grassland
 Main repository for workflows belonging to the grassland Digital Twin.
 
+<a href="https://doi.org/10.5281/zenodo.15784817"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.15784817.svg" alt="DOI"></a>
+
 ## Installation
 The current development version can be installed as:
 
@@ -43,8 +45,7 @@ Full function signature:
     skip_grass_check=False,
     skip_weather=False,
     skip_soil=False,
-    skip_management=False
-)`
+    skip_management=False)`
 
 Parameters:
 - coordinates_list (list of dict): List of dictionaries with 'lat' and 'lon' keys, or None for using DEIMS.iD to get coordinates of one location.
