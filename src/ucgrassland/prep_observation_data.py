@@ -366,6 +366,35 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "station_file": "SK_JaloveckaDolina_station.csv",
             "start_year": 2002,
         },
+        # not eLTER plus
+        "KUL-site": {
+            "name": "KUL-site (KU Leuven)",
+            "variables": ["cover"],  # "biomass"
+            "short_names": {"cover": "KUL-C"},
+            "file_names": {"cover": "BE_KUL-site_cover__from_VanMeerbeek_data.csv"},
+            "observation_columns": {"cover": "default"},
+            "pft_lookup_files": {
+                "cover": "lat51.000000_lon5.000000__PFT__cover__from_VanMeerbeek_data.txt"
+            },
+            "pft_lookup_specs": {"cover": "default"},
+            "station_file": "BE_KUL-site_station.csv",
+            "start_year": 2009,
+        },
+        "4c8082f9-1ace-4970-a603-330544f22a23": {
+            "name": "Certoryje-Vojsicke Louky meadows",
+            "variables": ["cover"],
+            "short_names": {"cover": "CVL-C"},
+            "file_names": {
+                "cover": "CZ_Certoryje-Vojsice_cover__from_regrassed_fields_Bile_Karpaty.csv"
+            },
+            "observation_columns": {"cover": "default"},
+            "pft_lookup_files": {
+                "cover": "lat48.854200_lon17.426100__PFT__cover__from_regrassed_fields_Bile_Karpaty.txt"
+            },
+            "pft_lookup_specs": {"cover": "default"},
+            "station_file": "CZ_Certoryje-Vojsice_station.csv",
+            "start_year": 2009,
+        },
     }
 )
 
@@ -656,6 +685,10 @@ def process_single_plot_observation_data(
                     time_data, columns, plot_name=plot_name, time_point=time_point
                 )
             else:
+                logger.warning(
+                    f"No 'layer' column found in observation data for plot '{plot_name}' at time '{time_point}'. "
+                    "Assuming all entries belong to grass layer. Using all data."
+                )
                 grass_layer_check = True
 
             if grass_layer_check is True:
@@ -801,13 +834,19 @@ def check_for_grass_layer(
         )
 
         if len(layer_entries) == 1:
-            if layer_entries[0] == "nan" or layer_entries[0] in grass_layer_names:
+            if layer_entries[0] in grass_layer_names:
                 # Only one valid layer entry found, use this layer
+                logger.info(
+                    f"All entries belong to grass layer ('{layer_entries[0]}') for plot '{plot_name}' at time '{time_point}'."
+                    " Using all data."
+                )
+            elif layer_entries[0] == "nan":
+                # No layer information, use this layer
                 # Problem: nan could point to missing info, potentially not all data from grass layer,
                 #          might be cause for duplicates, but also go unnoticed if no duplicates are found
-                logger.info(
-                    f"Only '{layer_entries[0]}' found as layer entry for plot '{plot_name}' at time '{time_point}'."
-                    " No grass layer filtering needed. Using all data."
+                logger.warning(
+                    f"Only 'nan' found as layer entry for plot '{plot_name}' at time '{time_point}'."
+                    " Assuming all entries belong to grass layer, but this might not be the case. Using all data."
                 )
             else:
                 # Only one invalid layer entry found, skip data
@@ -819,9 +858,11 @@ def check_for_grass_layer(
                 return "No grass layer available."
         else:
             # Different layer entries, cannot use data, skip data
+            # If returning to using such data, consider allowing for herb layer and moss layer here
             logger.warning(
-                f"{len(layer_entries)} different layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
-                " Cannot safely filter grass layer and/or assume the data are reasonable for grassland (if affected by vegetation in other layers). Skipping data."
+                f"{len(layer_entries)} different layer entries ({layer_entries}) found for plot '{plot_name}' at time '{time_point}'."
+                " Cannot safely filter grass layer and/or assume the data are reasonable for grassland"
+                " (if affected by vegetation in other layers). Skipping data."
             )
 
             return "Different layer entries. Data not usable."
@@ -850,16 +891,17 @@ def process_observation_data(
         DataFrame: Processed observation data mapped to PFTs or None if variable is not processed.
     """
     # Skip indices because conversion to PFT is not clear
-    if variable in ["indices", "absolute_frequency"]:
+    if variable in ["indices"]:
         logger.warning(
-            f"'{variable}' data not fully processed because conversion to PFT is not clear."
+            f"'{variable}' data not fully processed because conversion to quantitative cover values is not possible."
         )
-        return None
 
-    if variable == "abundance_gloria_1_8":
+        return None
+    elif variable in ["abundance_gloria_1_8", "absolute_frequency"]:
         logger.warning(
             f"'{variable}' data not fully processed because conversion to quantitative cover values is not recommended."
         )
+
         return None
 
     if columns == "default" or columns is None:
@@ -906,38 +948,6 @@ def process_observation_data(
             plot_data = ut.get_rows_with_value_in_column(
                 observation_data, columns["plot"], plot_name
             )
-
-            # if "layer" in columns:
-            #     plot_data = filter_grass_layer(plot_data, columns)
-
-            # --> move to data part for each time point separately
-
-            # if "layer" in columns:
-            #     # Filter plot data entries by specific layer
-            #     layer_entries = ut.get_unique_values_from_column(
-            #         plot_data, columns["layer"], header_lines=0
-            #     )
-
-            #     if len(layer_entries) > 1:
-            #         # if "nan" in layer_entries:
-            #         #     # Different layer entries and some are NaN, cannot use data, skip this plot
-            #         #     logger.error(
-            #         #         f"{len(layer_entries)} different layer entries found for plot '{plot_name}' ({layer_entries})"
-            #         #         ", including 'nan'. Skipping plot."
-            #         #     )
-            #         # try to use only entries with layer 'F', or otherwise 'COVE_F'
-            #         for layer in ["F", "COVE_F", "herb layer"]:
-            #             plot_data_F = ut.get_rows_with_value_in_column(
-            #                 plot_data, columns["layer"], layer
-            #             )
-
-            #             if len(plot_data_F) > 0:
-            #                 plot_data = plot_data_F
-            #                 logger.warning(
-            #                     f"{len(layer_entries)} different layer entries found for plot '{plot_name}' ({layer_entries}). Using only layer '{layer}'."
-            #                 )
-
-            #                 break
 
             if "subplot" in columns:
                 # Get unique subplots for this plot
@@ -1477,7 +1487,7 @@ def prep_observation_data_for_sites(
         # Specify selected site IDs, these need to be in species_data_specs
         site_ids = [
             "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
-            "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
+            # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
             "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
             "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
             # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
@@ -1485,14 +1495,17 @@ def prep_observation_data_for_sites(
             "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
             "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
             "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
-            "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
+            # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
             # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
-            "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+            # "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
             "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
             "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
             "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
             "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
             "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
+            # not eLTER plus
+            "KUL-site",  # KU Leuven, Belgium
+            "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
         ]
 
     if source_folder is None:
