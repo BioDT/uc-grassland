@@ -299,7 +299,7 @@ def prep_grassland_model_input_data(
                 logger.error(e)
                 raise
     else:
-        skip_grass_check = True
+        # skip_grass_check = True
         # skip_weather = True
         # skip_soil = True
         # skip_management = True
@@ -383,10 +383,13 @@ def prep_grassland_model_input_data(
             # # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
             # "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
             # "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
-            "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
-            "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
-            "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
-            "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
+            # "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
+            # "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
+            # "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
+            # "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
+            # # not eLTER plus
+            "KUL-site",  # KU Leuven, Belgium
+            "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
         ]
 
         # Get the last full year from now
