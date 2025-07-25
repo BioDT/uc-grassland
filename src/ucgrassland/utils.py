@@ -30,6 +30,7 @@ import time
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import MappingProxyType
 
 import deims
 import pandas as pd
@@ -42,6 +43,18 @@ from ucgrassland.logger_config import logger
 
 # will be "https://opendap.biodt.eu/..."
 OPENDAP_ROOT = "http://opendap.biodt.eu/grasslands-pdt/"
+NON_DEIMS_LOCATIONS = MappingProxyType(
+    {
+        # KU Leuven site, rough mean of coordinates of all plots
+        "KUL-site": {
+            "lat": 51.0,
+            "lon": 5.0,
+            "deims_id": "KUL-site",
+            "found": True,
+            "name": "KUL-site (KU Leuven)",
+        }
+    }
+)
 
 
 def add_string_to_file_name(file_name, string_to_add, *, new_suffix=None):
@@ -987,6 +1000,15 @@ def get_deims_coordinates(deims_id):
             'found': Flag whether coordinates were found (bool).
             'name': Site name (str), if found.
     """
+    if deims_id in NON_DEIMS_LOCATIONS.keys():
+        # Use non-DEIMS location coordinates if available
+        location = NON_DEIMS_LOCATIONS[deims_id]
+        logger.warning(
+            f"Using non-DEIMS coordinates for ID '{deims_id}': Latitude: {location['lat']}, Longitude: {location['lon']}."
+        )
+
+        return location
+
     if deims_id != deims._normaliseDeimsID(deims_id):
         logger.error(
             f"Coordinates for DEIMS.iD '{deims_id}' not found (iD deviates from standard format)!"
@@ -1118,16 +1140,7 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
                     )
                     continue
 
-                # deims_id = site_code.split("/")[-1]
-                # deims_id_check = get_deims_coordinates(deims_id)
-
-                # if deims_id_check["found"]:
-                #     if lat != deims_id_check["lat"] or lon != deims_id_check["lon"]:
-                #         logger.warning(
-                #             f"Station coordinates (lat.: {lat}, lon.: {lon}) differ from "
-                #             f"representative coordinates for DEIMS.iD (lat.: {deims_id_check["lat"]}, "
-                #             f"lon: {deims_id_check["lon"]}). Using station coordinates."
-                #         )
+                # deims_id check not reasonable, code in commits before 2025-07
 
                 # Check if coordinates already exist in locations
                 existing_location = find_existing_location(lat, lon)
@@ -1137,11 +1150,6 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
                         existing_location["station_code"].append(station_code)
                     if site_code not in existing_location["site_code"]:
                         existing_location["site_code"].append(site_code)
-                    # if (
-                    #     deims_id_check["found"]
-                    #     and deims_id not in existing_location["deims_id"]
-                    # ):
-                    #     existing_location["deims_id"].append(deims_id)
                 else:
                     location = {
                         "lat": lat,
@@ -1149,10 +1157,6 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
                         "station_code": [station_code],
                         "site_code": [site_code],
                     }
-                    # if deims_id_check["found"]:
-                    #     location.update(
-                    #         deims_id=deims_id, found=True, name=deims_id_check["name"]
-                    #     )
 
                     locations.append(location)
 
