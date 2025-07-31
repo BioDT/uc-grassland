@@ -1015,9 +1015,9 @@ def get_deims_coordinates(deims_id):
         )
     else:
         try:
-            deims_gdf = deims.getSiteCoordinates(deims_id, filename=None)
+            deims_gdf = deims.getSiteCoordinates(deims_id, file_name=None)
             # option: collect all coordinates from deims_gdf.boundary[0] ...
-            # deims_gdf = deims.getSiteBoundaries(deims_id, filename=None)
+            # deims_gdf = deims.getSiteBoundaries(deims_id, file_name=None)
 
             lon = deims_gdf.geometry[0].x
             lat = deims_gdf.geometry[0].y
@@ -1255,7 +1255,9 @@ def reproject_coordinates(lat, lon, target_crs):
     return east, north
 
 
-def extract_raster_value(tif_file, location, *, band_number=1, attempts=5, delay=2):
+def extract_raster_value(
+    tif_file, location, *, band_number=1, attempts=5, delay=2, no_data_value=None
+):
     """
     Extract value from raster file at specified coordinates.
 
@@ -1265,15 +1267,23 @@ def extract_raster_value(tif_file, location, *, band_number=1, attempts=5, delay
         band_number (int): Band number for which the value shall be extracted (default is 1).
         attempts (int): Number of attempts to open the TIF file in case of errors (default is 5).
         delay (int): Number of seconds to wait between attempts (default is 2).
+        no_data_value (int or float): Value to set as no-data value in the raster file (default is None).
 
     Returns:
         tuple: Extracted value (None if extraction failed), and time stamp.
     """
+    is_url = str(tif_file).startswith("http") or str(tif_file).startswith("/vsicurl")
+    read_mode = "r+" if not is_url and no_data_value is not None else "r"
+
     while attempts > 0:
         time_stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
         try:
-            with rasterio.open(tif_file) as src:
+            with rasterio.open(tif_file, read_mode) as src:
+                # Set no_data_value if provided
+                if read_mode == "r+" and no_data_value is not None:
+                    src.nodata = no_data_value
+
                 # Check if band number exists in the raster file
                 if band_number not in src.indexes:
                     try:
@@ -1281,7 +1291,7 @@ def extract_raster_value(tif_file, location, *, band_number=1, attempts=5, delay
                             f"Band number {band_number} does not exist in the raster file {tif_file}."
                         )
                     except ValueError as e:
-                        logger.error(e)  # TODO: Implement logger
+                        logger.error(e)
                         raise
 
                 # Reproject coordinates to target CRS

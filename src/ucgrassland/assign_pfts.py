@@ -37,10 +37,10 @@ Data sources:
     - Publications:
       - Kattge, J., Díaz, S., Lavorel, S., Prentice, I., Leadley, P., et al. (2011):
         TRY - a global database of plant traits.
-        Global Change Biology 17: 2905-2935. https://doi.org/10.1111/j.1365-2486.2011.02451.x
+        Global Change Biology, https://doi.org/10.1111/j.1365-2486.2011.02451.x.
       - Kattge, J., Bönisch, G., Díaz S., et al. (2020):
         TRY plant trait database - enhanced coverage and open access.
-        Global Change Biology 26: 119-188. https://doi.org/10.1111/gcb.14904
+        Global Change Biology, https://doi.org/10.1111/gcb.14904.
 
     - Table redistributed without changes at:
       http://opendap.biodt.eu/grasslands-pdt/speciesMappingLookupTables/
@@ -64,7 +64,7 @@ Data sources:
     - Source of "woodiness" column (the information used in this script):
       Zanne A.E., Tank D.C., Cornwell W.K., Eastman J.M., Smith S.A., et al. (2014):
       Three keys to the radiation of angiosperms into freezing environments.
-      Nature 506: 89-92. https://doi.org/10.1038/nature12872
+      Nature 506, https://doi.org/10.1038/nature12872.
 """
 
 import argparse
@@ -1742,25 +1742,25 @@ def assign_pfts_for_sites(
     if site_ids is None:
         # Specify selected site IDs, these need to be in SPECIES_DATA_SPECS_PER_SITE
         site_ids = [
-            # "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
-            # # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
-            # "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
-            # "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
-            # # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-            # # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
-            # "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
-            # "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
-            # "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
-            # # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
-            # # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
-            # # "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
-            # "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
-            # "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
-            # "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
-            # "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
-            # "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
+            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+            # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
+            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
+            "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
+            # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
+            # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
+            "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
+            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
+            # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
+            # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
+            # "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+            "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
+            "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
+            "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
+            "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
+            "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
             # not eLTER plus
-            # "KUL-site",  # KU Leuven, Belgium
+            "KUL-site",  # KU Leuven, Belgium
             "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
         ]
 

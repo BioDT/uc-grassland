@@ -195,6 +195,9 @@ speciesMappingLookupTables__
 weatherDataPrepared
 weatherDataRaw
 
+# copernnicus had downloaded data
+hdaDataRaw
+
 # downloaded / processed soil data
 soilDataPrepared
 

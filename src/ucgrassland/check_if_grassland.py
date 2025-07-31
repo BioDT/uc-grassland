@@ -97,6 +97,7 @@ import pandas as pd
 import requests
 
 from ucgrassland import utils as ut
+from ucgrassland.get_wekeo_data import request_hda_grassland_data
 from ucgrassland.logger_config import logger
 
 
@@ -127,6 +128,7 @@ def get_map_specs(map_key):
             "folder": folder,
             "subfolder": map_key,
             "url_folder": f"{ut.OPENDAP_ROOT}{folder}/{map_key}/",
+            "map_year": 2016,
         }
     elif map_key == "EUR_Pflugmacher":
         map_specs = {
@@ -136,6 +138,7 @@ def get_map_specs(map_key):
             "folder": folder,
             "subfolder": map_key,
             "url_folder": f"{ut.OPENDAP_ROOT}{folder}/{map_key}/",  # "https://hs.pangaea.de/Maps/EuropeLandcover/" not working anymore,
+            "map_year": 2015,
         }
     elif map_key.startswith("GER_Schwieder_"):
         map_year = map_key.split("_")[-1]  # get year from map key
@@ -148,14 +151,15 @@ def get_map_specs(map_key):
                 "folder": folder,
                 "subfolder": "GER_Schwieder",
                 "url_folder": "https://zenodo.org/records/10640528/files/",
+                "map_year": int(map_year),
             }
         else:
             logger.error(f"Land cover map for key '{map_key}' not found.")
             return None
     elif map_key.startswith("GER_Lange_"):
-        map_year = map_key.split("_")[-1]  # get year from map key
+        map_year = int(map_key.split("_")[-1])  # get year from map key
 
-        if map_year in ["2017", "2018"]:
+        if map_year in [2017, 2018]:
             map_ext = (
                 "98d7c7ab-0a8f-4c2f-a78f-6c1739ee9354/file_downloaded"
                 if map_year == 2017
@@ -168,10 +172,24 @@ def get_map_specs(map_key):
                 "folder": folder,
                 "subfolder": "GER_Lange",
                 "url_folder": "https://data.mendeley.com/public-files/datasets/m9rrv26dvf/files/",
+                "map_year": map_year,
             }
         else:
             logger.error(f"Land cover map for key '{map_key}' not found.")
             return None
+    elif map_key.startswith("EUR_hda_grassland"):
+        map_year = int(map_key.split("_")[-1])  # get year from map key
+        map_specs = {
+            "file_stem": "__hda_grassland__",
+            "map_ext": ".tif",
+            "leg_ext": ".tif.aux.xml",
+            "folder": "hdaDataRaw",
+            "map_year": map_year,
+        }
+    elif map_key == "EUR_eunis_habitat":
+        map_specs = {"map_year": 2012}
+    elif map_key == "EUR_hrl_grassland":
+        map_specs = {"map_year": 2018}
     else:
         logger.error(f"Land cover map for key '{map_key}' not found.")
         return None
@@ -290,20 +308,32 @@ def create_category_mapping(leg_file):
             tree = ET.parse(leg_file)
             root = tree.getroot()
 
-            # Assuming category elements are nested within CategoryNames within PAMRasterBand
+            # Find CategoryNames (as in Preidl map legend)
             category_names = root.find(".//CategoryNames")
 
             if category_names is not None:
                 for index, category in enumerate(category_names):
                     category_name = category.text
                     category_mapping[index] = category_name
+            else:
+                # Find GDALRasterAttributeTable (as in hda grassland data format)
+                rat = root.find(".//GDALRasterAttributeTable")
+
+                if rat is not None:
+                    for row in rat.findall("Row"):
+                        fields = row.findall("F")
+
+                        if len(fields) >= 3:
+                            value = int(fields[0].text)  # value in first row
+                            class_name = fields[2].text  # class name in third row
+                            category_mapping[value] = class_name
         except Exception as e:
             logger.error(f"Reading XML file failed ({str(e)}).")
 
     return category_mapping
 
 
-def get_category_tif(map_file, category_mapping, location):
+def get_category_tif(map_file, category_mapping, location, *, no_data_value=None):
     """
     Get the category based on the raster value at the specified location.
 
@@ -311,16 +341,29 @@ def get_category_tif(map_file, category_mapping, location):
         map_file (Path): Path to the raster file.
         category_mapping (dict): Mapping of raster values to categories.
         location (dict): Dictionary with 'lat' and 'lon' keys for extracting raster value.
+        no_data_value (int or float): Value to set as no-data value in the raster file (default is None).
 
     Returns:
          tuple: Category (str) corresponding to the raster value at the specified location,
              or "Unknown Category" if the value is not found in the mapping, and time stamp.
     """
-    value, time_stamp = ut.extract_raster_value(map_file, location)
+    # Set no_data_value if "outside area" exists in category_mapping
+    no_data_value = next(
+        (key for key, value in category_mapping.items() if value == "outside area"),
+        None,
+    )
+
+    value, time_stamp = ut.extract_raster_value(
+        map_file, location, no_data_value=no_data_value
+    )
     category = category_mapping.get(value, "Unknown Category")
 
     if category == "Unknown Category":
         logger.warning(f"Unknown category value ({value}).")
+    elif category == "outside area":
+        logger.warning(
+            f"Location {location['lat']}, {location['lon']} is outside the area of the map '{map_file}'."
+        )
 
     return category, time_stamp
 
@@ -547,6 +590,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
         locations (list): List of location dictionaries containing coordinates ('lat', 'lon'), may also contain DEIMS.iD ('deims_id').
         map_key (str): Identifier of the map to be used.
         file_name (str or Path): File name to save check results (no file will be created otherwise).
+
     Returns:
         list of dict: List of dicioniaries containing the check results for each location.
     """
@@ -564,19 +608,17 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
         "GER_Lange_2018",
     ]
     hrl_keys = ["EUR_hrl_grassland"]
-    map_years = {
-        "EUR_eunis_habitat": 2012,
-        "EUR_Pflugmacher": 2015,
-        "GER_Preidl": 2016,
-        "GER_Schwieder_2017": 2017,
-        "GER_Schwieder_2018": 2018,
-        "GER_Schwieder_2019": 2019,
-        "GER_Schwieder_2020": 2020,
-        "GER_Schwieder_2021": 2021,
-        "GER_Lange_2017": 2015,
-        "GER_Lange_2018": 2015,
-        "EUR_hrl_grassland": 2018,
-    }
+    hda_keys = [
+        "EUR_hda_grassland_2015",
+        "EUR_hda_grassland_2017",
+        "EUR_hda_grassland_2018",
+        "EUR_hda_grassland_2019",
+        "EUR_hda_grassland_2020",
+        "EUR_hda_grassland_2021",
+    ]
+    # TODO: "EUR_hda_herb_cover" not needed here, but for observation data...
+    # TODO: "EUR_hda_mowing_events", "EUR_hda_mowing_dates" not needed here, but for management...
+
     grassland_check = []
     location_keys_for_check = [
         "lat",
@@ -592,7 +634,8 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
             site_check = {
                 key: location[key] for key in location_keys_for_check if key in location
             }
-            site_check.update(map_year=map_years[map_key], map_key=map_key)
+            map_specs = get_map_specs(map_key)
+            site_check.update(map_year=map_specs["map_year"], map_key=map_key)
 
             if map_key in deims_keys:
                 if "deims_id" in site_check:
@@ -680,6 +723,48 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                     category=category,
                 )
                 grassland_check.append(site_check)
+            elif map_key in hda_keys:
+                map_key_stem, year = map_key.rsplit(
+                    "_", 1
+                )  # split map_key into stem and year
+                hda_file_stems = request_hda_grassland_data(
+                    map_key_stem.split("EUR_")[1], int(year), [site_check]
+                )
+
+                if hda_file_stems == []:
+                    time_stamp = datetime.now(timezone.utc).isoformat(
+                        timespec="seconds"
+                    )
+                    site_check.update(
+                        map_source="",
+                        map_query_time_stamp=time_stamp,
+                        is_grass="",
+                        category="Map not found!",
+                    )
+                    grassland_check.append(site_check)
+                else:
+                    for hda_file_stem in hda_file_stems:
+                        map_file = Path(
+                            f"{map_specs['folder']}/{hda_file_stem}{map_specs['map_ext']}"
+                        )
+                        leg_file = Path(
+                            f"{map_specs['folder']}/{hda_file_stem}{map_specs['leg_ext']}"
+                        )
+                        category_mapping = create_category_mapping(leg_file)
+                        time_stamp = datetime.fromtimestamp(
+                            map_file.stat().st_mtime, tz=timezone.utc
+                        ).isoformat(timespec="seconds")
+                        category, _ = get_category_tif(
+                            map_file, category_mapping, site_check
+                        )
+                        is_grass = check_if_grassland(category, site_check, map_key)
+                        site_check.update(
+                            map_source=map_file,
+                            map_query_time_stamp=time_stamp,
+                            is_grass=is_grass,
+                            category=category,
+                        )
+                        grassland_check.append(site_check)
             else:
                 try:
                     raise ValueError(
@@ -721,10 +806,16 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="GER_Preidl",
+        default="EUR_hda_grassland_2021",
         choices=[
             "EUR_eunis_habitat",
             "EUR_hrl_grassland",
+            "EUR_hda_grassland_2015",
+            "EUR_hda_grassland_2017",
+            "EUR_hda_grassland_2018",
+            "EUR_hda_grassland_2019",
+            "EUR_hda_grassland_2020",
+            "EUR_hda_grassland_2021",
             "EUR_Pflugmacher",
             "GER_Preidl",
             "GER_Schwieder_2017",
@@ -738,6 +829,12 @@ def main():
         help="""Options: 
         'EUR_eunis_habitat', 
         'EUR_hrl_grassland', 
+        'EUR_hda_grassland_2015', 
+        'EUR_hda_grassland_2017', 
+        'EUR_hda_grassland_2018',
+        'EUR_hda_grassland_2019',
+        'EUR_hda_grassland_2020',
+        'EUR_hda_grassland_2021',
         'EUR_Pflugmacher', 
         'GER_Preidl', 
         'GER_Schwieder_2017', 
@@ -757,44 +854,44 @@ def main():
 
     # Example coordinates
     if args.locations is None:
-        # Example to get coordinates from DEIMS.iDs from XLS file
-        file_name = Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"
-        country_code = "DE"  # "DE" "AT"
-        sites_ids = ut.get_deims_ids_from_xls(
-            file_name, header_row=1, country=country_code
-        )
-        args.locations = []
+        # # Example to get coordinates from DEIMS.iDs from XLS file
+        # file_name = Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"
+        # country_code = "DE"  # "DE" "AT"
+        # sites_ids = ut.get_deims_ids_from_xls(
+        #     file_name, header_row=1, country=country_code
+        # )
+        # args.locations = []
 
-        for deims_id in sites_ids:
-            location = ut.get_deims_coordinates(deims_id)
+        # for deims_id in sites_ids:
+        #     location = ut.get_deims_coordinates(deims_id)
 
-            if location["found"]:
-                args.locations.append(location)
+        #     if location["found"]:
+        #         args.locations.append(location)
 
-        args.file_name = ut.add_string_to_file_name(
-            file_name,
-            f"_{country_code}__grasslandCheck_{args.map_key}",
-            new_suffix=".txt",  # ".txt" or ".xlsx"
-        )
+        # args.file_name = ut.add_string_to_file_name(
+        #     file_name,
+        #     f"_{country_code}__grasslandCheck_{args.map_key}",
+        #     new_suffix=".txt",  # ".txt" or ".xlsx"
+        # )
 
-        # # Example coordinates for checking without DEIMS.iDs
-        # args.locations = [
-        #     {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
-        #     {
-        #         "lat": 51.3919,
-        #         "lon": 11.8787,
-        #     },  # GER, GCEF grassland site, centroid, non-grassland in HRL!
-        #     {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
-        #     {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
-        #     {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city
-        #     {"lat": 51.7123725, "lon": 12.5833917},  # GER, forest outside of city
-        #     {"lat": 46.8710811, "lon": 11.0244728},  # AT, should be grassland
-        #     {"lat": 64.2304403, "lon": 27.6856269},  # FIN, near LUMI site
-        #     {"lat": 64.2318989, "lon": 27.6952722},  # FIN, LUMI site
-        #     {"lat": 49.8366436, "lon": 18.1540575},  # CZ, near IT4I Ostrava
-        #     {"lat": 43.173, "lon": 8.467},  # Mediterranean Sea
-        #     {"lat": 30, "lon": 1},  # out of Europe
-        # ]
+        # Example coordinates for checking without DEIMS.iDs
+        args.locations = [
+            {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+            {
+                "lat": 51.3919,
+                "lon": 11.8787,
+            },  # GER, GCEF grassland site, centroid, non-grassland in HRL!
+            # {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
+            # {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
+            # {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city
+            # {"lat": 51.7123725, "lon": 12.5833917},  # GER, forest outside of city
+            # {"lat": 46.8710811, "lon": 11.0244728},  # AT, should be grassland
+            # {"lat": 64.2304403, "lon": 27.6856269},  # FIN, near LUMI site
+            # {"lat": 64.2318989, "lon": 27.6952722},  # FIN, LUMI site
+            # {"lat": 49.8366436, "lon": 18.1540575},  # CZ, near IT4I Ostrava
+            # {"lat": 43.173, "lon": 8.467},  # Mediterranean Sea
+            # {"lat": 30, "lon": 1},  # out of Europe
+        ]
 
     # Default file name will be used as no file name is passed here, return argument not needed here
     check_locations_for_grassland(

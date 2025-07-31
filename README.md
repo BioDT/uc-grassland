@@ -59,8 +59,10 @@ Parameters:
 
 
 ## Developers
-Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ), 
+Developed in the BioDT project (until 2025-05) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ), 
 Tuomas Rossi (CSC) and Taimur Haider Khan (UFZ).
+
+Further developed (from 2025-06) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ).
 
 ## Copyright
 Copyright (C) 2024
@@ -75,7 +77,7 @@ You may obtain a copy of the Licence at:
 https://joinup.ec.europa.eu/software/page/eupl
 
 ## Funding
-This project has received funding from the European Union's Horizon Europe Research and Innovation
+The BioDT project has received funding from the European Union's Horizon Europe Research and Innovation
 Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.3030/101057437).
 The authors acknowledge the EuroHPC Joint Undertaking and CSC - IT Center for Science Ltd., Finland
 for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC - IT Center for
@@ -85,24 +87,32 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 Land cover maps and classifications:
 
 - Eunis EEA habitat types (version 2012).
-https://eunis.eea.europa.eu/habitats-code-browser.jsp
+https://eunis.eea.europa.eu/habitats-code-browser.jsp.
 
-- European Union's Copernicus Land Monitoring Service information (2020).
+- European Union's Copernicus Land Monitoring Service (2020).
 High Resolution Layer (HRL) Grassland 2018 raster, Europe.
-https://doi.org/10.2909/60639d5b-9164-4135-ae93-fb4132bb6d83
+https://doi.org/10.2909/60639d5b-9164-4135-ae93-fb4132bb6d83.
+
+- European Union's Copernicus Land Monitoring Service (2024).
+Grassland 2017 - Present (raster 10m), Europe, yearly, Nov. 2024.
+https://doi.org/10.2909/0b6254bb-4c7d-41d9-8eae-c43b05ab2965.
+
+- European Union's Copernicus Land Monitoring Service (2024).
+Herbaceous cover 2017 - Present (raster 10m), Europe, yearly, Nov. 2024.
+https://doi.org/10.2909/9da6ca39-043a-4bdd-8d0a-41a7bed6e439.
 
 - Pflugmacher, D., Rabe, A., Peters, M., Hostert, P. (2018).
 Pan-European land cover map of 2015 based on Landsat and LUCAS data.
-PANGAEA, https://doi.org/10.1594/PANGAEA.896282
+PANGAEA, https://doi.org/10.1594/PANGAEA.896282.
 
 - Preidl, S., Lange, M., Doktor, D. (2020).
 Land cover classification map of Germany's agricultural area based on Sentinel-2A data from 2016.
-PANGAEA, https://doi.org/10.1594/PANGAEA.910837
+PANGAEA, https://doi.org/10.1594/PANGAEA.910837.
 
 - Schwieder, M., Tetteh, G.O., Blickensdörfer, L., Gocht, A., Erasmi, S. (2024).
 Agricultural land use (raster): National-scale crop type maps for Germany from combined time series of
 Sentinel-1, Sentinel-2 and Landsat data (2017 to 2021).
-Zenodo, https://zenodo.org/records/10640528
+Zenodo, https://zenodo.org/records/10640528.
 
 - German ATKIS digital landscape model 2015
 Bundesamt für Kartographie und Geodäsie, 2015.
@@ -111,45 +121,56 @@ GeoBasis-DE. Geodaten der deutschen Landesvermessung.
 Derived via land use maps by Lange et al. (2022), https://data.mendeley.com/datasets/m9rrv26dvf/1.
 
 Weather data: 
-- see https://github.com/BioDT/general-copernicus-weather-data
+- See https://github.com/BioDT/general-copernicus-weather-data.
 
 
 Soil data: 
-- see https://github.com/BioDT/general-soilgrids-soil-data
+- See https://github.com/BioDT/general-soilgrids-soil-data.
 
 Management data:
+- European Union's Copernicus Land Monitoring Service (2024).
+Grassland Mowing Events 2017 - Present (raster 10m), Europe, yearly, Nov. 2024.
+https://doi.org/10.2909/114e8cae-1cd7-4adc-8c5f-a04863fc6af9.
+
+- European Union's Copernicus Land Monitoring Service (2024).
+Grassland Mowing Dates 2017 - Present (raster 10m), Europe, yearly – 4 layers, Nov. 2024
+https://doi.org/10.2909/660d00f1-c6de-4db6-9979-0be124ceb7f0.
+
 - Lange, M., Feilhauer, H., Kühn, I., Doktor, D. (2022).
-Mapping land-use intensity of grasslands in Germany with machine learning and Sentinel-2 time series,
+Mapping land-use intensity of grasslands in Germany with machine learning and Sentinel-2 time series.
 Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2022.112888. 
 Based on grassland classification according to: German ATKIS digital landscape model 2015.
 
 - Schwieder, M., Wesemeyer, M., Frantz, D., Pfoch, K., Erasmi, S., Pickert, J., Nendel, C., Hostert, P. (2022).
-Mapping grassland mowing events across Germany based on combined Sentinel-2 and Landsat 8 time series,
+Mapping grassland mowing events across Germany based on combined Sentinel-2 and Landsat 8 time series.
 Remote Sensing of Environment, https://doi.org/10.1016/j.rse.2021.112795
 
 - Blickensdörfer, L., Schwieder, M., Pflugmacher, D., Nendel, C., Erasmi, S., Hostert, P. (2021).
 National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and
-Landsat 8 data (2017, 2018 and 2019), https://zenodo.org/records/5153047.
+Landsat 8 data (2017, 2018 and 2019).
+https://zenodo.org/records/5153047.
 
 - Filipiak, M., Gabriel, D., Kuka, K. (2022).
 Simulation-based assessment of the soil organic carbon sequestration in grasslands in relation to
-management and climate change scenarios, https://doi.org/10.1016/j.heliyon.2023.e17287
+management and climate change scenarios.
+https://doi.org/10.1016/j.heliyon.2023.e17287.
 
 - Schmid, J. (2022).
 Modeling species-rich ecosystems to understand community dynamics and structures emerging from
-individual plant interactions, PhD thesis, Chapter 4, Table C.7, https://doi.org/10.48693/160
+individual plant interactions.
+PhD thesis, Chapter 4, Table C.7, https://doi.org/10.48693/160.
 
 Plant species traits data:
 - TRY categorical traits table:
     - Kattge, J., Bönisch, G., Günther, A., Wright, I., Zanne, A.E., Wirth, C., Reich, P.B. and the TRY Consortium (2012).
       TRY - Categorical Traits Dataset. Data from: TRY - a global database of plant traits.
-      TRY File Archive. https://www.try-db.org/TryWeb/Data.php#3
+      TRY File Archive, https://www.try-db.org/TryWeb/Data.php#3.
     - Kattge, J., Díaz, S., Lavorel, S., Prentice, I., Leadley, P., et al. (2011).
       TRY - a global database of plant traits.
-      Global Change Biology 17: 2905-2935. https://doi.org/10.1111/j.1365-2486.2011.02451.x
+      Global Change Biology, https://doi.org/10.1111/j.1365-2486.2011.02451.x.
     - Kattge, J., Bönisch, G., Díaz S., et al. (2020).
       TRY plant trait database - enhanced coverage and open access. 
-      Global Change Biology 26: 119-188. https://doi.org/10.1111/gcb.14904 
+      Global Change Biology, https://doi.org/10.1111/gcb.14904. 
 
 - GBIF taxonomic backbone:
     - GBIF Secretariat (2023). GBIF Backbone Taxonomy. Checklist dataset.
@@ -158,4 +179,4 @@ Plant species traits data:
     - Cornwell, W. (2019). traitecoevo/growthform v0.2.3 (v0.2.3). Zenodo. https://doi.org/10.5281/zenodo.2543013
     - Zanne, A.E., Tank, D.C., Cornwell, W.K., Eastman, J.M., Smith, S.A., et al. (2014). 
       Three keys to the radiation of angiosperms into freezing environments.
-      Nature 506: 89-92. https://doi.org/10.1038/nature12872
+      Nature, https://doi.org/10.1038/nature12872.
