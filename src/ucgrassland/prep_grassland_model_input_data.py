@@ -55,7 +55,6 @@ def add_coordinate_infos(coordinates):
             'file_start' (str): Start of file name.
             'location_head_folder' (Path): Location head folder.
     """
-
     if "lat" in coordinates and "lon" in coordinates:
         # Prepare location coordinates for file names and folder
         formatted_lat = f"lat{coordinates['lat']:.6f}"

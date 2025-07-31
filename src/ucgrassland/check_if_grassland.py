@@ -345,7 +345,7 @@ def get_category_tif(map_file, category_mapping, location, *, no_data_value=None
 
     Returns:
          tuple: Category (str) corresponding to the raster value at the specified location,
-             or "Unknown Category" if the value is not found in the mapping, and time stamp.
+             or "unknown category" if the value is not found in the mapping, and time stamp.
     """
     # Set no_data_value if "outside area" exists in category_mapping
     no_data_value = next(
@@ -356,10 +356,12 @@ def get_category_tif(map_file, category_mapping, location, *, no_data_value=None
     value, time_stamp = ut.extract_raster_value(
         map_file, location, no_data_value=no_data_value
     )
-    category = category_mapping.get(value, "Unknown Category")
+    category = category_mapping.get(value, "unknown category")
 
-    if category == "Unknown Category":
-        logger.warning(f"Unknown category value ({value}).")
+    if category == "unknown category":
+        logger.warning(
+            f"Location {location['lat']}, {location['lon']} has unknown category value ({value})."
+        )
     elif category == "outside area":
         logger.warning(
             f"Location {location['lat']}, {location['lon']} is outside the area of the map '{map_file}'."
@@ -480,7 +482,9 @@ def get_category_hrl_grassland(location):
     return None, time_stamp
 
 
-def check_desired_categories(category, target_categories, location, map_key):
+def check_desired_categories(
+    category, target_categories, location, map_key, *, skip_logging=True
+):
     """
     Check if the given category is one of the target categories.
 
@@ -489,6 +493,7 @@ def check_desired_categories(category, target_categories, location, map_key):
         target_categories (list): List of target categories to compare against.
         location (dict): Dictionary with 'lat' and 'lon' keys.
         map_key(str): Identifier of the map used for obtaining the category.
+        skip_logging (bool): Whether to skip logging (default is False).
 
     Returns:
         bool: True if the category is in the target categories, False otherwise.
@@ -497,16 +502,17 @@ def check_desired_categories(category, target_categories, location, map_key):
     is_target_categories = category in target_categories
 
     # Log check results
-    if is_target_categories:
-        logger.info(
-            f"Confirmed: Lat. {location['lat']}, Lon. {location['lon']} "
-            f"is '{category}' according to '{map_key}' land cover classification."
-        )
-    else:
-        logger.warning(
-            f"Not in target categories: Lat. {location['lat']}, Lon. {location['lon']} "
-            f"is '{category}' according to '{map_key}' land cover classification."
-        )
+    if not skip_logging:
+        if is_target_categories:
+            logger.info(
+                f"Confirmed: Lat. {location['lat']}, Lon. {location['lon']} "
+                f"is '{category}' according to '{map_key}' land cover classification."
+            )
+        else:
+            logger.warning(
+                f"Not in target categories: Lat. {location['lat']}, Lon. {location['lon']} "
+                f"is '{category}' according to '{map_key}' land cover classification."
+            )
 
     return is_target_categories
 
@@ -539,24 +545,28 @@ def check_if_grassland(category, location, map_key):
                     is_grassland = True
                     break
     else:
-        # Set accepted categories
-        grass_categories = [
-            "Grassland",
-            "grassland",
-            "grass",
-            "Permanent grassland",
-            "Cultivated grassland",
-            "Fallow land",
-            "Bare land",
-        ]
-        # not inlcuded:
-        # "Legumes"
-
-        is_grassland = check_desired_categories(
-            category, grass_categories, location, map_key
+        is_unknown = check_desired_categories(
+            category, ["outside area", "unknown category"], location, map_key
         )
 
-    return is_grassland
+        if is_unknown:
+            return None
+        else:
+            # Set accepted categories, not included: # "Legumes"
+            grass_categories = [
+                "Grassland",
+                "grassland",
+                "grass",
+                "Permanent grassland",
+                "Cultivated grassland",
+                "Fallow land",
+                "Bare land",
+            ]
+            is_grassland = check_desired_categories(
+                category, grass_categories, location, map_key, skip_logging=False
+            )
+
+            return is_grassland
 
 
 def check_results_to_file(grassland_check, *, file_name=None, map_key=None):
@@ -738,7 +748,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                     site_check.update(
                         map_source="",
                         map_query_time_stamp=time_stamp,
-                        is_grass="",
+                        is_grass=None,
                         category="Map not found!",
                     )
                     grassland_check.append(site_check)
@@ -758,13 +768,15 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                             map_file, category_mapping, site_check
                         )
                         is_grass = check_if_grassland(category, site_check, map_key)
-                        site_check.update(
-                            map_source=map_file,
-                            map_query_time_stamp=time_stamp,
-                            is_grass=is_grass,
-                            category=category,
-                        )
-                        grassland_check.append(site_check)
+
+                        if is_grass is not None:
+                            site_check.update(
+                                map_source=map_file,
+                                map_query_time_stamp=time_stamp,
+                                is_grass=is_grass,
+                                category=category,
+                            )
+                            grassland_check.append(site_check)
             else:
                 try:
                     raise ValueError(
