@@ -757,9 +757,28 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                         map_file = Path(
                             f"{map_specs['folder']}/{hda_file_stem}{map_specs['map_ext']}"
                         )
+
+                        if map_file.is_file():
+                            logger.info(f"Land cover map found. Using '{map_file}'.")
+                        else:
+                            logger.warning(
+                                f"Land cover map file '{map_file}' not found. Skipping map."
+                            )
+                            continue
+
                         leg_file = Path(
                             f"{map_specs['folder']}/{hda_file_stem}{map_specs['leg_ext']}"
                         )
+                        if leg_file.is_file():
+                            logger.info(
+                                f"Land cover categories found. Using '{leg_file}'."
+                            )
+                        else:
+                            logger.warning(
+                                f"Land cover categories file '{leg_file}' not found. Skipping map."
+                            )
+                            continue
+
                         category_mapping = create_category_mapping(leg_file)
                         time_stamp = datetime.fromtimestamp(
                             map_file.stat().st_mtime, tz=timezone.utc
@@ -888,6 +907,7 @@ def main():
 
         # Example coordinates for checking without DEIMS.iDs
         args.locations = [
+            {"lat": 49.04341667, "lon": 17.93125},  # test
             {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
             {
                 "lat": 51.3919,

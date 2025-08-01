@@ -23,14 +23,16 @@ Data sources:
     plants such as lichens, mosses and ferns can be tolerated."
 """
 
+import time
 import zipfile
 from pathlib import Path
 from types import MappingProxyType
 
 import hda
-from copernicus.utils import get_area_coordinates
+from copernicus.utils import get_area_coordinates, upload_file_opendap
 
 from ucgrassland.logger_config import logger
+from ucgrassland.utils import download_file_opendap
 
 HDA_PRODUCT_TYPES = MappingProxyType(
     {
@@ -44,7 +46,7 @@ HDA_PRODUCT_TYPES = MappingProxyType(
 
 def create_hda_client(hda_configuration_folder=None):
     """
-    Create a HDA client for accessing the Copernicus High-Resolution Layers (HRL) data.
+    Create a WEkEO HDA API Client for accessing the Copernicus High-Resolution Layers (HRL) data.
 
     Creates a configuration file (.hdarc) containing user credentials (username and password)
     in the user's home directory if it does not already exist.
@@ -87,9 +89,12 @@ def request_hda_grassland_data(
     resolution="10m",
     target_folder="hdaDataRaw",
     max_files=100,
+    upload_opendap=True,
+    retry_attempts=6,
+    retry_delay=8,
 ):
     """
-    Request and download High Resolution Layer (HRL) grassland data from WEkEO by HDA API.
+    Request and download High Resolution Layer (HRL) grassland data from WEkEO HDA API.
 
     Parameters:
         map_key (str): Key to identify the type of HDA data to request.
@@ -100,13 +105,14 @@ def request_hda_grassland_data(
         years_available (list): List of years for which data is available (default includes 2015, 2017-2021).
         target_folder (str or Path): Folder where the downloaded data will be stored (default is "hdaDataRaw").
         max_files (int): Maximum number of files to download (default is 100).
+        upload_opendap (bool): Upload the newly requested files to opendap server (requires permission, default is True).
+        retry_attempts (int): Total number of attempts (default is 6).
+        retry_delay (int): Initial delay in seconds for request errors (default is 8, increasing exponentially).
 
     Returns:
-        tuple: A tuple containing:
-            - hda_file_stems (list): List of file stems of the downloaded HDA data.
-            - time_stamp (str): Timestamp of the request in ISO format.
+        hda_file_stems (list): List of file stems of the downloaded HDA data.
     """
-    target_folder = Path(target_folder)
+    target_folder = Path.cwd() / target_folder
 
     if map_key == "hda_grassland":
         years_available = [2015, 2017, 2018, 2019, 2020, 2021]
@@ -135,8 +141,8 @@ def request_hda_grassland_data(
             # Request HDA data
             hda_client = create_hda_client()  # create HDA client
             logger.info(
-                f"Looking for HDA data for map_key '{map_key}', year '{year}', and area: {area_coordinates} "
-                f"from '{hda_client.dataset(dataset_id)['metadata']['_source']['datasetTitle']}' dataset..."
+                f"Looking for HDA data for map_key '{map_key}', year '{year}', and area {area_coordinates} "
+                f"from 'HRL Grasslands' dataset ..."
             )
             request = {
                 "dataset_id": dataset_id,
@@ -152,7 +158,29 @@ def request_hda_grassland_data(
                 "itemsPerPage": 200,
                 "startIndex": 0,
             }
-            matches = hda_client.search(request)
+
+            # Get reequest results including retry loop
+            attempts = retry_attempts
+            delay_exponential = retry_delay
+
+            while attempts > 0:
+                attempts -= 1
+                try:
+                    matches = hda_client.search(request)
+                    break
+                except Exception as e:
+                    logger.error(f"Error while searching for HDA data: {e}.")
+
+                    if attempts > 0:
+                        logger.info(f"Retrying in {delay_exponential} seconds ...")
+                        time.sleep(delay_exponential)
+                        delay_exponential *= 2
+                    else:
+                        logger.error(
+                            "Maximum number of attempts reached. Exiting without downloading data."
+                        )
+                        matches = []
+
             file_count = len(matches)
 
             if file_count == 0:
@@ -169,14 +197,33 @@ def request_hda_grassland_data(
                 file_count = max_files
 
             # Download files, if not already existing in the target folder
-            for match in matches:
+            for match in matches[:file_count]:
                 hda_file_stem = match.results[0]["id"]
                 hda_file_stems.append(hda_file_stem)
                 hda_file_tif = Path(target_folder / f"{hda_file_stem}.tif")
+                hda_file_aux = Path(target_folder / f"{hda_file_stem}.tif.aux.xml")
 
+                # If files not locally available, try download from opendap server
                 if not hda_file_tif.is_file():
+                    download_file_opendap(
+                        hda_file_tif.name,
+                        hda_file_tif.parent.name,
+                        hda_file_tif.parent,
+                        warn_not_found=False,
+                    )
+
+                if not hda_file_aux.is_file():
+                    download_file_opendap(
+                        hda_file_aux.name,
+                        hda_file_aux.parent.name,
+                        hda_file_aux.parent,
+                        warn_not_found=False,
+                    )
+
+                # If files still not available, download from HDA API
+                if not hda_file_tif.is_file() or not hda_file_aux.is_file():
                     logger.info(
-                        f"Downloading '{hda_file_stem + '.zip'}' to '{target_folder}'..."
+                        f"Downloading '{hda_file_stem + '.zip'}' from WEkEO HDA API Client to '{target_folder}'..."
                     )
                     match.download(download_dir=target_folder)
                     hda_file_zip = Path(target_folder / f"{hda_file_stem}.zip")
@@ -197,6 +244,12 @@ def request_hda_grassland_data(
                                         files_found[0], target_folder
                                     )
                                     logger.info(f"Extracted '{extracted_path}'.")
+
+                                    if upload_opendap:
+                                        # Try upload new file to opendap server (requires permission)
+                                        upload_file_opendap(
+                                            Path(extracted_path), "hdaDataRaw"
+                                        )
                                 elif len(files_found) == 0:
                                     logger.warning(
                                         f"No {file_type} file found in the zip file '{hda_file_zip.name}'. Skipping extraction."
@@ -206,7 +259,7 @@ def request_hda_grassland_data(
                                         f"Multiple {file_type} files found in the zip file '{hda_file_zip.name}'. Skipping extraction."
                                     )
 
-                        # Remove the zip file after extraction
+                        # Remove zip file after extraction
                         hda_file_zip.unlink(missing_ok=True)
                         logger.info(f"Removed zip file '{hda_file_zip}'.")
         else:
@@ -244,12 +297,8 @@ def main():
         {"lat": 54.94, "lon": 14.23},  # test for larger are
     ]
 
-    hda_file_stems, time_stamp = request_hda_grassland_data(
-        map_key, year, coordinates_list
-    )
-
+    hda_file_stems = request_hda_grassland_data(map_key, year, coordinates_list)
     print(f"HDA File Stems: {hda_file_stems}")
-    print(f"Timestamp: {time_stamp}")
 
 
 # Execute main function when the script is run directly

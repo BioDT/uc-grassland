@@ -1375,23 +1375,31 @@ def check_url(url, *, attempts=5, delay_exponential=2, delay_linear=2):
 
 
 def download_file_opendap(
-    file_name, source_folder, target_folder, *, new_file_name=None, attempts=5, delay=2
+    file_name,
+    opendap_folder,
+    target_folder,
+    *,
+    new_file_name=None,
+    attempts=5,
+    delay=2,
+    warn_not_found=True,
 ):
     """
     Download a file from OPeNDAP server 'grasslands-pdt'.
 
-    Args:
+    Parameters:
         file_name (str): Name of file to download.
-        source_folder (str): Folder where file is expected on OPeNDAP server.
-        target_folder (str): Folder where file will be saved.
+        opendap_folder (str): Folder where file is expected on OPeNDAP server.
+        target_folder (str): Local folder where file will be saved.
         new_file_name (str): New name for downloaded file (default is None, file_name will be used).
         attempts (int): Number of attempts to download the file (default is 5).
         delay (int): Number of seconds to wait between attempts (default is 2).
+        warn_not_found (bool): Warn if file not found on OPeNDAP server (default is True).
 
     Returns:
         None
     """
-    url = f"{OPENDAP_ROOT}{source_folder}/{file_name}"
+    url = f"{OPENDAP_ROOT}{opendap_folder}/{file_name}"
     logger.info(f"Trying to download '{url}' ...")
 
     while attempts > 0:
@@ -1417,7 +1425,10 @@ def download_file_opendap(
                 logger.info(f"File downloaded successfully to '{target_file}'.")
                 return
             elif response.status_code == 404:
-                logger.error(f"File '{file_name}' not found on OPeNDAP server.")
+                if warn_not_found:
+                    logger.warning(f"File '{file_name}' not found on OPeNDAP server.")
+                else:
+                    logger.info(f"File '{file_name}' not found on OPeNDAP server.")
                 return
             else:
                 attempts -= 1
@@ -1430,7 +1441,7 @@ def download_file_opendap(
             if attempts > 0:
                 time.sleep(delay)
 
-    logger.error(f"File '{file_name}' download failed repeatedly.")
+    logger.warning(f"File '{file_name}' download failed repeatedly.")
 
 
 def day_of_year_to_date(year, day_of_year, leap_year_considered=True):
