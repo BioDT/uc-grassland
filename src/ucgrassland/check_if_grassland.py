@@ -180,10 +180,12 @@ def get_map_specs(map_key):
     elif map_key.startswith("EUR_hda_grassland"):
         map_year = int(map_key.split("_")[-1])  # get year from map key
         map_specs = {
-            "file_stem": "__hda_grassland__",
+            "file_stem": "",
             "map_ext": ".tif",
-            "leg_ext": ".tif.aux.xml",
-            "folder": "hdaDataRaw",
+            "leg_ext": "EUR_hda_grassland_Legend.xlsx",
+            "folder": folder,
+            "subfolder": "EUR_hda_grassland",
+            "url_folder": f"{ut.OPENDAP_ROOT}{folder}/{map_key}/",
             "map_year": map_year,
         }
     elif map_key == "EUR_eunis_habitat":
@@ -197,9 +199,54 @@ def get_map_specs(map_key):
     return map_specs
 
 
+def get_legend_from_file(map_specs, *, cache=None):
+    """
+    Get legend file for land cover map and create a mapping of category indices to category names.
+
+    Parameters:
+        map_specs (dict): Dictionary containing map specifications.
+        cache (Path): Path for local map directory (default is None).
+
+    Returns:
+        dict: A mapping of category indices to category names.
+    """
+    file_name = f"{map_specs['file_stem']}{map_specs['leg_ext']}"
+
+    # Try local file first
+    if cache is not None:
+        leg_file = Path(cache) / map_specs["subfolder"] / file_name
+
+        if leg_file.is_file():
+            logger.info(f"Land cover categories found. Using '{leg_file}'.")
+            category_mapping = create_category_mapping(leg_file)
+
+            return category_mapping
+        else:
+            logger.info(f"Land cover categories file '{leg_file}' not found.")
+
+    # Try URL
+    leg_file = (
+        f"{ut.OPENDAP_ROOT}{map_specs['folder']}/{map_specs['subfolder']}/{file_name}"
+    )
+
+    if ut.check_url(leg_file):
+        logger.info(f"Land cover categories found. Using '{leg_file}'.")
+        category_mapping = create_category_mapping(leg_file)
+
+        return category_mapping
+    else:
+        try:
+            raise FileNotFoundError(
+                f"Land cover categories file '{leg_file}' not found."
+            )
+        except FileNotFoundError as e:
+            logger.error(e)
+            raise
+
+
 def get_map_and_legend(map_key, *, cache=None):
     """
-    Check if TIF file and categories file are avaible, read categories from file.
+    Check if TIF file and categories file are available, read categories from file.
 
     Parameters:
         map_key (str): Identifier of the map to be used.
@@ -240,38 +287,9 @@ def get_map_and_legend(map_key, *, cache=None):
                 raise
 
     # Get categories for map values
-    file_name = f"{map_specs['file_stem']}{map_specs['leg_ext']}"
+    category_mapping = get_legend_from_file(map_specs)
 
-    if cache is not None:
-        # Get legend from local file
-        leg_file = Path(cache) / map_specs["subfolder"] / file_name
-
-        if leg_file.is_file():
-            logger.info(f"Land cover categories found. Using '{leg_file}'.")
-            category_mapping = create_category_mapping(leg_file)
-
-            return map_file, category_mapping
-        else:
-            logger.info(f"Land cover categories file '{leg_file}' not found.")
-
-    # Get legend directly from URL, no download
-    leg_file = (
-        f"{ut.OPENDAP_ROOT}{map_specs['folder']}/{map_specs['subfolder']}/{file_name}"
-    )
-
-    if ut.check_url(leg_file):
-        logger.info(f"Land cover categories found. Using '{leg_file}'.")
-        category_mapping = create_category_mapping(leg_file)
-
-        return map_file, category_mapping
-    else:
-        try:
-            raise FileNotFoundError(
-                f"Land cover categories file '{leg_file}' not found."
-            )
-        except FileNotFoundError as e:
-            logger.error(e)
-            raise
+    return map_file, category_mapping
 
 
 def create_category_mapping(leg_file):
@@ -734,12 +752,11 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                 )
                 grassland_check.append(site_check)
             elif map_key in hda_keys:
-                map_key_stem, year = map_key.rsplit(
-                    "_", 1
-                )  # split map_key into stem and year
+                map_key_stem, year = map_key.rsplit("_", 1)
                 hda_file_stems = request_hda_grassland_data(
                     map_key_stem.split("EUR_")[1], int(year), [site_check]
                 )
+                category_mapping = get_legend_from_file(map_specs)
 
                 if hda_file_stems == []:
                     time_stamp = datetime.now(timezone.utc).isoformat(
@@ -755,7 +772,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                 else:
                     for hda_file_stem in hda_file_stems:
                         map_file = Path(
-                            f"{map_specs['folder']}/{hda_file_stem}{map_specs['map_ext']}"
+                            f"{map_specs['folder']}/{map_specs['subfolder']}/{hda_file_stem}{map_specs['map_ext']}"
                         )
 
                         if map_file.is_file():
@@ -766,20 +783,6 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                             )
                             continue
 
-                        leg_file = Path(
-                            f"{map_specs['folder']}/{hda_file_stem}{map_specs['leg_ext']}"
-                        )
-                        if leg_file.is_file():
-                            logger.info(
-                                f"Land cover categories found. Using '{leg_file}'."
-                            )
-                        else:
-                            logger.warning(
-                                f"Land cover categories file '{leg_file}' not found. Skipping map."
-                            )
-                            continue
-
-                        category_mapping = create_category_mapping(leg_file)
                         time_stamp = datetime.fromtimestamp(
                             map_file.stat().st_mtime, tz=timezone.utc
                         ).isoformat(timespec="seconds")
@@ -796,6 +799,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                                 category=category,
                             )
                             grassland_check.append(site_check)
+                            break
             else:
                 try:
                     raise ValueError(
@@ -907,7 +911,9 @@ def main():
 
         # Example coordinates for checking without DEIMS.iDs
         args.locations = [
+            {"lat": 50.80843333, "lon": 5.453983333},  # test
             {"lat": 49.04341667, "lon": 17.93125},  # test
+            {"lat": 49.2167247, "lon": 19.6718631},  # test
             {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
             {
                 "lat": 51.3919,

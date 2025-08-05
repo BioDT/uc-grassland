@@ -87,7 +87,8 @@ def request_hda_grassland_data(
     *,
     dataset_id="EO:EEA:DAT:HRL:GRA",
     resolution="10m",
-    target_folder="hdaDataRaw",
+    opendap_folder="landCoverMaps/EUR_hda_grassland/",
+    target_folder=None,
     max_files=100,
     upload_opendap=True,
     retry_attempts=6,
@@ -103,16 +104,23 @@ def request_hda_grassland_data(
         dataset_id (str): Dataset ID for the HDA data (default is "EO:EEA:DAT:HRL:GRA").
         resolution (str): Resolution of the data to be requested (default is "10m").
         years_available (list): List of years for which data is available (default includes 2015, 2017-2021).
-        target_folder (str or Path): Folder where the downloaded data will be stored (default is "hdaDataRaw").
+        opendap_folder (str): Folder on the opendap server where the data is stored
+            (default is "landCoverMaps/EUR_hda_grassland/").
+        target_folder (str or Path): Folder where the downloaded data will be stored
+            (default is None, which uses the opendap folder in the current working directory).
         max_files (int): Maximum number of files to download (default is 100).
-        upload_opendap (bool): Upload the newly requested files to opendap server (requires permission, default is True).
+        upload_opendap (bool): Upload the newly requested files to opendap server
+            (requires permission, default is True).
         retry_attempts (int): Total number of attempts (default is 6).
         retry_delay (int): Initial delay in seconds for request errors (default is 8, increasing exponentially).
 
     Returns:
         hda_file_stems (list): List of file stems of the downloaded HDA data.
     """
-    target_folder = Path.cwd() / target_folder
+    if target_folder is None:
+        target_folder = Path.cwd() / opendap_folder
+    elif isinstance(target_folder, str):
+        target_folder = Path.cwd() / target_folder
 
     if map_key == "hda_grassland":
         years_available = [2015, 2017, 2018, 2019, 2020, 2021]
@@ -141,8 +149,10 @@ def request_hda_grassland_data(
             # Request HDA data
             hda_client = create_hda_client()  # create HDA client
             logger.info(
-                f"Looking for HDA data for map_key '{map_key}', year '{year}', and area {area_coordinates} "
-                f"from 'HRL Grasslands' dataset ..."
+                f"Looking for HDA data for map_key '{map_key}', year '{year}', "
+                f"latitude {area_coordinates['lat_start']}-{area_coordinates['lat_end']}, "
+                f"longitude {area_coordinates['lon_start']}-{area_coordinates['lon_end']} "
+                "from 'HRL Grasslands' dataset ..."
             )
             request = {
                 "dataset_id": dataset_id,
@@ -159,7 +169,7 @@ def request_hda_grassland_data(
                 "startIndex": 0,
             }
 
-            # Get reequest results including retry loop
+            # Get request results including retry loop
             attempts = retry_attempts
             delay_exponential = retry_delay
 
@@ -201,27 +211,18 @@ def request_hda_grassland_data(
                 hda_file_stem = match.results[0]["id"]
                 hda_file_stems.append(hda_file_stem)
                 hda_file_tif = Path(target_folder / f"{hda_file_stem}.tif")
-                hda_file_aux = Path(target_folder / f"{hda_file_stem}.tif.aux.xml")
 
-                # If files not locally available, try download from opendap server
+                # If file not locally available, try download from opendap server
                 if not hda_file_tif.is_file():
                     download_file_opendap(
                         hda_file_tif.name,
-                        hda_file_tif.parent.name,
+                        opendap_folder,
                         hda_file_tif.parent,
                         warn_not_found=False,
                     )
 
-                if not hda_file_aux.is_file():
-                    download_file_opendap(
-                        hda_file_aux.name,
-                        hda_file_aux.parent.name,
-                        hda_file_aux.parent,
-                        warn_not_found=False,
-                    )
-
-                # If files still not available, download from HDA API
-                if not hda_file_tif.is_file() or not hda_file_aux.is_file():
+                # If file still not available, download from HDA API
+                if not hda_file_tif.is_file():
                     logger.info(
                         f"Downloading '{hda_file_stem + '.zip'}' from WEkEO HDA API Client to '{target_folder}'..."
                     )
@@ -232,32 +233,32 @@ def request_hda_grassland_data(
                         logger.info(f"Extracting files from '{hda_file_zip}' ...")
 
                         with zipfile.ZipFile(hda_file_zip, "r") as zip_ref:
-                            for file_type in [".tif", ".tif.aux.xml"]:
-                                files_found = [
-                                    name
-                                    for name in zip_ref.namelist()
-                                    if name.endswith(file_type)
-                                ]
+                            file_type = ".tif"
+                            files_found = [
+                                name
+                                for name in zip_ref.namelist()
+                                if name.endswith(file_type)
+                            ]
 
-                                if len(files_found) == 1:
-                                    extracted_path = zip_ref.extract(
-                                        files_found[0], target_folder
-                                    )
-                                    logger.info(f"Extracted '{extracted_path}'.")
+                            if len(files_found) == 1:
+                                extracted_path = zip_ref.extract(
+                                    files_found[0], target_folder
+                                )
+                                logger.info(f"Extracted '{extracted_path}'.")
 
-                                    if upload_opendap:
-                                        # Try upload new file to opendap server (requires permission)
-                                        upload_file_opendap(
-                                            Path(extracted_path), "hdaDataRaw"
-                                        )
-                                elif len(files_found) == 0:
-                                    logger.warning(
-                                        f"No {file_type} file found in the zip file '{hda_file_zip.name}'. Skipping extraction."
+                                if upload_opendap:
+                                    # Try upload new file to opendap server (requires permission)
+                                    upload_file_opendap(
+                                        Path(extracted_path), opendap_folder
                                     )
-                                else:
-                                    logger.warning(
-                                        f"Multiple {file_type} files found in the zip file '{hda_file_zip.name}'. Skipping extraction."
-                                    )
+                            elif len(files_found) == 0:
+                                logger.warning(
+                                    f"No {file_type} file found in the zip file '{hda_file_zip.name}'. Skipping extraction."
+                                )
+                            else:
+                                logger.warning(
+                                    f"Multiple {file_type} files found in the zip file '{hda_file_zip.name}'. Skipping extraction."
+                                )
 
                         # Remove zip file after extraction
                         hda_file_zip.unlink(missing_ok=True)
