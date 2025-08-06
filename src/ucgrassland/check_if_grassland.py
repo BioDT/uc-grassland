@@ -756,7 +756,6 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                 hda_file_stems = request_hda_grassland_data(
                     map_key_stem.split("EUR_")[1], int(year), [site_check]
                 )
-                category_mapping = get_legend_from_file(map_specs)
 
                 if hda_file_stems == []:
                     time_stamp = datetime.now(timezone.utc).isoformat(
@@ -770,6 +769,8 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                     )
                     grassland_check.append(site_check)
                 else:
+                    category_mapping = get_legend_from_file(map_specs)
+
                     for hda_file_stem in hda_file_stems:
                         map_file = Path(
                             f"{map_specs['folder']}/{map_specs['subfolder']}/{hda_file_stem}{map_specs['map_ext']}"
@@ -911,6 +912,7 @@ def main():
 
         # Example coordinates for checking without DEIMS.iDs
         args.locations = [
+            {"lat": 51.03444444, "lon": 5.8},  # test
             {"lat": 50.80843333, "lon": 5.453983333},  # test
             {"lat": 49.04341667, "lon": 17.93125},  # test
             {"lat": 49.2167247, "lon": 19.6718631},  # test

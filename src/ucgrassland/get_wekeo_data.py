@@ -44,7 +44,7 @@ HDA_PRODUCT_TYPES = MappingProxyType(
 )
 
 
-def create_hda_client(hda_configuration_folder=None):
+def create_hda_client(hda_configuration_folder=None, retry_max=6, sleep_max=8):
     """
     Create a WEkEO HDA API Client for accessing the Copernicus High-Resolution Layers (HRL) data.
 
@@ -52,8 +52,10 @@ def create_hda_client(hda_configuration_folder=None):
     in the user's home directory if it does not already exist.
 
     Parameters:
-        hda_configuration_folder (str or Path, optional): Path to the folder where the .hdarc file should be created.
-            If None, the default is the user's home directory.
+        hda_configuration_folder (str or Path): Path to the folder where the .hdarc file should be created.
+            (default is None, if None the user's home directory will be used).
+        retry_max (int): Maximum number of retry attempts for the client creation (default is 6).
+        sleep_max (int): Maximum sleep time in seconds between retry attempts for the client creation (default is 8).
 
     Returns:
         hda.Client: An instance of the HDA client configured with the user's credentials.
@@ -75,7 +77,8 @@ def create_hda_client(hda_configuration_folder=None):
             f.write(f"user:{USERNAME}\n")
             f.write(f"password:{PASSWORD}\n")
 
-    hda_client = hda.Client()
+    hda_client = hda.Client(retry_max=retry_max, sleep_max=sleep_max)
+    logger.info("HDA Client created successfully.")
 
     return hda_client
 
@@ -170,21 +173,21 @@ def request_hda_grassland_data(
             }
 
             # Get request results including retry loop
-            attempts = retry_attempts
-            delay_exponential = retry_delay
-
-            while attempts > 0:
-                attempts -= 1
+            while retry_attempts > 0:
+                retry_attempts -= 1
                 try:
                     matches = hda_client.search(request)
                     break
                 except Exception as e:
                     logger.error(f"Error while searching for HDA data: {e}.")
 
-                    if attempts > 0:
-                        logger.info(f"Retrying in {delay_exponential} seconds ...")
-                        time.sleep(delay_exponential)
-                        delay_exponential *= 2
+                    if retry_attempts > 0:
+                        logger.info(
+                            f"Recreating HDA client and retrying in {retry_delay} seconds ..."
+                        )
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        hda_client = create_hda_client()
                     else:
                         logger.error(
                             "Maximum number of attempts reached. Exiting without downloading data."
@@ -286,7 +289,7 @@ def request_hda_grassland_data(
 def main():
     # Example usage
     map_key = "hda_grassland"
-    year = 2021
+    year = 2020
     # # example: GCEF small scale difference
     coordinates_list = [
         {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
