@@ -27,6 +27,7 @@ import argparse
 import calendar
 import csv
 import time
+import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -1015,7 +1016,7 @@ def get_deims_coordinates(deims_id):
         )
     else:
         try:
-            deims_gdf = deims.getSiteCoordinates(deims_id, file_name=None)
+            deims_gdf = deims.getSiteCoordinates(deims_id, filename=None)
             # option: collect all coordinates from deims_gdf.boundary[0] ...
             # deims_gdf = deims.getSiteBoundaries(deims_id, file_name=None)
 
@@ -1256,7 +1257,14 @@ def reproject_coordinates(lat, lon, target_crs):
 
 
 def extract_raster_value(
-    tif_file, location, *, band_number=1, attempts=5, delay=2, no_data_value=None
+    tif_file,
+    location,
+    *,
+    band_number=1,
+    attempts=5,
+    delay=2,
+    no_data_value=None,
+    file_date_for_time_stamp=True,
 ):
     """
     Extract value from raster file at specified coordinates.
@@ -1268,6 +1276,7 @@ def extract_raster_value(
         attempts (int): Number of attempts to open the TIF file in case of errors (default is 5).
         delay (int): Number of seconds to wait between attempts (default is 2).
         no_data_value (int or float): Value to set as no-data value in the raster file (default is None).
+        file_date_for_time_stamp (bool): Use file date for the time stamp (default is True, if False file read time used).
 
     Returns:
         tuple: Extracted value (None if extraction failed), and time stamp.
@@ -1303,6 +1312,34 @@ def extract_raster_value(
 
                 # Extract value from specified band number at specified coordinates
                 value = next(src.sample([(east, north)], indexes=band_number))
+
+                if file_date_for_time_stamp:
+                    # Replace time_stamp from above with date from TIF file metadata
+                    tiff_datetime = src.tags(band_number).get("TIFFTAG_DATETIME")
+
+                    if tiff_datetime:
+                        # TIFFTAG_DATETIME is usually "YYYY:MM:DD HH:MM:SS"
+                        try:
+                            dt = parse(tiff_datetime.replace(":", "-", 2))
+                            time_stamp = dt.astimezone(timezone.utc).isoformat(
+                                timespec="seconds"
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"Could not parse TIFFTAG_DATETIME '{tiff_datetime}': {e}. Using file modification time instead."
+                            )
+                            time_stamp = datetime.fromtimestamp(
+                                tif_file.stat().st_mtime,
+                                tz=timezone.utc,
+                            ).isoformat(timespec="seconds")
+                    else:
+                        logger.warning(
+                            "TIFFTAG_DATETIME not found in TIFF metadata. Using file modification time instead."
+                        )
+                        time_stamp = datetime.fromtimestamp(
+                            tif_file.stat().st_mtime,
+                            tz=timezone.utc,
+                        ).isoformat(timespec="seconds")
 
             return value[0], time_stamp
         except rasterio.errors.RasterioIOError as e:
@@ -1463,3 +1500,107 @@ def day_of_year_to_date(year, day_of_year, leap_year_considered=True):
         delta_days = day_of_year - 1
 
     return datetime(year, 1, 1) + timedelta(days=delta_days)
+
+
+def get_legend_from_file(map_specs, *, cache=None):
+    """
+    Get legend file for land cover map and create a mapping of category indices to category names.
+
+    Parameters:
+        map_specs (dict): Dictionary containing map specifications.
+        cache (Path): Path for local map directory (default is None).
+
+    Returns:
+        dict: A mapping of category indices to category names.
+    """
+    file_name = f"{map_specs['file_stem']}{map_specs['leg_ext']}"
+
+    # Try local file first
+    if cache is not None:
+        leg_file = Path(cache) / map_specs["subfolder"] / file_name
+
+        if leg_file.is_file():
+            logger.info(f"Land cover categories found. Using '{leg_file}'.")
+            category_mapping = create_category_mapping(leg_file)
+
+            return category_mapping
+        else:
+            logger.info(f"Land cover categories file '{leg_file}' not found.")
+
+    # Try URL
+    leg_file = (
+        f"{OPENDAP_ROOT}{map_specs['folder']}/{map_specs['subfolder']}/{file_name}"
+    )
+
+    if check_url(leg_file):
+        logger.info(f"Land cover categories found. Using '{leg_file}'.")
+        category_mapping = create_category_mapping(leg_file)
+
+        return category_mapping
+    else:
+        try:
+            raise FileNotFoundError(
+                f"Land cover categories file '{leg_file}' not found."
+            )
+        except FileNotFoundError as e:
+            logger.error(e)
+            raise
+
+
+def create_category_mapping(leg_file):
+    """
+    Create a mapping of category indices to category names from legend file (XML or XLSX or ...).
+
+    Parameters:
+        leg_file (Path or URL): Path or URL to the leg file containing category names (in specific format).
+
+    Returns:
+        dict: A mapping of category indices to category names.
+    """
+    category_mapping = {}
+
+    # Get file type (without dot)
+    if isinstance(leg_file, Path):
+        leg_file_suffix = leg_file.suffix[1:]
+    elif isinstance(leg_file, str):
+        leg_file_suffix = leg_file.split(".")[-1]
+
+    if leg_file_suffix in ["xlsx", "xls"]:
+        try:
+            df = pd.read_excel(leg_file)
+
+            # Assuming category elements are listed in the first two columns (index and name)
+            category_mapping = {row[0]: row[1] for row in df.values}
+            # # Alternative using the row names 'code' and 'class_name'
+            # category_mapping = (df[["code", "class_name"]].set_index("code")["class_name"].to_dict())
+        except Exception as e:
+            logger.error(f"Reading XLSX file failed ({str(e)}).")
+    elif leg_file_suffix == "xml":
+        # Not implemented for URL, only local files
+        try:
+            tree = ET.parse(leg_file)
+            root = tree.getroot()
+
+            # Find CategoryNames (as in Preidl map legend)
+            category_names = root.find(".//CategoryNames")
+
+            if category_names is not None:
+                for index, category in enumerate(category_names):
+                    category_name = category.text
+                    category_mapping[index] = category_name
+            else:
+                # Find GDALRasterAttributeTable (as in hda grassland data format)
+                rat = root.find(".//GDALRasterAttributeTable")
+
+                if rat is not None:
+                    for row in rat.findall("Row"):
+                        fields = row.findall("F")
+
+                        if len(fields) >= 3:
+                            value = int(fields[0].text)  # value in first row
+                            class_name = fields[2].text  # class name in third row
+                            category_mapping[value] = class_name
+        except Exception as e:
+            logger.error(f"Reading XML file failed ({str(e)}).")
+
+    return category_mapping
