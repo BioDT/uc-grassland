@@ -57,6 +57,7 @@ from pathlib import Path
 import numpy as np
 
 from ucgrassland import utils as ut
+from ucgrassland.get_wekeo_data import request_hda_grassland_data
 from ucgrassland.logger_config import logger
 
 
@@ -389,7 +390,7 @@ def get_GER_Lange_data(coordinates, map_properties, years):
     return property_data, query_protocol
 
 
-def get_GER_Schwieder_data(coordinates, map_properties, years):
+def get_GER_Schwieder_data(coordinates, years, *, map_bands=7):
     """
     Read mowing data for given coordinates from 'GER_Schwieder' map for respective year and return as array.
     Only works for locations classified as (permanent) grassland in 2017, 2018 and 2019 according to Blickensdörfer et al. (2021).
@@ -400,7 +401,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
     Parameters:
         coordinates (tuple): Coordinates ('lat', 'lon') to extract management data.
         map_properties (list): List of properties to extract.
-        years (list): List of years to process.
+        years (list of int): List of years to process.
 
     Returns:
         tuple: Property data for given years (2D numpy.ndarray, nan if no grassland or no mowing event),
@@ -409,21 +410,12 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
     map_key = "GER_Schwieder"
     logger.info(f"Reading management data from '{map_key}' map ...")
     query_protocol = []
-    map_bands = len(map_properties)
-    property = map_properties[0]
-
-    if property != "mowing":
-        try:
-            raise ValueError(
-                f"First property to read from '{map_key}' map must be 'mowing'."
-            )
-        except ValueError as e:
-            logger.error(e)
-            raise
+    property = "mowing"
 
     # Initialize property_data array with nans
     property_data = np.full((len(years), map_bands + 1), np.nan, dtype=object)
     warn_no_grassland = True
+    no_grassland_value = -9999
 
     # Extract values from tif maps for each year and each property
     for y_index, year in enumerate(years):
@@ -443,7 +435,7 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
             )
             query_protocol.append([map_file, time_stamp])
 
-            if band_value == -9999:
+            if band_value == no_grassland_value:
                 if warn_no_grassland:
                     logger.warning(
                         f"Location not classified as grassland in '{map_key}' map."
@@ -466,6 +458,180 @@ def get_GER_Schwieder_data(coordinates, map_properties, years):
                         logger.info(
                             f"{property.capitalize()} event {band_index - 1}: {band_date.strftime('%Y-%m-%d')}."
                         )
+
+    return property_data, query_protocol
+
+
+def get_EUR_hda_mowing_data(coordinates, years, *, folder="landUseMaps", map_count=5):
+    """
+    Get mowing data from the EUR HDA for the specified coordinates, properties, and years.
+
+    Parameters:
+        coordinates (tuple): Coordinates ('lat', 'lon') to extract mowing data.
+        map_properties (list): List of properties to extract.
+        years (list of int): List of years to process.
+
+    Returns:
+        tuple: Mowing data for given years (2D numpy.ndarray, nan if no grassland or no mowing event),
+            and list of query sources and time stamps.
+    """
+    map_key = "EUR_hda_mowing"
+    logger.info(f"Reading mowing data from '{map_key}' map ...")
+    query_protocol = []
+    warn_no_grassland = True
+
+    # Get mowing events and dates legends
+    no_data_value = {}
+    no_grassland_value = {}
+
+    for map_type in ["events", "dates"]:
+        map_specs = {
+            "folder": folder,
+            "subfolder": map_key,
+            "file_stem": f"EUR_hda_mowing_{map_type}_Legend",
+            "leg_ext": ".xlsx",
+        }
+
+        category_mapping = ut.get_legend_from_file(map_specs)
+        no_data_value[map_type] = next(
+            (key for key, value in category_mapping.items() if value == "outside area"),
+            None,
+        )
+        no_grassland_value[map_type] = next(
+            (
+                key
+                for key, value in category_mapping.items()
+                if value == "all non-herbaceous areas"
+            ),
+            None,
+        )
+
+    # Initialize property_data array with nans
+    property_data = np.full((len(years), map_count + 1), np.nan, dtype=object)
+
+    # Extract values from tif maps for each year and each property
+    for y_index, year in enumerate(years):
+        # Add year to management data
+        property_data[y_index, 0] = year
+        hda_file_stems = request_hda_grassland_data(
+            f"{map_key}_events",
+            year,
+            [coordinates],
+            opendap_folder=f"{folder}/{map_key}/",
+        )
+
+        if hda_file_stems != []:
+            for hda_file_stem in hda_file_stems:
+                map_file = Path(f"{folder}/{map_key}/{hda_file_stem}.tif")
+
+                if map_file.is_file():
+                    logger.info(f"Mowing events map found. Using '{map_file}'.")
+                else:
+                    logger.warning(
+                        f"Mowing events map file '{map_file}' not found. Skipping map."
+                    )
+                    continue
+
+                event_value, time_stamp = ut.extract_raster_value(
+                    map_file, coordinates, no_data_value=no_data_value["events"]
+                )
+
+                if event_value != no_data_value["events"]:
+                    # Correct map was found
+                    query_protocol.append([map_file, time_stamp])
+
+                    if event_value == no_grassland_value["events"]:
+                        if warn_no_grassland:
+                            logger.warning(
+                                f"Location not classified as grassland in '{map_key}' events map for year {year}."
+                            )
+                            # warn_no_grassland = False
+                    else:
+                        property_data[y_index, 1] = event_value
+                        logger.info(f"{year}, mowing: {event_value} event(s).")
+
+                        if event_value > 0:
+                            # Request mowing dates (separate maps)
+                            # Note: reducing to only the maps for the events found is impossible
+                            # because the requested product type is always "Grassland Mowing Dates (4 Dates per Year)"
+                            dates_file_stems = request_hda_grassland_data(
+                                f"{map_key}_dates",
+                                year,
+                                [coordinates],
+                                opendap_folder=f"{folder}/{map_key}/",
+                            )
+
+                            if dates_file_stems != []:
+                                for event_index in range(1, event_value + 1):
+                                    # Filter dates file stems for the current mowing event index
+                                    dates_str = f"_GRAMD{event_index}"
+                                    dates_file_stems_filtered = [
+                                        dfs
+                                        for dfs in dates_file_stems
+                                        if dates_str in dfs
+                                    ]
+
+                                    for dates_file_stem in dates_file_stems_filtered:
+                                        map_file = Path(
+                                            f"{folder}/{map_key}/{dates_file_stem}.tif"
+                                        )
+
+                                        if map_file.is_file():
+                                            logger.info(
+                                                f"Mowing dates map for event {event_index} found. Using '{map_file}'."
+                                            )
+                                        else:
+                                            logger.warning(
+                                                f"Mowing dates map for event {event_index} not found. Skipping map."
+                                            )
+                                            continue
+
+                                        value, time_stamp = ut.extract_raster_value(
+                                            map_file,
+                                            coordinates,
+                                            no_data_value=no_data_value["dates"],
+                                        )
+
+                                        if value != no_data_value["dates"]:
+                                            # Correct map was found
+                                            query_protocol.append(
+                                                [map_file, time_stamp]
+                                            )
+
+                                            if value == no_grassland_value["dates"]:
+                                                try:
+                                                    raise ValueError(
+                                                        f"Location classified as grassland in '{map_key}' events map for year {year}, "
+                                                        f"but as non-grassland in the map for mowing date {event_index}."
+                                                    )
+                                                except ValueError as e:
+                                                    logger.error(e)
+                                                    raise
+
+                                            if value == 0:
+                                                try:
+                                                    raise ValueError(
+                                                        f"{event_value} events were found in'{map_key}' events map for year {year}, "
+                                                        f"but mowing date for event {event_index} is 0."
+                                                    )
+                                                except ValueError as e:
+                                                    logger.error(e)
+                                                    raise
+
+                                            property_data[y_index, event_index + 1] = (
+                                                value
+                                            )
+                                            mow_date = ut.day_of_year_to_date(
+                                                year, int(value)
+                                            )
+                                            logger.info(
+                                                f"Mowing event {event_index}: "
+                                                f"{mow_date.strftime('%Y-%m-%d')}."
+                                            )
+
+                                            break
+
+                    break
 
     return property_data, query_protocol
 
@@ -992,7 +1158,12 @@ def get_management_data(
             "date_6",
         ]
         management_data_raw, data_query_protocol = get_GER_Schwieder_data(
-            coordinates, map_properties, years
+            coordinates, years, map_bands=len(map_properties)
+        )
+    elif map_key == "EUR_hda_mowing":
+        map_properties = ["mowing", "date_1", "date_2", "date_3", "date_4"]
+        management_data_raw, data_query_protocol = get_EUR_hda_mowing_data(
+            coordinates, years, map_count=len(map_properties)
         )
     else:
         try:
@@ -1153,9 +1324,9 @@ def main():
     parser.add_argument(
         "--map_key",
         type=str,
-        default="GER_Lange",
-        choices=["GER_Lange", "GER_Schwieder"],
-        help="Options: 'GER_Lange', 'GER_Schwieder'. (Can be extended.)",
+        default="EUR_hda_mowing",
+        choices=["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"],
+        help="Options: 'GER_Lange', 'GER_Schwieder', 'EUR_hda_mowing'. (Can be extended.)",
     )
     parser.add_argument(
         "--fill_mode",
