@@ -36,10 +36,10 @@ from ucgrassland.utils import download_file_opendap
 
 HDA_PRODUCT_TYPES = MappingProxyType(
     {
-        "hda_grassland": "Grassland",
-        "hda_herb_cover": "Herbaceous Cover",
-        "hda_mowing_events": "Grassland Mowing Events",
-        "hda_mowing_dates": "Grassland Mowing Dates (4 Dates per Year)",
+        "EUR_hda_grassland": "Grassland",
+        "EUR_hda_herb_cover": "Herbaceous Cover",
+        "EUR_hda_mowing_events": "Grassland Mowing Events",
+        "EUR_hda_mowing_dates": "Grassland Mowing Dates (4 Dates per Year)",
     }
 )
 
@@ -125,7 +125,7 @@ def request_hda_grassland_data(
     elif isinstance(target_folder, str):
         target_folder = Path.cwd() / target_folder
 
-    if map_key == "hda_grassland":
+    if map_key == "EUR_hda_grassland":
         years_available = [2015, 2017, 2018, 2019, 2020, 2021]
     else:
         years_available = [2017, 2018, 2019, 2020, 2021]
@@ -146,7 +146,7 @@ def request_hda_grassland_data(
 
             # Create target folder if it does not exist
             if not target_folder.is_dir():
-                logger.info(f"Creating target folder: {target_folder}...")
+                logger.info(f"Creating target folder: {target_folder} ...")
                 target_folder.mkdir(parents=True, exist_ok=True)
 
             # Request HDA data
@@ -227,7 +227,7 @@ def request_hda_grassland_data(
                 # If file still not available, download from HDA API
                 if not hda_file_tif.is_file():
                     logger.info(
-                        f"Downloading '{hda_file_stem + '.zip'}' from WEkEO HDA API Client to '{target_folder}'..."
+                        f"Downloading '{hda_file_stem + '.zip'}' from WEkEO HDA API Client to '{target_folder}' ..."
                     )
                     match.download(download_dir=target_folder)
                     hda_file_zip = Path(target_folder / f"{hda_file_stem}.zip")
@@ -275,20 +275,17 @@ def request_hda_grassland_data(
                 logger.error(e)
                 return []
     else:
-        try:
-            raise ValueError(
-                f"Invalid year '{year}'. Valid years are: {years_available}"
-            )
-        except ValueError as e:
-            logger.error(e)
-            return []
+        logger.warning(
+            f"Invalid year '{year}'. Valid years for '{map_key}' map are: {years_available}."
+        )
+        return []
 
     return hda_file_stems
 
 
 def main():
     # Example usage
-    map_key = "hda_grassland"
+    map_key = "EUR_hda_grassland"
     year = 2020
     # # example: GCEF small scale difference
     coordinates_list = [

@@ -88,12 +88,10 @@ Data sources:
 """
 
 import argparse
-import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
 import deims
-import pandas as pd
 import requests
 
 from ucgrassland import utils as ut
@@ -199,51 +197,6 @@ def get_map_specs(map_key):
     return map_specs
 
 
-def get_legend_from_file(map_specs, *, cache=None):
-    """
-    Get legend file for land cover map and create a mapping of category indices to category names.
-
-    Parameters:
-        map_specs (dict): Dictionary containing map specifications.
-        cache (Path): Path for local map directory (default is None).
-
-    Returns:
-        dict: A mapping of category indices to category names.
-    """
-    file_name = f"{map_specs['file_stem']}{map_specs['leg_ext']}"
-
-    # Try local file first
-    if cache is not None:
-        leg_file = Path(cache) / map_specs["subfolder"] / file_name
-
-        if leg_file.is_file():
-            logger.info(f"Land cover categories found. Using '{leg_file}'.")
-            category_mapping = create_category_mapping(leg_file)
-
-            return category_mapping
-        else:
-            logger.info(f"Land cover categories file '{leg_file}' not found.")
-
-    # Try URL
-    leg_file = (
-        f"{ut.OPENDAP_ROOT}{map_specs['folder']}/{map_specs['subfolder']}/{file_name}"
-    )
-
-    if ut.check_url(leg_file):
-        logger.info(f"Land cover categories found. Using '{leg_file}'.")
-        category_mapping = create_category_mapping(leg_file)
-
-        return category_mapping
-    else:
-        try:
-            raise FileNotFoundError(
-                f"Land cover categories file '{leg_file}' not found."
-            )
-        except FileNotFoundError as e:
-            logger.error(e)
-            raise
-
-
 def get_map_and_legend(map_key, *, cache=None):
     """
     Check if TIF file and categories file are available, read categories from file.
@@ -287,68 +240,9 @@ def get_map_and_legend(map_key, *, cache=None):
                 raise
 
     # Get categories for map values
-    category_mapping = get_legend_from_file(map_specs)
+    category_mapping = ut.get_legend_from_file(map_specs)
 
     return map_file, category_mapping
-
-
-def create_category_mapping(leg_file):
-    """
-    Create a mapping of category indices to category names from legend file (XML or XLSX or ...).
-
-    Parameters:
-        leg_file (Path or URL): Path or URL to the leg file containing category names (in specific format).
-
-    Returns:
-        dict: A mapping of category indices to category names.
-    """
-    category_mapping = {}
-
-    # Get file type (without dot)
-    if isinstance(leg_file, Path):
-        leg_file_suffix = leg_file.suffix[1:]
-    elif isinstance(leg_file, str):
-        leg_file_suffix = leg_file.split(".")[-1]
-
-    if leg_file_suffix in ["xlsx", "xls"]:
-        try:
-            df = pd.read_excel(leg_file)
-
-            # Assuming category elements are listed in the first two columns (index and name)
-            category_mapping = {row[0]: row[1] for row in df.values}
-            # # Alternative using the row names 'code' and 'class_name'
-            # category_mapping = (df[["code", "class_name"]].set_index("code")["class_name"].to_dict())
-        except Exception as e:
-            logger.error(f"Reading XLSX file failed ({str(e)}).")
-    elif leg_file_suffix == "xml":
-        # Not implemented for URL, only local files
-        try:
-            tree = ET.parse(leg_file)
-            root = tree.getroot()
-
-            # Find CategoryNames (as in Preidl map legend)
-            category_names = root.find(".//CategoryNames")
-
-            if category_names is not None:
-                for index, category in enumerate(category_names):
-                    category_name = category.text
-                    category_mapping[index] = category_name
-            else:
-                # Find GDALRasterAttributeTable (as in hda grassland data format)
-                rat = root.find(".//GDALRasterAttributeTable")
-
-                if rat is not None:
-                    for row in rat.findall("Row"):
-                        fields = row.findall("F")
-
-                        if len(fields) >= 3:
-                            value = int(fields[0].text)  # value in first row
-                            class_name = fields[2].text  # class name in third row
-                            category_mapping[value] = class_name
-        except Exception as e:
-            logger.error(f"Reading XML file failed ({str(e)}).")
-
-    return category_mapping
 
 
 def get_category_tif(map_file, category_mapping, location, *, no_data_value=None):
@@ -754,7 +648,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
             elif map_key in hda_keys:
                 map_key_stem, year = map_key.rsplit("_", 1)
                 hda_file_stems = request_hda_grassland_data(
-                    map_key_stem.split("EUR_")[1], int(year), [site_check]
+                    map_key_stem, int(year), [site_check]
                 )
 
                 if hda_file_stems == []:
@@ -769,7 +663,7 @@ def check_locations_for_grassland(locations, map_key, file_name=None):
                     )
                     grassland_check.append(site_check)
                 else:
-                    category_mapping = get_legend_from_file(map_specs)
+                    category_mapping = ut.get_legend_from_file(map_specs)
 
                     for hda_file_stem in hda_file_stems:
                         map_file = Path(
