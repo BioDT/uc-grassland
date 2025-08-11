@@ -117,7 +117,7 @@ def get_input_data(
     else:
         default_land_cover_map_keys = [
             "EUR_hrl_grassland",
-            "EUR_hda_grassland_2015",
+            # "EUR_hda_grassland_2015",
             "EUR_hda_grassland_2017",
             "EUR_hda_grassland_2018",
             "EUR_hda_grassland_2019",
@@ -218,7 +218,7 @@ def get_input_data(
     if skip_management:
         logger.info("Management data preparation skipped.")
     else:
-        land_use_map_keys = ["GER_Lange", "GER_Schwieder"]
+        land_use_map_keys = ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]
 
         for coordinates in coordinates_list:
             coordinates = add_coordinate_infos(coordinates)
@@ -304,10 +304,10 @@ def prep_grassland_model_input_data(
                 logger.error(e)
                 raise
     else:
-        # skip_grass_check = True
+        skip_grass_check = True
         skip_weather = True
         skip_soil = True
-        skip_management = True
+        # skip_management = True
 
         # Example locations list
         # locations = ut.parse_locations(
@@ -392,9 +392,9 @@ def prep_grassland_model_input_data(
             "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
             "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
             "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
-            # not eLTER plus
-            "KUL-site",  # KU Leuven, Belgium
-            "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
+            # # not eLTER plus
+            # "KUL-site",  # KU Leuven, Belgium
+            # "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
         ]
 
         # Get the last full year from now

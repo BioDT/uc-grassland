@@ -25,6 +25,19 @@ for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CS
 Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
 
 Data sources:
+    "EUR_hda_grassland" maps:
+    - European Union's Copernicus Land Monitoring Service (2024).
+      Grassland Mowing Events 2017 - Present (raster 10m), Europe, yearly, Nov. 2024.
+      https://doi.org/10.2909/114e8cae-1cd7-4adc-8c5f-a04863fc6af9.
+    - European Union's Copernicus Land Monitoring Service (2024).
+      Grassland Mowing Dates 2017 - Present (raster 10m), Europe, yearly – 4 layers, Nov. 2024
+      https://doi.org/10.2909/660d00f1-c6de-4db6-9979-0be124ceb7f0.
+    - REST API:
+      WEkEO HDA API Client:
+      - Project page: https://pypi.org/project/hda/
+      - Documentation: https://hda.readthedocs.io/en/latest/
+      - License: Apache License 2.0, https://github.com/ecmwf/hda/blob/master/LICENSE.txt
+
     "GER_Lange" map:
     - Lange, M., Feilhauer, H., Kühn, I., Doktor, D. (2022).
       Mapping land-use intensity of grasslands in Germany with machine learning and Sentinel-2 time series,
@@ -545,7 +558,6 @@ def get_EUR_hda_mowing_data(coordinates, years, *, folder="landUseMaps", map_cou
                             logger.warning(
                                 f"Location not classified as grassland in '{map_key}' events map for year {year}."
                             )
-                            # warn_no_grassland = False
                     else:
                         property_data[y_index, 1] = event_value
                         logger.info(f"{year}, mowing: {event_value} event(s).")
@@ -609,25 +621,29 @@ def get_EUR_hda_mowing_data(coordinates, years, *, folder="landUseMaps", map_cou
                                                     raise
 
                                             if value == 0:
-                                                try:
-                                                    raise ValueError(
-                                                        f"{event_value} events were found in'{map_key}' events map for year {year}, "
-                                                        f"but mowing date for event {event_index} is 0."
-                                                    )
-                                                except ValueError as e:
-                                                    logger.error(e)
-                                                    raise
-
-                                            property_data[y_index, event_index + 1] = (
-                                                value
-                                            )
-                                            mow_date = ut.day_of_year_to_date(
-                                                year, int(value)
-                                            )
-                                            logger.info(
-                                                f"Mowing event {event_index}: "
-                                                f"{mow_date.strftime('%Y-%m-%d')}."
-                                            )
+                                                logger.warning(
+                                                    f"Found {event_value} event(s) in '{map_key}' events map for year {year}, "
+                                                    f"but mowing date for event {event_index} is 0. Cannot create date entry."
+                                                )
+                                                # try:
+                                                #     raise ValueError(
+                                                #         f"{event_value} events were found in'{map_key}' events map for year {year}, "
+                                                #         f"but mowing date for event {event_index} is 0."
+                                                #     )
+                                                # except ValueError as e:
+                                                #     logger.error(e)
+                                                #     raise
+                                            else:
+                                                property_data[
+                                                    y_index, event_index + 1
+                                                ] = value
+                                                mow_date = ut.day_of_year_to_date(
+                                                    year, int(value)
+                                                )
+                                                logger.info(
+                                                    f"Mowing event {event_index}: "
+                                                    f"{mow_date.strftime('%Y-%m-%d')}."
+                                                )
 
                                             break
 
@@ -941,13 +957,14 @@ def convert_management_data(
     """
     management_events = []
     years = np.array([int(entry[0]) for entry in management_data_raw])
-    years_with_mow_data = np.array([])
+    # years_with_mow_data = np.array([], dtype=int)
+    years_with_data_conflict = np.array([], dtype=int)
     mow_days_per_year = [[] for _ in range(len(years))]
     fert_days_per_year = [[] for _ in range(len(years))]
     fert_source_per_year = np.full(years.shape, "", dtype=object)
 
     # MOWING
-    if map_key in ["GER_Lange", "GER_Schwieder"]:
+    if map_key in ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]:
         # Read mowing, same column for "GER_Lange" and "GER_Schwieder"
         mow_count_per_year = np.array([entry[1] for entry in management_data_raw])
         years_with_mow_data = years[~np.isnan(mow_count_per_year)]
@@ -962,21 +979,36 @@ def convert_management_data(
                     mow_height=mow_height,
                 )
                 management_events.extend(mow_schedule)
-        elif map_key == "GER_Schwieder":
+        elif map_key in ["GER_Schwieder", "EUR_hda_mowing"]:
             # Get specific mowing dates for each year with mowing, add to management events
             for index in np.where(mow_count_per_year > 0)[0]:
-                entry = management_data_raw[index]
-                mow_days_per_year[index] = [
-                    int(x) for x in entry[2 : int(mow_count_per_year[index]) + 2]
-                ]
-                mow_events = get_mow_events(
-                    years[index],
-                    mow_days_per_year[index],
-                    "date observed",
-                    mow_height=mow_height,
-                    leap_year_considered=True,
+                mow_count = int(mow_count_per_year[index])
+                entry_dates = np.array(
+                    management_data_raw[index][2 : mow_count + 2], dtype=float
                 )
-                management_events.extend(mow_events)
+
+                if np.isnan(entry_dates).any():
+                    logger.warning(
+                        f"Found {mow_count} mowing events for year {years[index]}, "
+                        "but at least one missing value in corresponding mowing dates. Using default schedule instead."
+                    )
+                    # Delete year from years_with_mow_data, so dates will be filled later
+                    years_with_mow_data = years_with_mow_data[
+                        years_with_mow_data != years[index]
+                    ]
+                    years_with_data_conflict = np.append(
+                        years_with_data_conflict, years[index]
+                    )
+                else:
+                    mow_days_per_year[index] = [int(x) for x in entry_dates]
+                    mow_events = get_mow_events(
+                        years[index],
+                        mow_days_per_year[index],
+                        "date observed",
+                        mow_height=mow_height,
+                        leap_year_considered=True,
+                    )
+                    management_events.extend(mow_events)
 
     # Fill mowing for years without data
     fill_mode = fill_mode.lower()
@@ -988,12 +1020,12 @@ def convert_management_data(
         # Use means of data retrieved for remaining years as well
         logger.info("Completing management data with means from years with data ...")
 
-        if years_with_mow_data.size > 0:
+        if sum(~np.isnan(mow_count_per_year)) > 0:
             mow_count_float = np.nanmean(mow_count_per_year)
             mow_count_fill = round(mow_count_float + epsilon)
             logger.info(
                 f"Mean annual mowing events: {mow_count_float:.4f} "
-                f"(from {years_with_mow_data.size} years). "
+                f"(from {sum(~np.isnan(mow_count_per_year))} years). "
                 f"Using {mow_count_fill} events per year."
             )
             data_source_str = f"event assumed (fill mode: {fill_mode}, date: schedule)"
@@ -1018,11 +1050,14 @@ def convert_management_data(
     # Add all remaining mowing events to schedule
     for index, year in enumerate(years):
         if mow_count_per_year[index] > 0 and year not in years_with_mow_data:
+            source_str = (
+                "event observed (date: not found, schedule)"
+                if year in years_with_data_conflict
+                else data_source_str
+            )
+
             mow_schedule = get_mow_schedule(
-                year,
-                mow_count_fill,
-                data_source_str,
-                mow_height=mow_height,
+                year, mow_count_per_year[index], source_str, mow_height=mow_height
             )
             management_events.extend(mow_schedule)
 
@@ -1076,7 +1111,7 @@ def convert_management_data(
             fert_source_per_year[index_to_fill] = (
                 "event assumed (fill mode: like mowing, date: schedule)"
             )
-    elif map_key == "GER_Schwieder":
+    elif map_key in ["GER_Schwieder", "EUR_hda_mowing"]:
         fert_count_per_year = np.zeros_like(mow_count_per_year)
 
         if fill_mode in ["mean", "default"]:
@@ -1256,28 +1291,32 @@ def prep_management_data(
                 logger.error(e)
                 raise
     else:
-        # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
-        sites_file_name = Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"
-        sites_ids = ut.get_deims_ids_from_xls(
-            sites_file_name, header_row=1, country="DE"
-        )
-        sites_ids = ["fd8b85c0-93ef-4a41-8706-3c4be9dec8e5"]
+        # # Example to get multiple coordinates from DEIMS.iDs from XLS file, filter only Germany
+        # sites_file_name = Path.cwd() / "grasslandSites" / "_elter_call_sites.xlsx"
+        # sites_ids = ut.get_deims_ids_from_xls(
+        #     sites_file_name, header_row=1, country="DE"
+        # )
+        # sites_ids = ["fd8b85c0-93ef-4a41-8706-3c4be9dec8e5"]
 
-        for deims_id in sites_ids:
-            location = ut.get_deims_coordinates(deims_id)
+        # for deims_id in sites_ids:
+        #     location = ut.get_deims_coordinates(deims_id)
 
-            if location["found"]:
-                get_management_data(
-                    location,
-                    years,
-                    map_key,
-                    fill_mode=fill_mode,
-                    mow_height=mow_height,
-                    file_name=file_name,
-                )
+        #     if location["found"]:
+        #         get_management_data(
+        #             location,
+        #             years,
+        #             map_key,
+        #             fill_mode=fill_mode,
+        #             mow_height=mow_height,
+        #             file_name=file_name,
+        #         )
 
         # Example coordinates for checking without DEIMS.iDs
         locations = [
+            {
+                "lat": 46.702177,
+                "lon": 10.627141,
+            },  # IT, test difference between events and dates maps (2018)
             {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
             {
                 "lat": 51.3919,

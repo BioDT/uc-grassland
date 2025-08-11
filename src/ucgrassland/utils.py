@@ -1332,7 +1332,7 @@ def extract_raster_value(
                                 tif_file.stat().st_mtime,
                                 tz=timezone.utc,
                             ).isoformat(timespec="seconds")
-                    else:
+                    elif read_mode == "r+":
                         logger.warning(
                             "TIFFTAG_DATETIME not found in TIFF metadata. Using file modification time instead."
                         )
@@ -1340,6 +1340,10 @@ def extract_raster_value(
                             tif_file.stat().st_mtime,
                             tz=timezone.utc,
                         ).isoformat(timespec="seconds")
+                    else:
+                        logger.warning(
+                            "TIFFTAG_DATETIME not found in TIFF metadata. Using file reading time instead."
+                        )
 
             return value[0], time_stamp
         except rasterio.errors.RasterioIOError as e:

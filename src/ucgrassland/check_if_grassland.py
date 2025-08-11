@@ -37,6 +37,16 @@ Data sources:
     - REST API:
       https://sdi.eea.europa.eu/catalogue/copernicus/eng/catalog.search#/metadata/60639d5b-9164-4135-ae93-fb4132bb6d83
 
+    "EUR_hda_grassland":
+    - European Union's Copernicus Land Monitoring Service (2024).
+      Grassland 2017 - Present (raster 10m), Europe, yearly, Nov. 2024.
+      https://doi.org/10.2909/0b6254bb-4c7d-41d9-8eae-c43b05ab2965.
+    - REST API:
+      WEkEO HDA API Client:
+      - Project page: https://pypi.org/project/hda/
+      - Documentation: https://hda.readthedocs.io/en/latest/
+      - License: Apache License 2.0, https://github.com/ecmwf/hda/blob/master/LICENSE.txt
+
     "EUR_Pflugmacher":
     - Pflugmacher, D., Rabe, A., Peters, M., Hostert, P. (2018).
       Pan-European land cover map of 2015 based on Landsat and LUCAS data.
