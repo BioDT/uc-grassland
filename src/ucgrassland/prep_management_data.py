@@ -496,6 +496,7 @@ def get_EUR_hda_mowing_data(coordinates, years, *, folder="landUseMaps", map_cou
     # Get mowing events and dates legends
     no_data_value = {}
     no_grassland_value = {}
+    mow_date_layers = 4
 
     for map_type in ["events", "dates"]:
         map_specs = {
@@ -562,90 +563,78 @@ def get_EUR_hda_mowing_data(coordinates, years, *, folder="landUseMaps", map_cou
                         property_data[y_index, 1] = event_value
                         logger.info(f"{year}, mowing: {event_value} event(s).")
 
-                        if event_value > 0:
-                            # Request mowing dates (separate maps)
-                            # Note: reducing to only the maps for the events found is impossible
-                            # because the requested product type is always "Grassland Mowing Dates (4 Dates per Year)"
-                            dates_file_stems = request_hda_grassland_data(
-                                f"{map_key}_dates",
-                                year,
-                                [coordinates],
-                                opendap_folder=f"{folder}/{map_key}/",
-                            )
+                        # Request mowing dates (separate maps)
+                        # Note: reducing to only the maps for the events found is impossible
+                        # because the requested product type is always "Grassland Mowing Dates (4 Dates per Year)"
+                        # and it may occur that a certain (e.g. 1st) event date is 0 but a subsequent (e.g. 2nd) is not
+                        dates_file_stems = request_hda_grassland_data(
+                            f"{map_key}_dates",
+                            year,
+                            [coordinates],
+                            opendap_folder=f"{folder}/{map_key}/",
+                        )
 
-                            if dates_file_stems != []:
-                                for event_index in range(1, event_value + 1):
-                                    # Filter dates file stems for the current mowing event index
-                                    dates_str = f"_GRAMD{event_index}"
-                                    dates_file_stems_filtered = [
-                                        dfs
-                                        for dfs in dates_file_stems
-                                        if dates_str in dfs
-                                    ]
+                        if dates_file_stems != []:
+                            for event_index in range(1, mow_date_layers + 1):
+                                # Filter dates file stems for the current mowing event index
+                                dates_str = f"_GRAMD{event_index}"
+                                dates_file_stems_filtered = [
+                                    dfs for dfs in dates_file_stems if dates_str in dfs
+                                ]
 
-                                    for dates_file_stem in dates_file_stems_filtered:
-                                        map_file = Path(
-                                            f"{folder}/{map_key}/{dates_file_stem}.tif"
+                                for dates_file_stem in dates_file_stems_filtered:
+                                    map_file = Path(
+                                        f"{folder}/{map_key}/{dates_file_stem}.tif"
+                                    )
+
+                                    if map_file.is_file():
+                                        logger.info(
+                                            f"Mowing dates map for event {event_index} found. Using '{map_file}'."
                                         )
+                                    else:
+                                        logger.warning(
+                                            f"Mowing dates map for event {event_index} not found. Skipping map."
+                                        )
+                                        continue
 
-                                        if map_file.is_file():
+                                    value, time_stamp = ut.extract_raster_value(
+                                        map_file,
+                                        coordinates,
+                                        no_data_value=no_data_value["dates"],
+                                    )
+
+                                    if value != no_data_value["dates"]:
+                                        # Correct map was found
+                                        query_protocol.append([map_file, time_stamp])
+
+                                        if value == no_grassland_value["dates"]:
+                                            try:
+                                                raise ValueError(
+                                                    f"Location classified as grassland in '{map_key}' events map for year {year}, "
+                                                    f"but as non-grassland in the map for mowing date {event_index}."
+                                                )
+                                            except ValueError as e:
+                                                logger.error(e)
+                                                raise
+
+                                        if value > 0:
+                                            property_data[y_index, event_index + 1] = (
+                                                value
+                                            )
+                                            mow_date = ut.day_of_year_to_date(
+                                                year, int(value)
+                                            )
                                             logger.info(
-                                                f"Mowing dates map for event {event_index} found. Using '{map_file}'."
+                                                f"Mowing event {event_index}: "
+                                                f"{mow_date.strftime('%Y-%m-%d')}."
                                             )
-                                        else:
+                                        elif event_index <= event_value:
                                             logger.warning(
-                                                f"Mowing dates map for event {event_index} not found. Skipping map."
-                                            )
-                                            continue
-
-                                        value, time_stamp = ut.extract_raster_value(
-                                            map_file,
-                                            coordinates,
-                                            no_data_value=no_data_value["dates"],
-                                        )
-
-                                        if value != no_data_value["dates"]:
-                                            # Correct map was found
-                                            query_protocol.append(
-                                                [map_file, time_stamp]
+                                                f"Found {event_value} event(s) in '{map_key}' events map for year {year}, "
+                                                f"but mowing date for event {event_index} is 0. Cannot create date entry."
                                             )
 
-                                            if value == no_grassland_value["dates"]:
-                                                try:
-                                                    raise ValueError(
-                                                        f"Location classified as grassland in '{map_key}' events map for year {year}, "
-                                                        f"but as non-grassland in the map for mowing date {event_index}."
-                                                    )
-                                                except ValueError as e:
-                                                    logger.error(e)
-                                                    raise
-
-                                            if value == 0:
-                                                logger.warning(
-                                                    f"Found {event_value} event(s) in '{map_key}' events map for year {year}, "
-                                                    f"but mowing date for event {event_index} is 0. Cannot create date entry."
-                                                )
-                                                # try:
-                                                #     raise ValueError(
-                                                #         f"{event_value} events were found in'{map_key}' events map for year {year}, "
-                                                #         f"but mowing date for event {event_index} is 0."
-                                                #     )
-                                                # except ValueError as e:
-                                                #     logger.error(e)
-                                                #     raise
-                                            else:
-                                                property_data[
-                                                    y_index, event_index + 1
-                                                ] = value
-                                                mow_date = ut.day_of_year_to_date(
-                                                    year, int(value)
-                                                )
-                                                logger.info(
-                                                    f"Mowing event {event_index}: "
-                                                    f"{mow_date.strftime('%Y-%m-%d')}."
-                                                )
-
-                                            break
+                                        break
 
                     break
 
@@ -957,7 +946,6 @@ def convert_management_data(
     """
     management_events = []
     years = np.array([int(entry[0]) for entry in management_data_raw])
-    # years_with_mow_data = np.array([], dtype=int)
     years_with_data_conflict = np.array([], dtype=int)
     mow_days_per_year = [[] for _ in range(len(years))]
     fert_days_per_year = [[] for _ in range(len(years))]
@@ -965,7 +953,7 @@ def convert_management_data(
 
     # MOWING
     if map_key in ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]:
-        # Read mowing, same column for "GER_Lange" and "GER_Schwieder"
+        # Read mowing, same column for "GER_Lange", "GER_Schwieder" and "EUR_hda_mowing"
         mow_count_per_year = np.array([entry[1] for entry in management_data_raw])
         years_with_mow_data = years[~np.isnan(mow_count_per_year)]
 
@@ -983,14 +971,15 @@ def convert_management_data(
             # Get specific mowing dates for each year with mowing, add to management events
             for index in np.where(mow_count_per_year > 0)[0]:
                 mow_count = int(mow_count_per_year[index])
-                entry_dates = np.array(
-                    management_data_raw[index][2 : mow_count + 2], dtype=float
-                )
+                entry_dates = [
+                    int(x) for x in management_data_raw[index][2:] if not np.isnan(x)
+                ]
 
-                if np.isnan(entry_dates).any():
+                if len(entry_dates) != mow_count:
                     logger.warning(
                         f"Found {mow_count} mowing events for year {years[index]}, "
-                        "but at least one missing value in corresponding mowing dates. Using default schedule instead."
+                        f"but {len(entry_dates)} entries in corresponding mowing dates. "
+                        "Using default schedule for mowing dates instead."
                     )
                     # Delete year from years_with_mow_data, so dates will be filled later
                     years_with_mow_data = years_with_mow_data[
@@ -1316,7 +1305,16 @@ def prep_management_data(
             {
                 "lat": 46.702177,
                 "lon": 10.627141,
-            },  # IT, test difference between events and dates maps (2018)
+            },  # IT, test difference between events and dates maps (2018), 1 event, no date in event1 dates, but 1 date in event2 dates
+            {
+                "lat": 48.051668,
+                "lon": -1.459956,
+            },  # FR, test deviation geoviewer and tiff maps from api?
+            {
+                "lat": 46.735303,
+                "lon": 10.927931,
+            },  # IT, test difference between events and dates maps (2021), 2 events, 1 date missing
+            # also difference between geoviewer and tiff maps from api?
             {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
             {
                 "lat": 51.3919,
