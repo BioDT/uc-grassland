@@ -1256,6 +1256,26 @@ def reproject_coordinates(lat, lon, target_crs):
     return east, north
 
 
+def set_no_data_value(tif_file, no_data_value):
+    """
+    Set the no_data value for a TIFF file, if it is provided and differs from the current value.
+    Only modifies the file if needed.
+    """
+    if no_data_value is not None:
+        no_data_value = float(no_data_value)
+
+        with rasterio.open(tif_file, "r") as src:
+            current_no_data = src.nodata
+
+        if current_no_data is None or float(current_no_data) != no_data_value:
+            with rasterio.open(tif_file, "r+") as src:
+                src.nodata = no_data_value
+
+            logger.info(
+                f"Modified 'no data' value for raster file '{tif_file}' from {current_no_data} to {no_data_value}."
+            )
+
+
 def extract_raster_value(
     tif_file,
     location,
@@ -1282,17 +1302,15 @@ def extract_raster_value(
         tuple: Extracted value (None if extraction failed), and time stamp.
     """
     is_url = str(tif_file).startswith("http") or str(tif_file).startswith("/vsicurl")
-    read_mode = "r+" if not is_url and no_data_value is not None else "r"
+
+    if not is_url:
+        set_no_data_value(tif_file, no_data_value)
 
     while attempts > 0:
         time_stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
         try:
-            with rasterio.open(tif_file, read_mode) as src:
-                # Set no_data_value if provided
-                if read_mode == "r+" and no_data_value is not None:
-                    src.nodata = no_data_value
-
+            with rasterio.open(tif_file, "r") as src:
                 # Check if band number exists in the raster file
                 if band_number not in src.indexes:
                     try:
@@ -1311,41 +1329,31 @@ def extract_raster_value(
                 )
 
                 # Extract value from specified band number at specified coordinates
-                value = next(src.sample([(east, north)], indexes=band_number))
+                value = next(src.sample([(east, north)], indexes=band_number))[0]
+
+                # # testing
+                # print("Original coordinates:", location["lat"], location["lon"])
+                # print("Projected coordinates:", east, north)
+                # print("Raster bounds:", src.bounds)
+                # row, col = src.index(east, north)
+                # print("Pixel indices:", row, col)
+                # print("Raster value via indices:", src.read(band_number)[row, col])
+                # print("Raster value via sample:", value)
 
                 if file_date_for_time_stamp:
-                    # Replace time_stamp from above with date from TIF file metadata
-                    tiff_datetime = src.tags(band_number).get("TIFFTAG_DATETIME")
-
-                    if tiff_datetime:
-                        # TIFFTAG_DATETIME is usually "YYYY:MM:DD HH:MM:SS"
-                        try:
-                            dt = parse(tiff_datetime.replace(":", "-", 2))
-                            time_stamp = dt.astimezone(timezone.utc).isoformat(
-                                timespec="seconds"
-                            )
-                        except Exception as e:
-                            logger.warning(
-                                f"Could not parse TIFFTAG_DATETIME '{tiff_datetime}': {e}. Using file modification time instead."
-                            )
-                            time_stamp = datetime.fromtimestamp(
-                                tif_file.stat().st_mtime,
-                                tz=timezone.utc,
-                            ).isoformat(timespec="seconds")
-                    elif read_mode == "r+":
+                    if is_url:
                         logger.warning(
-                            "TIFFTAG_DATETIME not found in TIFF metadata. Using file modification time instead."
+                            "Cannot access file modification time for URL. Using file reading time instead."
                         )
+                    else:
                         time_stamp = datetime.fromtimestamp(
                             tif_file.stat().st_mtime,
                             tz=timezone.utc,
                         ).isoformat(timespec="seconds")
-                    else:
-                        logger.warning(
-                            "TIFFTAG_DATETIME not found in TIFF metadata. Using file reading time instead."
-                        )
 
-            return value[0], time_stamp
+                    # Code for trying to use tifftag_datetime in commits before 2025-08-12 (but tag never found)
+
+            return value, time_stamp
         except rasterio.errors.RasterioIOError as e:
             attempts -= 1
             logger.error(f"Reading TIF file failed ({e}).")

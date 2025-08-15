@@ -5,13 +5,11 @@
 #        2. with .venv activated, install copernicus by: 
 #              pip install -e ../general-copernicus-weather-data
 #
-# but reading from git should be possible via this line here:
-#        copernicus @ git+https://github.com/BioDT/general-copernicus-weather-data.git@main
-#
-# analogous for general-soilgrids-soil-data
+# copernicus and soilgrids packages, to make them available on github actions
+copernicus @ git+https://github.com/BioDT/general-copernicus-weather-data.git@main
+soilgrids @ git+https://github.com/BioDT/general-soilgrids-soil-data.git@main
 
+# other packages
 deims>=4.0
 hda>=2.34
-openpyxl>=3.1.2
 pygbif>=0.6.3
-
