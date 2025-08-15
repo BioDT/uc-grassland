@@ -35,31 +35,34 @@
             "softwareVersion": "2.0.0",
             "softwareRequirements": [
                 "deims>=4.0",
-                "openpyxl>=3.1.2",
-                "pandas>=1.5.0",
-                "pygbif>=0.6.3",
-                "pyproj>=3.7.1",
-                "pytest>=8.3.3 ",
-                "python-dotenv>=1.0.1",
-                "rasterio>=1.3.8",
-                "requests>=2.32.3",
+                "hda>=2.34",
+                "pygbif>=0.6.3",                
                 "https://github.com/BioDT/general-copernicus-weather-data",
                 "https://github.com/BioDT/general-soilgrids-soil-data"
             ],
             "supportingData": [
                 "https://eunis.eea.europa.eu/habitats-code-browser.jsp",
                 "https://doi.org/10.2909/60639d5b-9164-4135-ae93-fb4132bb6d83",
+                "https://doi.org/10.2909/0b6254bb-4c7d-41d9-8eae-c43b05ab2965",
+                "https://doi.org/10.2909/9da6ca39-043a-4bdd-8d0a-41a7bed6e439",
                 "https://doi.org/10.1594/PANGAEA.896282",
                 "https://doi.org/10.1594/PANGAEA.910837",
                 "https://zenodo.org/records/10640528",
                 "https://data.mendeley.com/datasets/m9rrv26dvf/1",
                 "https://github.com/BioDT/general-copernicus-weather-data",
                 "https://github.com/BioDT/general-soilgrids-soil-data",
+                "https://doi.org/10.2909/114e8cae-1cd7-4adc-8c5f-a04863fc6af9",
+                "https://doi.org/10.2909/660d00f1-c6de-4db6-9979-0be124ceb7f0",
                 "https://doi.org/10.1016/j.rse.2022.112888",
                 "https://doi.org/10.1016/j.rse.2021.112795",
                 "https://zenodo.org/records/5153047",
                 "https://doi.org/10.1016/j.heliyon.2023.e17287",
-                "https://doi.org/10.48693/160"
+                "https://doi.org/10.48693/160",
+                "https://www.try-db.org/TryWeb/Data.php#3",
+                "https://doi.org/10.1111/j.1365-2486.2011.02451.x",
+                "https://doi.org/10.1111/gcb.14904",
+                "https://doi.org/10.5281/zenodo.2543013",
+                "https://doi.org/10.1038/nature12872"
             ]
         },
         {

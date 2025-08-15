@@ -47,7 +47,7 @@ import hda
 from copernicus.utils import get_area_coordinates, upload_file_opendap
 
 from ucgrassland.logger_config import logger
-from ucgrassland.utils import download_file_opendap
+from ucgrassland.utils import download_file_opendap, set_no_data_value
 
 HDA_PRODUCT_TYPES = MappingProxyType(
     {
@@ -55,6 +55,15 @@ HDA_PRODUCT_TYPES = MappingProxyType(
         "EUR_hda_herb_cover": "Herbaceous Cover",
         "EUR_hda_mowing_events": "Grassland Mowing Events",
         "EUR_hda_mowing_dates": "Grassland Mowing Dates (4 Dates per Year)",
+    }
+)
+
+NO_DATA_VALUES = MappingProxyType(
+    {
+        "EUR_hda_grassland": 255,
+        "EUR_hda_herb_cover": "tbd",
+        "EUR_hda_mowing_events": 255,
+        "EUR_hda_mowing_dates": 65535,
     }
 )
 
@@ -238,6 +247,9 @@ def request_hda_grassland_data(
                                             logger.info(
                                                 f"Extracted '{extracted_path}'."
                                             )
+                                            set_no_data_value(
+                                                extracted_path, NO_DATA_VALUES[map_key]
+                                            )
 
                                             if upload_opendap:
                                                 # Try upload new file to opendap server (requires permission)
@@ -256,9 +268,14 @@ def request_hda_grassland_data(
                                     # Remove zip file after extraction
                                     hda_file_zip.unlink(missing_ok=True)
                                     logger.info(f"Removed zip file '{hda_file_zip}'.")
+                                else:
+                                    # Error if the zip file is not found
+                                    raise FileNotFoundError(
+                                        f"Zip file '{hda_file_zip}' not found after download."
+                                    )
                     break
                 except Exception as e:
-                    logger.error(f"Error while requesting/downloading HDA data: {e}.")
+                    logger.error(f"Error while requesting/downloading HDA data: {e}")
 
                     if retry_attempts > 0:
                         logger.info(

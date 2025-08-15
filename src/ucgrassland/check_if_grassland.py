@@ -94,7 +94,7 @@ Data sources:
     "GER_Blickensdörfer":
     - Blickensdörfer, L., Schwieder, M., Pflugmacher, D., Nendel, C., Erasmi, S., Hostert, P. (2021).
       National-scale crop type maps for Germany from combined time series of Sentinel-1, Sentinel-2 and Landsat 8 data (2017, 2018 and 2019).
-      Zenodo, https://zenodo.org/records/5153047)
+      Zenodo, https://zenodo.org/records/5153047
 """
 
 import argparse
@@ -255,7 +255,7 @@ def get_map_and_legend(map_key, *, cache=None):
     return map_file, category_mapping
 
 
-def get_category_tif(map_file, category_mapping, location, *, no_data_value=None):
+def get_category_tif(map_file, category_mapping, location):
     """
     Get the category based on the raster value at the specified location.
 
@@ -263,7 +263,6 @@ def get_category_tif(map_file, category_mapping, location, *, no_data_value=None
         map_file (Path): Path to the raster file.
         category_mapping (dict): Mapping of raster values to categories.
         location (dict): Dictionary with 'lat' and 'lon' keys for extracting raster value.
-        no_data_value (int or float): Value to set as no-data value in the raster file (default is None).
 
     Returns:
          tuple: Category (str) corresponding to the raster value at the specified location,
