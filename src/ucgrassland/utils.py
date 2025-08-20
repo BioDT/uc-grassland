@@ -1073,7 +1073,9 @@ def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
     return df["DEIMS.ID"].tolist()
 
 
-def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
+def get_plot_locations_from_csv(
+    csv_file, *, header_row=0, sep=";", merge_same_locations=True
+):
     """
     Extract plot locations from a CSV file and return as list of dictionaries.
 
@@ -1146,20 +1148,46 @@ def get_plot_locations_from_csv(csv_file, *, header_row=0, sep=";"):
                 # Check if coordinates already exist in locations
                 existing_location = find_existing_location(lat, lon)
 
-                if existing_location:
-                    if station_code not in existing_location["station_code"]:
-                        existing_location["station_code"].append(station_code)
-                    if site_code not in existing_location["site_code"]:
-                        existing_location["site_code"].append(site_code)
-                else:
-                    location = {
-                        "lat": lat,
-                        "lon": lon,
-                        "station_code": [station_code],
-                        "site_code": [site_code],
-                    }
+                if merge_same_locations:
+                    if existing_location:
+                        if station_code not in existing_location["station_code"]:
+                            existing_location["station_code"].append(station_code)
+                        if site_code not in existing_location["site_code"]:
+                            existing_location["site_code"].append(site_code)
+                    else:
+                        location = {
+                            "lat": lat,
+                            "lon": lon,
+                            "station_code": [station_code],
+                            "site_code": [site_code],
+                        }
 
-                    locations.append(location)
+                        locations.append(location)
+                else:
+                    station_code = (
+                        str(station_code).replace("/", "_").replace("?", "？")
+                    )
+
+                    if (
+                        existing_location
+                        and site_code != existing_location["site_code"]
+                    ):
+                        logger.error(
+                            f"Site code '{site_code}' differs for equal coordinates "
+                            f"({lat}, {lon}). Skipping entry."
+                        )
+                    elif (
+                        existing_location is None
+                        or station_code != existing_location["station_code"]
+                    ):
+                        # Add new location with just one (modified) station and site code
+                        location = {
+                            "lat": lat,
+                            "lon": lon,
+                            "station_code": station_code,
+                            "site_code": site_code,
+                        }
+                        locations.append(location)
 
         return locations
 

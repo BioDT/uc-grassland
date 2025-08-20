@@ -1294,8 +1294,6 @@ def get_observations_from_files(
 
         target_subfolder = target_folder / "Observations"
         target_subfolder.mkdir(parents=True, exist_ok=True)
-        formatted_lat = f"lat{location['lat']:.6f}"
-        formatted_lon = f"lon{location['lon']:.6f}"
 
         location_summary = {
             "site_id": location["deims_id"],
@@ -1312,7 +1310,7 @@ def get_observations_from_files(
                 observation_source = ut.get_source_from_elter_data_file_name(file_name)
                 target_file = (
                     target_subfolder
-                    / f"{formatted_lat}_{formatted_lon}__Observation__Raw__{observation_source}{target_suffix}"
+                    / f"{location['formatted_lat']}_{location['formatted_lon']}__Observation__Raw__{observation_source}{target_suffix}"
                 )
                 observation_data = read_observation_data(
                     source_folder / file_name, new_file=target_file
@@ -1341,7 +1339,7 @@ def get_observations_from_files(
                 )
                 target_file = (
                     target_subfolder
-                    / f"{formatted_lat}_{formatted_lon}__Observation__PFT__{target_variable}.txt"
+                    / f"{location['formatted_lat']}_{location['formatted_lon']}__Observation__PFT__{target_variable}.txt"
                 )
                 observation_pft = process_observation_data(
                     observation_data,
@@ -1410,12 +1408,35 @@ def prep_observation_data(
     if location["found"]:
         source_subfolder = source_folder / location["deims_id"]
         target_subfolder = target_folder / location["deims_id"]
+        location["formatted_lat"] = f"lat{location['lat']:.6f}"
+        location["formatted_lon"] = f"lon{location['lon']:.6f}"
+
         location_summary = get_observations_from_files(
             location,
             observation_data_specs,
             source_subfolder,
             target_folder=target_subfolder,
             target_suffix=target_suffix,
+        )
+
+        # Create coordinates file
+        station_file = (
+            source_folder
+            / location["deims_id"]
+            / observation_data_specs["station_file"]
+        )
+        coordinates_list = ut.get_plot_locations_from_csv(
+            station_file, merge_same_locations=False
+        )
+        coordinates_file = (
+            target_subfolder
+            / "Observations"
+            / f"{location['formatted_lat']}_{location['formatted_lon']}__Observation__Plot_Coordinates.txt"
+        )
+        ut.list_to_file(
+            coordinates_list,
+            coordinates_file,
+            column_names=["site_code", "station_code", "lat", "lon"],
         )
 
         return location_summary

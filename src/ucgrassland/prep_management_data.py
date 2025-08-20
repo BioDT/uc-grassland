@@ -4,8 +4,10 @@ Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
 Date: April, 2024
 Description: Download management data and prepare as needed for grassland model input.
 
-Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
+Developed in the BioDT project (until 2025-05) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
 Tuomas Rossi (CSC) and Taimur Haider Khan (UFZ).
+
+Further developed (from 2025-06) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ).
 
 Copyright (C) 2024
 - Helmholtz Centre for Environmental Research GmbH - UFZ, Germany
@@ -1302,6 +1304,10 @@ def prep_management_data(
 
         # Example coordinates for checking without DEIMS.iDs
         locations = [
+            {
+                "lat": 49.216725,
+                "lon": 19.671863,
+            },  # test deviation geoviewer and tiff maps from api?
             {
                 "lat": 46.702177,
                 "lon": 10.627141,
