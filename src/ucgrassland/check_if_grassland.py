@@ -2,8 +2,10 @@
 Module Name: check_if_grassland.py
 Description: Functions for checking if coordinates are grassland according to given TIF land cover maps.
 
-Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
+Developed in the BioDT project (until 2025-05) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
 Tuomas Rossi (CSC) and Taimur Haider Khan (UFZ).
+
+Further developed (from 2025-06) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ).
 
 Copyright (C) 2024
 - Helmholtz Centre for Environmental Research GmbH - UFZ, Germany

@@ -2,8 +2,10 @@
 Module Name: prep_grassland_model_input_data.py
 Description: Download all input data and prepare as needed for grassland model simulations.
 
-Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ)
-and Tuomas Rossi (CSC).
+Developed in the BioDT project (until 2025-05) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
+Tuomas Rossi (CSC) and Taimur Haider Khan (UFZ).
+
+Further developed (from 2025-06) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ).
 
 Copyright (C) 2024
 - Helmholtz Centre for Environmental Research GmbH - UFZ, Germany
@@ -219,6 +221,7 @@ def get_input_data(
         logger.info("Management data preparation skipped.")
     else:
         land_use_map_keys = ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]
+        # land_use_map_keys = ["EUR_hda_mowing"]  # only use EUR_hda_mowing for tests
 
         for coordinates in coordinates_list:
             coordinates = add_coordinate_infos(coordinates)
@@ -305,8 +308,8 @@ def prep_grassland_model_input_data(
                 raise
     else:
         skip_grass_check = True
-        skip_weather = True
-        skip_soil = True
+        # skip_weather = True
+        # skip_soil = True
         # skip_management = True
 
         # Example locations list
@@ -328,7 +331,7 @@ def prep_grassland_model_input_data(
 
         # locations = ut.parse_locations("48.960629, 13.395191")
 
-        # # # # example: GCEF small scale difference
+        # # # # # example: GCEF small scale difference
         # coordinates_list = [
         #     {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
         #     {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
@@ -337,22 +340,22 @@ def prep_grassland_model_input_data(
         #         "lon": 11.8787,
         #     },  # GER, GCEF grassland site, centroid, non-grassland in HRL
         # ]
-        # # years = list(range(1998, 1999))
+        # years = list(range(1998, 1999))
 
-        # coordinates_list = ut.parse_locations("102ae489-04e3-481d-97df-45905837dc1a")
-        # years = list(range(2013, 2025))
+        # # coordinates_list = ut.parse_locations("102ae489-04e3-481d-97df-45905837dc1a")
+        # # years = list(range(2013, 2025))
 
-        # # Example to get location coordinates from CSV file (for single plots/stations) - quick run, to be generalized below
-        # dotenv_config = dotenv_values(".env")
-        # source_folder = Path(dotenv_config['ELTER_DATA_PROCESSED'])
-        # deims_id = "11696de6-0ab9-4c94-a06b-7ce40f56c964"
-        # station_file = source_folder / deims_id / "IT_Matschertal_station.csv"
-        # deims_id = "270a41c4-33a8-4da6-9258-2ab10916f262"
-        # station_file = source_folder / deims_id / "DE_AgroScapeQuillow_station.csv"
-        # coordinates_list = ut.get_plot_locations_from_csv(station_file)
-        # first_year = 1999
-        # last_year = 2024
-        # years = list(range(first_year, last_year + 1))
+        # # # Example to get location coordinates from CSV file (for single plots/stations) - quick run, to be generalized below
+        # # dotenv_config = dotenv_values(".env")
+        # # source_folder = Path(dotenv_config['ELTER_DATA_PROCESSED'])
+        # # deims_id = "11696de6-0ab9-4c94-a06b-7ce40f56c964"
+        # # station_file = source_folder / deims_id / "IT_Matschertal_station.csv"
+        # # deims_id = "270a41c4-33a8-4da6-9258-2ab10916f262"
+        # # station_file = source_folder / deims_id / "DE_AgroScapeQuillow_station.csv"
+        # # coordinates_list = ut.get_plot_locations_from_csv(station_file)
+        # # first_year = 1999
+        # # last_year = 2024
+        # # years = list(range(first_year, last_year + 1))
 
         # get_input_data(
         #     coordinates_list,
@@ -392,10 +395,16 @@ def prep_grassland_model_input_data(
             "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
             "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
             "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
-            # # not eLTER plus
-            # "KUL-site",  # KU Leuven, Belgium
-            # "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
+            # # # not eLTER plus
+            "KUL-site",  # KU Leuven, Belgium
+            "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
         ]
+
+        site_ids = [
+            "BEXIS-site-SEG",
+            "BEXIS-site-HEG",
+            "BEXIS-site-AEG",
+        ]  # test # BEXIS, Germany
 
         # Get the last full year from now
         last_year = datetime.now().year - 1

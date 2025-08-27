@@ -251,15 +251,6 @@ def convert_raw_data_CVL():
     raw_data = var_values.T
     raw_data.columns = var_names
 
-    # # use row 4 for column names and skip first 3 rows
-
-    # raw_data = pd.read_excel(
-    #     source_folder / file_name,
-    #     sheet_name="List1",
-    #     header=3,
-    #     skiprows=3,
-    # )
-    # raw_data = pd.read_excel(source_folder / file_name, sheet_name="List1")
     new_rows = []
     site_code = "https://deims.org/4c8082f9-1ace-4970-a603-330544f22a23"
     vert_offset = "NA"
@@ -269,7 +260,7 @@ def convert_raw_data_CVL():
         station_code = row["Sample (relevé) code"]
         time = row["Date of data collecting"]
 
-        # Extract values for each species column (E to end)
+        # Extract values for each species column (in transposed data)
         for column in raw_data.columns[32:]:
             column_value = row[column]
 
@@ -294,8 +285,167 @@ def convert_raw_data_CVL():
     new_data.to_csv(source_folder / new_file_name, index=False, sep=";")
 
 
+def convert_raw_data_BEXIS():
+    """
+    Convert raw data from xls file to standard format for eLTER site
+    BEXIS-sites (Germany).
+    """
+    dotenv_config = dotenv_values(".env")
+    site_names = ["SEG", "HEG", "AEG"]
+
+    vert_offset = "NA"
+
+    # Mapping from German to English month names
+    month_map = {
+        "Jan": "01",
+        "Feb": "02",
+        "Mär": "03",
+        "Apr": "04",
+        "Mai": "05",
+        "Jun": "06",
+        "Jul": "07",
+        "Aug": "08",
+        "Sep": "09",
+        "Okt": "10",
+        "Nov": "11",
+        "Dez": "12",
+    }
+
+    # Read data from xls files
+    for site_name in site_names:
+        new_rows = []
+        source_folder = Path(
+            f"{dotenv_config['ELTER_DATA_PROCESSED']}/BEXIS-site-{site_name}"
+        )
+        file_name = f"{site_name[0]}_2024.xlsx"
+        sheet_names = pd.ExcelFile(source_folder / file_name).sheet_names
+
+        for station_code in sheet_names:
+            raw_data = pd.read_excel(source_folder / file_name, sheet_name=station_code)
+            # get indexes for year columns based on conditions
+            value_columns = (raw_data.columns.str.len() == 4) & (
+                raw_data.columns.str.startswith("20")
+            )
+            # Assume column A is at index 0 (zero-based), and columns B onward are values
+            var_names = raw_data.iloc[:, 0]  # Column A for variable names
+            var_values = raw_data.iloc[:, value_columns]
+
+            # Set variable names as index
+            raw_data = var_values.T
+            raw_data.columns = var_names
+
+            # For each row in raw_data, extract the column entries with general information, rows should be named by year now
+            for year, row in raw_data.iterrows():
+                species_ignore_list = [
+                    "gräser",
+                    "leguminosen",
+                    "kräuter",
+                    "bäume und sträucher",
+                    "farngewächse",
+                ]
+                herb_cover = float(row["Deckung Kräuter"])
+                open_soil_cover = float(row["Deckung offener Boden"])
+                biomass_g_m2 = round(
+                    float(row["Biomasse (dt/ha)"]) * 10, 2
+                )  # dt to g: * 100000, ha to m2: / 10000
+                species_count = float(row["Artenzahl"])
+                species_count = int(species_count) if pd.notna(species_count) else 0
+
+                entries_count = len(new_rows)  # track to check added entries
+
+                # read date from german format dd. mmm, e.g. 15. Jan
+                day_month = row["Datum"]
+
+                if pd.isna(day_month) or day_month in ["", "NANA", "NA. NA"]:
+                    if species_count > 0:
+                        logger.warning(
+                            f"Missing day and month information ('{day_month}') for "
+                            f"plot {station_code}, year {year}. Assuming default date 20 May."
+                        )
+                    day_month = "20. Mai"  # assume default date
+
+                day_month = day_month.split()
+
+                if len(day_month) == 2:
+                    day = day_month[0].rstrip(".").zfill(2)
+                    month = month_map[day_month[1][:3]]
+                    time = f"{year}-{month}-{day}"
+                else:
+                    raise ValueError(
+                        f"Unexpected date format for year {year}: {day_month}"
+                    )
+
+                # Extract values for each species column
+                for column in raw_data.columns[14:]:
+                    if column.lower() not in species_ignore_list:
+                        if isinstance(row[column], pd.Series):
+                            logger.warning(
+                                f"Found {len(row[column])} data rows for species {column}, "
+                                f"plot {station_code}, year {year}."
+                            )
+                            species_ignore_list.append(column.lower())
+                            column_value = float("nan")
+
+                            for entry in row[column]:
+                                entry = float(entry)
+
+                                if pd.notna(entry):
+                                    if pd.isna(column_value):
+                                        column_value = entry
+                                    elif entry != column_value:
+                                        raise ValueError(
+                                            f"Conflicting entries for species {column}, "
+                                            f"plot {station_code}, year {year}: {column_value} vs {entry}."
+                                        )
+
+                        else:
+                            column_value = float(row[column])
+
+                        # Add new row if column value is finite and greater than 0
+                        if pd.notna(column_value) and column_value > 0:
+                            new_rows.append(
+                                {
+                                    "SITE_CODE": "BEXIS-site-" + site_name,
+                                    "STATION_CODE": station_code,
+                                    "VERT_OFFSET": vert_offset,
+                                    "VARIABLE": "Cover",
+                                    "TIME": time,
+                                    "TAXA": column,
+                                    "VALUE": column_value,
+                                    "UNIT": "%",
+                                    " ": "",
+                                    "TOTAL_HERB_COVER": herb_cover,
+                                    "OPEN_SOIL_COVER": open_soil_cover,
+                                    "TOTAL_BIOMASS_G_M2": biomass_g_m2,
+                                }
+                            )
+                    # else:
+                    #     logger.info(
+                    #         f"Skipping row '{column}' in reading species cover values."
+                    #     )
+
+                if species_count != len(new_rows) - entries_count:
+                    logger.warning(
+                        f"Species count mismatch for year {year}: "
+                        f"expected {species_count} from observation file ('Artenzahl'), "
+                        f"but found {len(new_rows) - entries_count} species entries."
+                    )
+                elif species_count == 0:
+                    logger.warning(
+                        f"No species observations found for plot {station_code}, year {year}."
+                    )
+
+        # Save new data to a csv file
+        new_file_name = (
+            f"DE_BEXIS-site-{site_name}_data_cover__from_31973_5_Dataset.csv"
+        )
+        new_data = pd.DataFrame(new_rows)
+        new_data.to_csv(source_folder / new_file_name, index=False, sep=";")
+
+
 if __name__ == "__main__":
-    convert_raw_data_KUL()
-    convert_raw_data_CVL()
+    convert_raw_data_BEXIS()
+    # convert_raw_data_KUL()
+    # convert_raw_data_CVL()
     # convert_raw_data_MAM_C()
     # convert_raw_data_ASQ_C()

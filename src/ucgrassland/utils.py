@@ -2,8 +2,10 @@
 Module Name: utils.py
 Description: Utility functions for uc-grassland building block.
 
-Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ)
-and Tuomas Rossi (CSC).
+Developed in the BioDT project (until 2025-05) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
+Tuomas Rossi (CSC) and Taimur Haider Khan (UFZ).
+
+Further developed (from 2025-06) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ).
 
 Copyright (C) 2024
 - Helmholtz Centre for Environmental Research GmbH - UFZ, Germany
@@ -46,14 +48,35 @@ from ucgrassland.logger_config import logger
 OPENDAP_ROOT = "http://opendap.biodt.eu/grasslands-pdt/"
 NON_DEIMS_LOCATIONS = MappingProxyType(
     {
-        # KU Leuven site, rough mean of coordinates of all plots
+        # rough means of coordinates of all plots for non-DEIMS sites
         "KUL-site": {
             "lat": 51.0,
             "lon": 5.0,
             "deims_id": "KUL-site",
             "found": True,
             "name": "KUL-site (KU Leuven)",
-        }
+        },
+        "BEXIS-site-SEG": {
+            "lat": 53.05,
+            "lon": 13.8,
+            "deims_id": "BEXIS-site-SEG",
+            "found": True,
+            "name": "BEXIS-site-SEG",
+        },
+        "BEXIS-site-HEG": {
+            "lat": 51.15,
+            "lon": 10.5,
+            "deims_id": "BEXIS-site-HEG",
+            "found": True,
+            "name": "BEXIS-site-HEG",
+        },
+        "BEXIS-site-AEG": {
+            "lat": 48.45,
+            "lon": 9.4,
+            "deims_id": "BEXIS-site-AEG",
+            "found": True,
+            "name": "BEXIS-site-AEG",
+        },
     }
 )
 
@@ -1109,9 +1132,20 @@ def get_plot_locations_from_csv(
         # or leave out site code and station code?
 
         # Helper function to check if coordinates already exist in locations
-        def find_existing_location(lat, lon):
+        def find_existing_coordinates(lat, lon):
             for location in locations:
                 if location["lat"] == lat and location["lon"] == lon:
+                    return location
+
+            return None
+
+        # Helper function to check if station code already exists in locations
+        def find_existing_station_code(station_code):
+            for location in locations:
+                if isinstance(location["station_code"], list):
+                    if station_code in location["station_code"]:
+                        return location
+                elif location["station_code"] == station_code:
                     return location
 
             return None
@@ -1145,10 +1179,10 @@ def get_plot_locations_from_csv(
 
                 # deims_id check not reasonable, code in commits before 2025-07
 
-                # Check if coordinates already exist in locations
-                existing_location = find_existing_location(lat, lon)
-
                 if merge_same_locations:
+                    # Check if coordinates already exist in locations
+                    existing_location = find_existing_coordinates(lat, lon)
+
                     if existing_location:
                         if station_code not in existing_location["station_code"]:
                             existing_location["station_code"].append(station_code)
@@ -1167,19 +1201,23 @@ def get_plot_locations_from_csv(
                     station_code = (
                         str(station_code).replace("/", "_").replace("?", "？")
                     )
+                    existing_location = find_existing_station_code(station_code)
 
-                    if (
-                        existing_location
-                        and site_code != existing_location["site_code"]
-                    ):
-                        logger.error(
-                            f"Site code '{site_code}' differs for equal coordinates "
-                            f"({lat}, {lon}). Skipping entry."
-                        )
-                    elif (
-                        existing_location is None
-                        or station_code != existing_location["station_code"]
-                    ):
+                    if existing_location:
+                        if site_code != existing_location["site_code"]:
+                            logger.error(
+                                f"Site code '{site_code}' differs for equal station code '{station_code}' "
+                                f"({lat}, {lon}). Skipping entry."
+                            )
+                        elif (
+                            lat != existing_location["lat"]
+                            or lon != existing_location["lon"]
+                        ):
+                            logger.error(
+                                f"Coordinates differ for equal station code '{station_code}' "
+                                f"({lat}, {lon} vs. {existing_location['lat']}, {existing_location['lon']}). Skipping entry."
+                            )
+                    else:
                         # Add new location with just one (modified) station and site code
                         location = {
                             "lat": lat,
