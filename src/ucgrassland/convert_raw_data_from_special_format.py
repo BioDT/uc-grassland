@@ -4,8 +4,10 @@ Author: Thomas Banitz, Tuomas Rossi, Franziska Taubert, BioDT
 Date: March, 2025
 Description: Helper functions for converting raw data of eLTER sites to standard format.
 
-Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
+Developed in the BioDT project (until 2025-05) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
 Tuomas Rossi (CSC) and Taimur Haider Khan (UFZ).
+
+Further developed (from 2025-06) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ).
 
 Copyright (C) 2025
 - Helmholtz Centre for Environmental Research GmbH - UFZ, Germany
@@ -291,6 +293,11 @@ def convert_raw_data_BEXIS():
     BEXIS-sites (Germany).
     """
     dotenv_config = dotenv_values(".env")
+    site_ids = [
+        "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4",  # BEXIS-site-SEG
+        "56c467e5-093f-4b60-b5cf-880490621e8d",  # BEXIS-site-HEG
+        "a51f9249-ddc8-4a90-95a8-c7bbebb35d29",  # BEXIS-site-AEG
+    ]
     site_names = ["SEG", "HEG", "AEG"]
 
     vert_offset = "NA"
@@ -315,7 +322,7 @@ def convert_raw_data_BEXIS():
     for site_name in site_names:
         new_rows = []
         source_folder = Path(
-            f"{dotenv_config['ELTER_DATA_PROCESSED']}/BEXIS-site-{site_name}"
+            f"{dotenv_config['ELTER_DATA_PROCESSED']}/{site_ids[site_names.index(site_name)]}"
         )
         file_name = f"{site_name[0]}_2024.xlsx"
         sheet_names = pd.ExcelFile(source_folder / file_name).sheet_names
@@ -354,21 +361,30 @@ def convert_raw_data_BEXIS():
                 entries_count = len(new_rows)  # track to check added entries
 
                 # read date from german format dd. mmm, e.g. 15. Jan
-                day_month = row["Datum"]
+                obs_date = row["Datum"]
 
-                if pd.isna(day_month) or day_month in ["", "NANA", "NA. NA"]:
+                if pd.isna(obs_date) or obs_date in ["", "NANA", "NA. NA"]:
                     if species_count > 0:
                         logger.warning(
-                            f"Missing day and month information ('{day_month}') for "
-                            f"plot {station_code}, year {year}. Assuming default date 20 May."
+                            f"Missing observation date ('{obs_date}') for "
+                            f"plot {station_code}, year {year}. Assuming default date {year}-05-20."
                         )
-                    day_month = "20. Mai"  # assume default date
+                    obs_date = "20. Mai"  # assume default date
 
-                day_month = day_month.split()
+                day_month = obs_date.split()
 
                 if len(day_month) == 2:
-                    day = day_month[0].rstrip(".").zfill(2)
                     month = month_map[day_month[1][:3]]
+
+                    if day_month[0].startswith("-") or day_month[0] in ["0.", "00."]:
+                        day = "01"
+                        logger.warning(
+                            f"Incorrect observation date ('{obs_date}') for "
+                            f"plot {station_code}, year {year}. Assuming date {year}-{month}-{day}."
+                        )
+                    else:
+                        day = day_month[0].rstrip(".").zfill(2)
+
                     time = f"{year}-{month}-{day}"
                 else:
                     raise ValueError(

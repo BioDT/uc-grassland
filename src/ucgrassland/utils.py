@@ -56,27 +56,6 @@ NON_DEIMS_LOCATIONS = MappingProxyType(
             "found": True,
             "name": "KUL-site (KU Leuven)",
         },
-        "BEXIS-site-SEG": {
-            "lat": 53.05,
-            "lon": 13.8,
-            "deims_id": "BEXIS-site-SEG",
-            "found": True,
-            "name": "BEXIS-site-SEG",
-        },
-        "BEXIS-site-HEG": {
-            "lat": 51.15,
-            "lon": 10.5,
-            "deims_id": "BEXIS-site-HEG",
-            "found": True,
-            "name": "BEXIS-site-HEG",
-        },
-        "BEXIS-site-AEG": {
-            "lat": 48.45,
-            "lon": 9.4,
-            "deims_id": "BEXIS-site-AEG",
-            "found": True,
-            "name": "BEXIS-site-AEG",
-        },
     }
 )
 

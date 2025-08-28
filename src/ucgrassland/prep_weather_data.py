@@ -24,11 +24,13 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 """
 
 import argparse
+from datetime import datetime
 
 from copernicus import get_weather_data
 
 from ucgrassland import utils as ut
 from ucgrassland.logger_config import logger
+from ucgrassland.prep_observation_data import OBSERVATION_DATA_SPECS_PER_SITE
 
 
 def prep_weather_data(
@@ -122,9 +124,18 @@ def prep_weather_data(
         )
 
         # deims_id = "102ae489-04e3-481d-97df-45905837dc1a"  # GCEF site
-        # deims_id = "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1"  # Schrankogel, AT, 1994, 2004, 14
-        deims_id = "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d"  # Hochschwab, AT,  1998, 2001, 02, 08, 15
+        deims_id = (
+            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1"  # Schrankogel, AT, 1994, 2004, 14
+        )
+        # deims_id = "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d"  # Hochschwab, AT,  1998, 2001, 02, 08, 15
+        # deims_id = "61c188bc-8915-4488-8d92-6d38483406c0"  # Randu meadows
         location = ut.get_deims_coordinates(deims_id)
+
+        last_year = datetime.now().year - 1
+        first_year = max(
+            1951, OBSERVATION_DATA_SPECS_PER_SITE[deims_id]["start_year"] - 10
+        )
+        years = list(range(first_year, last_year + 1))
 
         if location["found"]:
             get_weather_data(

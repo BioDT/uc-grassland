@@ -232,20 +232,20 @@ SPECIES_DATA_SPECS_PER_SITE = MappingProxyType(
             "species_columns": ["TAXA"],
             "extra_columns": [[]],
         },
-        "BEXIS-site-SEG": {
-            "name": "BEXIS-site-SEG",
+        "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4": {
+            "name": "DFG_Biodiversity_Exploratory_Schorfheide-Chorin",
             "file_names": ["DE_BEXIS-site-SEG_data_cover__from_31973_5_Dataset.csv"],
             "species_columns": ["TAXA"],
             "extra_columns": [[]],
         },
-        "BEXIS-site-HEG": {
-            "name": "BEXIS-site-HEG",
+        "56c467e5-093f-4b60-b5cf-880490621e8d": {
+            "name": "DFG_Biodiversity_Exploratory_Hainich-Duen",
             "file_names": ["DE_BEXIS-site-HEG_data_cover__from_31973_5_Dataset.csv"],
             "species_columns": ["TAXA"],
             "extra_columns": [[]],
         },
-        "BEXIS-site-AEG": {
-            "name": "BEXIS-site-AEG",
+        "a51f9249-ddc8-4a90-95a8-c7bbebb35d29": {
+            "name": "DFG_Biodiversity_Exploratory_SchwaebischeAlb",
             "file_names": ["DE_BEXIS-site-AEG_data_cover__from_31973_5_Dataset.csv"],
             "species_columns": ["TAXA"],
             "extra_columns": [[]],
@@ -1778,11 +1778,11 @@ def assign_pfts_for_sites(
             # "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
             # "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
             # # not eLTER plus
-            "KUL-site",  # KU Leuven, Belgium
+            # "KUL-site",  # KU Leuven, Belgium
             # "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
-            "BEXIS-site-SEG",  # BEXIS-site-SEG
-            "BEXIS-site-HEG",  # BEXIS-site-HEG
-            "BEXIS-site-AEG",  # BEXIS-site-AEG
+            "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4",  # BEXIS-site-SEG
+            "56c467e5-093f-4b60-b5cf-880490621e8d",  # BEXIS-site-HEG
+            "a51f9249-ddc8-4a90-95a8-c7bbebb35d29",  # BEXIS-site-AEG
         ]
 
     if source_folder is None:
