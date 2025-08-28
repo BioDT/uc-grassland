@@ -183,7 +183,7 @@ def request_hda_grassland_data(
                 "dataset_id": dataset_id,
                 "product_type": HDA_PRODUCT_TYPES[map_key],
                 "resolution": resolution,
-                "year": year,
+                "year": str(year),
                 "bbox": [
                     area_coordinates["lon_start"],
                     area_coordinates["lat_start"],
