@@ -49,6 +49,13 @@ from copernicus.utils import get_area_coordinates, upload_file_opendap
 from ucgrassland.logger_config import logger
 from ucgrassland.utils import download_file_opendap, set_no_data_value
 
+# debug logging for inspecting API calls
+# import logging
+# logging.basicConfig(level=logging.DEBUG)
+# logging.getLogger("requests").setLevel(logging.DEBUG)
+# logging.getLogger("hda").setLevel(logging.DEBUG)
+# logging.getLogger("urllib3").setLevel(logging.DEBUG)
+
 HDA_PRODUCT_TYPES = MappingProxyType(
     {
         "EUR_hda_grassland": "Grassland",
@@ -186,9 +193,9 @@ def request_hda_grassland_data(
                 "year": str(year),
                 "bbox": [
                     area_coordinates["lon_start"],
-                    area_coordinates["lat_start"],
-                    area_coordinates["lon_end"],
                     area_coordinates["lat_end"],
+                    area_coordinates["lon_end"],
+                    area_coordinates["lat_start"],
                 ],
                 "itemsPerPage": 200,
                 "startIndex": 0,

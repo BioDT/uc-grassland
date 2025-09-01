@@ -180,3 +180,10 @@ Plant species traits data:
     - Zanne, A.E., Tank, D.C., Cornwell, W.K., Eastman, J.M., Smith, S.A., et al. (2014). 
       Three keys to the radiation of angiosperms into freezing environments.
       Nature, https://doi.org/10.1038/nature12872.
+
+Reverse geocoding:
+- Nominatim (reverse geocoding):
+    - URL: https://nominatim.openstreetmap.org/reverse
+    - API documentation: https://nominatim.org/release-docs/develop/api/Overview/
+    - Usage policy: https://operations.osmfoundation.org/policies/nominatim/
+    - Terms of use: https://osmfoundation.org/wiki/Terms_of_Use

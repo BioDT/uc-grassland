@@ -113,6 +113,9 @@ def get_input_data(
         f"Preparing input data for coordinates list with {location_count} locations ..."
     )
 
+    for coordinates in coordinates_list:
+        coordinates = add_coordinate_infos(coordinates)
+
     # Check if grassland according to all available land cover maps
     if skip_grass_check:
         logger.info("Grassland checks skipped.")
@@ -126,6 +129,8 @@ def get_input_data(
             "EUR_hda_grassland_2020",
             "EUR_hda_grassland_2021",
             "EUR_Pflugmacher",
+        ]
+        german_land_cover_map_keys = [
             "GER_Preidl",
             "GER_Schwieder_2017",
             "GER_Schwieder_2018",
@@ -137,8 +142,6 @@ def get_input_data(
         ]
 
         for coordinates in coordinates_list:
-            coordinates = add_coordinate_infos(coordinates)
-
             if coordinates is not None:
                 logger.info(
                     f"Preparing grassland check data for latitude: {coordinates['lat']}, "
@@ -147,9 +150,12 @@ def get_input_data(
                 grassland_checks = []
                 land_cover_map_keys = default_land_cover_map_keys.copy()
 
-                # "EUR_eunis_habitat" only works for DEIMS.iDs
-                if coordinates.get("deims_id"):
-                    land_cover_map_keys.append("EUR_eunis_habitat")
+                if ut.get_country(coordinates) == "DE":
+                    land_cover_map_keys.extend(german_land_cover_map_keys)
+
+                # # "EUR_eunis_habitat" works for DEIMS.iDs, but not useful as representative location is not the plot location!
+                # if coordinates.get("deims_id"):
+                #     land_cover_map_keys.append("EUR_eunis_habitat")
 
                 for map_key in land_cover_map_keys:
                     check_this_map = check_if_grassland.check_locations_for_grassland(
@@ -180,13 +186,9 @@ def get_input_data(
         )
 
         for coordinates in coordinates_list:
-            coordinates = add_coordinate_infos(coordinates)
-
-            # Check target folder for weather files containing these coordinates
+            # Check target folder for weather files containing the coordinates
             weather_files = list(
-                target_folder.glob(
-                    f"{coordinates['formatted_lat']}_{coordinates['formatted_lon']}*weather.txt"
-                )
+                target_folder.glob(f"{coordinates['file_start']}*weather.txt")
             )
 
             if len(weather_files) > 1:
@@ -208,7 +210,6 @@ def get_input_data(
         logger.info("Soil data preparation skipped.")
     else:
         for coordinates in coordinates_list:
-            coordinates = add_coordinate_infos(coordinates)
             file_name = (
                 coordinates["location_head_folder"]
                 / "soil"
@@ -220,11 +221,14 @@ def get_input_data(
     if skip_management:
         logger.info("Management data preparation skipped.")
     else:
-        land_use_map_keys = ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]
+        # land_use_map_keys = ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]
         # land_use_map_keys = ["EUR_hda_mowing"]  # only use EUR_hda_mowing for tests
 
         for coordinates in coordinates_list:
-            coordinates = add_coordinate_infos(coordinates)
+            if ut.get_country(coordinates) == "DE":
+                land_use_map_keys = ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]
+            else:
+                land_use_map_keys = ["EUR_hda_mowing"]
 
             for map_key in land_use_map_keys:
                 file_name = (
@@ -308,8 +312,8 @@ def prep_grassland_model_input_data(
                 raise
     else:
         skip_grass_check = True
-        # skip_weather = True
-        # skip_soil = True
+        skip_weather = True
+        skip_soil = True
         # skip_management = True
 
         # Example locations list
@@ -378,18 +382,18 @@ def prep_grassland_model_input_data(
         # #     country="ALL",  # "DE" "AT"
         # # )
         site_ids = [
-            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
-            # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
-            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
-            "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
-            # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-            # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
-            "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
-            "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
-            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
-            # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
-            # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
-            # "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+            # "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+            # # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
+            # "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
+            # "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
+            # # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
+            # # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            # "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
+            # "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
+            # "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
+            # # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
+            # # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
+            # # "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
             "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
             "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
             "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
@@ -398,13 +402,10 @@ def prep_grassland_model_input_data(
             # # # not eLTER plus
             "KUL-site",  # KU Leuven, Belgium
             "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
+            # "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4",  # BEXIS-site-SEG
+            # "56c467e5-093f-4b60-b5cf-880490621e8d",  # BEXIS-site-HEG
+            # "a51f9249-ddc8-4a90-95a8-c7bbebb35d29",  # BEXIS-site-AEG
         ]
-
-        site_ids = [
-            "BEXIS-site-SEG",
-            "BEXIS-site-HEG",
-            "BEXIS-site-AEG",
-        ]  # test # BEXIS, Germany
 
         # Get the last full year from now
         last_year = datetime.now().year - 1

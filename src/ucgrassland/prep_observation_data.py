@@ -564,6 +564,22 @@ def read_observation_data(
                 "nan"
             )  # prevent NaN values in 'STATION_CODE' column
 
+            # correct entries in 'STATION_CODE' column of form 'Rxx Q1', 'Rxx Q2' etc. to 'Rxx Q01', 'Rxx Q02'
+            for index, station_code in enumerate(df["STATION_CODE"]):
+                if station_code.startswith("R") and " " in station_code:
+                    plot_name, subplot_name = station_code.split(" ", 1)
+
+                    if (
+                        subplot_name.startswith("Q")
+                        and len(subplot_name) == 2
+                        and subplot_name[1].isdigit()
+                    ):
+                        new_station_code = f"{plot_name} Q{int(subplot_name[1]):02}"
+                        logger.info(
+                            f"Adjusting plot name in row {index} from '{station_code}' to '{new_station_code}'."
+                        )
+                        df.at[index, "STATION_CODE"] = new_station_code
+
         observation_data = [df_column_names]
         observation_data.extend(df.values.tolist())
 

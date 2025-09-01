@@ -23,6 +23,13 @@ Programme under grant agreement No 101057437 (BioDT project, https://doi.org/10.
 The authors acknowledge the EuroHPC Joint Undertaking and CSC - IT Center for Science Ltd., Finland
 for awarding this project access to the EuroHPC supercomputer LUMI, hosted by CSC - IT Center for
 Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Access call.
+
+Data source:
+    Nominatim (reverse geocoding):
+    - URL: https://nominatim.openstreetmap.org/reverse
+    - API documentation: https://nominatim.org/release-docs/develop/api/Overview/
+    - Usage policy: https://operations.osmfoundation.org/policies/nominatim/
+    - Terms of use: https://osmfoundation.org/wiki/Terms_of_Use
 """
 
 import argparse
@@ -1661,3 +1668,68 @@ def create_category_mapping(leg_file):
             logger.error(f"Reading XML file failed ({str(e)}).")
 
     return category_mapping
+
+
+def get_country(coordinates, *, attempts=5, delay_exponential=2, delay_linear=2):
+    """
+    Get country code for specified coordinates.
+
+    Parameters:
+        coordinates (dict): Dictionary with 'lat' and 'lon' keys ({'lat': float, 'lon': float}).
+        attempts (int): Number of attempts in case of connection errors or specific status codes (default is 5).
+        delay_exponential (int): Initial delay for exponential backoff (default is 2 seconds).
+        delay_linear (int): Initial delay for linear backoff (default is 2 seconds).
+
+    Returns:
+        str: Country code (ISO 3166-1 alpha-2) or None if not found.
+    """
+    while attempts > 0:
+        attempts -= 1
+
+        try:
+            response = requests.get(
+                "https://nominatim.openstreetmap.org/reverse",
+                params={
+                    "lat": coordinates["lat"],
+                    "lon": coordinates["lon"],
+                    "format": "json",
+                    "zoom": 3,  # country level
+                    "addressdetails": 1,
+                },
+                headers={
+                    "User-Agent": "ucgrassland (https://github.com/BioDT/uc-grassland)"
+                },
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                address = data.get("address", {})
+                country_code = address.get("country_code", "").upper()
+
+                if country_code:
+                    logger.info(
+                        f"Country code '{country_code}' found for coordinates ({coordinates['lat']}, {coordinates['lon']})."
+                    )
+                    return country_code
+                else:
+                    logger.warning(
+                        f"Country code not found for coordinates ({coordinates['lat']}, {coordinates['lon']})."
+                    )
+            else:
+                logger.error(
+                    f"Country code request failed (Status code {response.status_code})."
+                )
+
+                if attempts > 0:
+                    logger.info(f"Retrying in {delay_exponential} seconds ...")
+                    time.sleep(delay_exponential)
+                    delay_exponential *= 2
+
+        except requests.ConnectionError as e:
+            logger.error(f"Country code request failed ({e}).")
+
+            if attempts > 0:
+                logger.info(f"Retrying in {delay_linear} seconds ...")
+                time.sleep(delay_linear)
+
+    return None
