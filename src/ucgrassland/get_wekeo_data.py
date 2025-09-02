@@ -47,30 +47,46 @@ import hda
 from copernicus.utils import get_area_coordinates, upload_file_opendap
 
 from ucgrassland.logger_config import logger
-from ucgrassland.utils import download_file_opendap, set_no_data_value
+from ucgrassland.utils import (
+    download_file_opendap,
+    reproject_coordinates,
+    set_no_data_value,
+)
 
-# debug logging for inspecting API calls
+# # debug logging for inspecting API calls
 # import logging
 # logging.basicConfig(level=logging.DEBUG)
 # logging.getLogger("requests").setLevel(logging.DEBUG)
 # logging.getLogger("hda").setLevel(logging.DEBUG)
 # logging.getLogger("urllib3").setLevel(logging.DEBUG)
 
-HDA_PRODUCT_TYPES = MappingProxyType(
+HDA_SPECS = MappingProxyType(
     {
-        "EUR_hda_grassland": "Grassland",
-        "EUR_hda_herb_cover": "Herbaceous Cover",
-        "EUR_hda_mowing_events": "Grassland Mowing Events",
-        "EUR_hda_mowing_dates": "Grassland Mowing Dates (4 Dates per Year)",
-    }
-)
-
-NO_DATA_VALUES = MappingProxyType(
-    {
-        "EUR_hda_grassland": 255,
-        "EUR_hda_herb_cover": "tbd",
-        "EUR_hda_mowing_events": 255,
-        "EUR_hda_mowing_dates": 65535,
+        "EUR_hda_grassland": {
+            "product_type": "Grassland",
+            "no_data_value": 255,
+            "file_starts": ["CLMS_HRLVLCC_GRA_S"],
+        },
+        "EUR_hda_herb_cover": {
+            "product_type": "Herbaceous Cover",
+            "no_data_value": "tbd",
+            "file_starts": ["tbd"],
+        },
+        "EUR_hda_mowing_events": {
+            "product_type": "Grassland Mowing Events",
+            "no_data_value": 255,
+            "file_starts": ["CLMS_HRLVLCC_GRAME_S"],
+        },
+        "EUR_hda_mowing_dates": {
+            "product_type": "Grassland Mowing Dates (4 Dates per Year)",
+            "no_data_value": 65535,
+            "file_starts": [
+                "CLMS_HRLVLCC_GRAMD1_S",
+                "CLMS_HRLVLCC_GRAMD2_S",
+                "CLMS_HRLVLCC_GRAMD3_S",
+                "CLMS_HRLVLCC_GRAMD4_S",
+            ],
+        },
     }
 )
 
@@ -127,6 +143,7 @@ def request_hda_grassland_data(
     upload_opendap=True,
     retry_attempts=6,
     retry_delay=8,
+    force_download=False,
 ):
     """
     Request and download High Resolution Layer (HRL) grassland data from WEkEO HDA API.
@@ -147,6 +164,7 @@ def request_hda_grassland_data(
             (requires permission, default is True).
         retry_attempts (int): Total number of attempts (default is 6).
         retry_delay (int): Initial delay in seconds for request errors (default is 8, increasing exponentially).
+        force_download (bool): Force re-download of files even if they already exist locally or on opendap server (default is False).
 
     Returns:
         hda_file_stems (list): List of file stems of the downloaded HDA data.
@@ -170,62 +188,114 @@ def request_hda_grassland_data(
             )
             resolution = "20m"
 
-        if map_key in HDA_PRODUCT_TYPES.keys():
-            # Get area (bounding box) of all coordinates
-            area_coordinates = get_area_coordinates(coordinates_list)
-
+        if map_key in HDA_SPECS.keys():
             # Create target folder if it does not exist
             if not target_folder.is_dir():
                 logger.info(f"Creating target folder: {target_folder} ...")
                 target_folder.mkdir(parents=True, exist_ok=True)
 
-            # Request HDA data
+            # Get area (bounding box) of all coordinates
+            area_coordinates = get_area_coordinates(coordinates_list)
             logger.info(
                 f"Looking for HDA data for map_key '{map_key}', year '{year}', "
                 f"latitude {area_coordinates['lat_start']}-{area_coordinates['lat_end']}, "
                 f"longitude {area_coordinates['lon_start']}-{area_coordinates['lon_end']} "
                 "from 'HRL Grasslands' dataset ..."
             )
-            request = {
-                "dataset_id": dataset_id,
-                "product_type": HDA_PRODUCT_TYPES[map_key],
-                "resolution": resolution,
-                "year": str(year),
-                "bbox": [
-                    area_coordinates["lon_start"],
-                    area_coordinates["lat_end"],
-                    area_coordinates["lon_end"],
-                    area_coordinates["lat_start"],
-                ],
-                "itemsPerPage": 200,
-                "startIndex": 0,
-            }
 
-            # Get request results and download if needed including retry loop
-            while retry_attempts > 0:
-                retry_attempts -= 1
-                try:
-                    hda_client = create_hda_client()
-                    matches = hda_client.search(request)
-                    hda_file_stems = []
-                    file_count = min(len(matches), max_files)
+            # Check if all files are already available
+            if not force_download:
+                hda_file_stems = []
+                files_missing = False
 
-                    for match in matches[:file_count]:
-                        hda_file_stem = match.results[0]["id"]
-                        hda_file_stems.append(hda_file_stem)
-                        hda_file_tif = Path(target_folder / f"{hda_file_stem}.tif")
+                for coordinates in coordinates_list:
+                    (easting, northing) = reproject_coordinates(
+                        coordinates["lat"], coordinates["lon"], "EPSG:3035"
+                    )
+                    east_index = int(easting // 100000)
+                    north_index = int(northing // 100000)
 
-                        # If file not locally available, try download from opendap server
-                        if not hda_file_tif.is_file():
-                            download_file_opendap(
-                                hda_file_tif.name,
-                                opendap_folder,
-                                hda_file_tif.parent,
-                                warn_not_found=False,
+                    for layer, file_start in enumerate(
+                        HDA_SPECS[map_key]["file_starts"]
+                    ):
+                        hda_file_start = f"{file_start}{year}_R{resolution}_E{east_index}N{north_index}_03035"
+                        hda_files_found = list(
+                            target_folder.glob(f"{hda_file_start}*.tif")
+                        )
+
+                        # try to find the file on opendap if not found locally
+                        if len(hda_files_found) == 0:
+                            for version in ["V01", "V02"]:
+                                hda_file_tif = Path(
+                                    target_folder
+                                    / f"{hda_file_start}_{version}_R00.tif"
+                                )
+                                download_file_opendap(
+                                    hda_file_tif.name,
+                                    opendap_folder,
+                                    hda_file_tif.parent,
+                                    warn_not_found=False,
+                                )
+
+                                # stop searching if file is found
+                                if hda_file_tif.is_file():
+                                    hda_files_found.append(hda_file_tif)
+                                    break
+
+                        if len(hda_files_found) == 1:
+                            hda_file_stems.append(hda_files_found[0].stem)
+                        elif len(hda_files_found) > 1:
+                            logger.warning(
+                                f"Multiple HDA files found for map_key '{map_key}', year '{year}', layer '{layer + 1}', "
+                                f"{coordinates}: {hda_files_found}. Using first file."
                             )
+                            hda_file_stems.append(hda_files_found[0].stem)
+                        else:
+                            files_missing = True
+                            break
+
+            if force_download or files_missing:
+                # Request HDA data
+                request = {
+                    "dataset_id": dataset_id,
+                    "bbox": [
+                        area_coordinates["lon_start"],
+                        area_coordinates["lat_end"],
+                        area_coordinates["lon_end"],
+                        area_coordinates["lat_start"],
+                    ],
+                    "productType": HDA_SPECS[map_key]["product_type"],
+                    "resolution": resolution,
+                    "year": str(year),
+                    "itemsPerPage": 100,
+                    "startIndex": 0,
+                }
+
+                # Get request results and download if needed including retry loop
+                while retry_attempts > 0:
+                    retry_attempts -= 1
+                    try:
+                        hda_client = create_hda_client()
+                        matches = hda_client.search(request)
+                        hda_file_stems = []
+                        file_count = min(len(matches), max_files)
+
+                        for match in matches[:file_count]:
+                            hda_file_stem = match.results[0]["id"]
+                            hda_file_stems.append(hda_file_stem)
+                            hda_file_tif = Path(target_folder / f"{hda_file_stem}.tif")
+
+                            # If file not locally available, try download from opendap server
+                            if not hda_file_tif.is_file() and not force_download:
+                                download_file_opendap(
+                                    hda_file_tif.name,
+                                    opendap_folder,
+                                    hda_file_tif.parent,
+                                    warn_not_found=False,
+                                )
 
                             # If file still not available, download from HDA API
-                            if not hda_file_tif.is_file():
+                            if not hda_file_tif.is_file() or force_download:
                                 logger.info(
                                     f"Downloading '{hda_file_stem + '.zip'}' from WEkEO HDA API Client to '{target_folder}' ..."
                                 )
@@ -255,7 +325,8 @@ def request_hda_grassland_data(
                                                 f"Extracted '{extracted_path}'."
                                             )
                                             set_no_data_value(
-                                                extracted_path, NO_DATA_VALUES[map_key]
+                                                extracted_path,
+                                                HDA_SPECS[map_key]["no_data_value"],
                                             )
 
                                             if upload_opendap:
@@ -280,35 +351,37 @@ def request_hda_grassland_data(
                                     raise FileNotFoundError(
                                         f"Zip file '{hda_file_zip}' not found after download."
                                     )
-                    break
-                except Exception as e:
-                    logger.error(f"Error while requesting/downloading HDA data: {e}")
-
-                    if retry_attempts > 0:
-                        logger.info(
-                            f"Recreating HDA client and retrying in {retry_delay} seconds ..."
-                        )
-                        time.sleep(retry_delay)
-                        retry_delay *= 2
-                    else:
+                        break
+                    except Exception as e:
                         logger.error(
-                            "Maximum number of attempts reached. Exiting without downloading data."
+                            f"Error while requesting/downloading HDA data: {e}"
                         )
-                        matches = []
 
-            if file_count == 0:
-                logger.warning(
-                    f"No data found for map_key '{map_key}' and year '{year}' in the specified area."
-                )
-            elif file_count < len(matches):
-                logger.warning(
-                    f"More than {max_files} files found ({len(matches)} files) for map_key '{map_key}' and year '{year}' in the specified area. "
-                    f"Using only the first {max_files} files."
-                )
+                        if retry_attempts > 0:
+                            logger.info(
+                                f"Recreating HDA client and retrying in {retry_delay} seconds ..."
+                            )
+                            time.sleep(retry_delay)
+                            retry_delay *= 2
+                        else:
+                            logger.error(
+                                "Maximum number of attempts reached. Exiting without downloading data."
+                            )
+                            matches = []
+
+                if file_count == 0:
+                    logger.warning(
+                        f"No data found for map_key '{map_key}' and year '{year}' in the specified area."
+                    )
+                elif file_count < len(matches):
+                    logger.warning(
+                        f"More than {max_files} files found ({len(matches)} files) for map_key '{map_key}' and year '{year}' in the specified area. "
+                        f"Using only the first {max_files} files."
+                    )
         else:
             try:
                 raise ValueError(
-                    f"Invalid map_key '{map_key}'. Valid keys are: {list(HDA_PRODUCT_TYPES.keys())}"
+                    f"Invalid map_key '{map_key}'. Valid keys are: {list(HDA_SPECS.keys())}"
                 )
             except ValueError as e:
                 logger.error(e)
