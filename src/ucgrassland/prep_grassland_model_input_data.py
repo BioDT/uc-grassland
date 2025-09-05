@@ -221,9 +221,6 @@ def get_input_data(
     if skip_management:
         logger.info("Management data preparation skipped.")
     else:
-        # land_use_map_keys = ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]
-        # land_use_map_keys = ["EUR_hda_mowing"]  # only use EUR_hda_mowing for tests
-
         for coordinates in coordinates_list:
             if ut.get_country(coordinates) == "DE":
                 land_use_map_keys = ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]
@@ -312,9 +309,9 @@ def prep_grassland_model_input_data(
                 raise
     else:
         skip_grass_check = True
-        skip_weather = True
+        # skip_weather = True
         skip_soil = True
-        # skip_management = True
+        skip_management = True
 
         # Example locations list
         # locations = ut.parse_locations(
@@ -394,17 +391,17 @@ def prep_grassland_model_input_data(
             # # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
             # # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
             # # "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
-            "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
-            "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
-            "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
-            "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
-            "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
-            # # # not eLTER plus
-            "KUL-site",  # KU Leuven, Belgium
-            "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
-            # "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4",  # BEXIS-site-SEG
-            # "56c467e5-093f-4b60-b5cf-880490621e8d",  # BEXIS-site-HEG
-            # "a51f9249-ddc8-4a90-95a8-c7bbebb35d29",  # BEXIS-site-AEG
+            # "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
+            # "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
+            # "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
+            # "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
+            # "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
+            # # # # not eLTER plus
+            # "KUL-site",  # KU Leuven, Belgium
+            # "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
+            "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4",  # BEXIS-site-SEG
+            "56c467e5-093f-4b60-b5cf-880490621e8d",  # BEXIS-site-HEG
+            "a51f9249-ddc8-4a90-95a8-c7bbebb35d29",  # BEXIS-site-AEG
         ]
 
         # Get the last full year from now

@@ -30,6 +30,7 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from dotenv import dotenv_values
 
@@ -299,7 +300,6 @@ def convert_raw_data_BEXIS():
         "a51f9249-ddc8-4a90-95a8-c7bbebb35d29",  # BEXIS-site-AEG
     ]
     site_names = ["SEG", "HEG", "AEG"]
-
     vert_offset = "NA"
 
     # Mapping from German to English month names
@@ -318,6 +318,12 @@ def convert_raw_data_BEXIS():
         "Dez": "12",
     }
 
+    first_observation_row = 13
+    valid_entries = ["gräser", "leguminosen", "kräuter"]
+    forbidden_entries = ["bäume und sträucher", "farngewächse"]
+    species_ignore_list = valid_entries + forbidden_entries
+    forbidden_cover_threshold = 2.0
+
     # Read data from xls files
     for site_name in site_names:
         new_rows = []
@@ -326,6 +332,7 @@ def convert_raw_data_BEXIS():
         )
         file_name = f"{site_name[0]}_2024.xlsx"
         sheet_names = pd.ExcelFile(source_folder / file_name).sheet_names
+        plots_excluded = []
 
         for station_code in sheet_names:
             raw_data = pd.read_excel(source_folder / file_name, sheet_name=station_code)
@@ -341,23 +348,122 @@ def convert_raw_data_BEXIS():
             raw_data = var_values.T
             raw_data.columns = var_names
 
+            # Error if first observation row is not "Arten"
+            if raw_data.columns[first_observation_row].lower() != "arten":
+                raise ValueError(
+                    f"Unexpected table format in observations for plot {station_code}: "
+                    f"Row {first_observation_row} should be 'Arten', but is '{raw_data.columns[first_observation_row]}'."
+                )
+
+            # convert all entries from first observation row to float
+            columns_to_convert = raw_data.columns[first_observation_row:].tolist() + [
+                "Deckung Sträucher",
+                "Deckung Kräuter",
+                "Deckung offener Boden",
+                "Artenzahl",
+                "Biomasse (dt/ha)",
+            ]
+            # columns_to_convert = remove_duplicates(columns_to_convert)
+            columns_to_convert = np.unique(columns_to_convert)
+
+            for column in columns_to_convert:
+                # Merge multiple columns for same species
+                if isinstance(raw_data[column], pd.DataFrame):
+                    logger.warning(
+                        f"Found {raw_data[column].shape[1]} data rows for species {column} "
+                        f"and plot {station_code}. Merging rows."
+                    )
+                    merged = []
+
+                    for idx, row in raw_data[column].iterrows():
+                        non_nan = row.dropna()
+
+                        if len(non_nan) == 0:
+                            merged.append(np.nan)
+                        elif len(non_nan) == 1:
+                            merged.append(float(non_nan.iloc[0]))
+                        else:
+                            raise ValueError(
+                                f"Conflicting entries for species '{raw_data[column].columns[0]}' in year {idx}: {list(non_nan)}"
+                            )
+
+                    column_idx = raw_data.columns.get_loc(column).argmax()
+                    merged_column = pd.Series(
+                        merged,
+                        index=raw_data[column].index,
+                        name=raw_data[column].columns[0],
+                    )
+                    raw_data.drop(columns=[column], inplace=True)
+                    raw_data.insert(column_idx, column, merged_column)
+                else:
+                    raw_data[column] = pd.to_numeric(raw_data[column], errors="coerce")
+
+            # Search row indexes for valid and forbidden entries
+            valid_entry_indexes = {}
+            forbidden_entry_indexes = {}
+
+            for idx, column in enumerate(raw_data.columns):
+                for valid_entry in valid_entries:
+                    if column.lower() == valid_entry:
+                        valid_entry_indexes[valid_entry] = idx
+                        break
+
+                for forbidden_entry in forbidden_entries:
+                    if column.lower() == forbidden_entry:
+                        forbidden_entry_indexes[forbidden_entry] = idx
+                        break
+
+            if forbidden_entry_indexes:
+                # Invalid entries are expected at the end after the valid entries
+                if max(valid_entry_indexes.values()) > min(
+                    forbidden_entry_indexes.values()
+                ):
+                    raise ValueError(
+                        f"Plot {station_code} has valid entries after entries for non-grassland species."
+                    )
+                else:
+                    logger.warning(
+                        f"Plot {station_code} has entries for non-grassland species."
+                    )
+
+                # Get sum of all entries from min(forbidden_entry_indexes.values()) to end for each row
+                for year, row in raw_data.iterrows():
+                    sum_forbidden = 0
+
+                    for column in raw_data.columns[
+                        min(forbidden_entry_indexes.values()) :
+                    ]:
+                        if pd.notna(row[column]):
+                            sum_forbidden += row[column]
+
+                    if sum_forbidden > forbidden_cover_threshold:
+                        logger.warning(
+                            f"Excluding plot {station_code} due to sum of cover for non-grassland species in year {year}: "
+                            f"{sum_forbidden} > {forbidden_cover_threshold}."
+                        )
+                        plots_excluded.append(station_code)
+                        break
+
+            if station_code not in plots_excluded:
+                if raw_data["Deckung Sträucher"].max() > forbidden_cover_threshold:
+                    logger.warning(
+                        f"Excluding plot {station_code} due to maximum shrub cover {raw_data['Deckung Sträucher'].max()} "
+                        f"> {forbidden_cover_threshold}."
+                    )
+                    plots_excluded.append(station_code)
+
+            if station_code in plots_excluded:
+                continue
+
             # For each row in raw_data, extract the column entries with general information, rows should be named by year now
             for year, row in raw_data.iterrows():
-                species_ignore_list = [
-                    "gräser",
-                    "leguminosen",
-                    "kräuter",
-                    "bäume und sträucher",
-                    "farngewächse",
-                ]
-                herb_cover = float(row["Deckung Kräuter"])
-                open_soil_cover = float(row["Deckung offener Boden"])
-                biomass_g_m2 = round(
-                    float(row["Biomasse (dt/ha)"]) * 10, 2
-                )  # dt to g: * 100000, ha to m2: / 10000
-                species_count = float(row["Artenzahl"])
-                species_count = int(species_count) if pd.notna(species_count) else 0
-
+                herb_cover = row["Deckung Kräuter"]
+                open_soil_cover = row["Deckung offener Boden"]
+                biomass_g_m2 = round(row["Biomasse (dt/ha)"] * 10, 2)
+                # dt to g: * 100000, ha to m2: / 10000
+                species_count = (
+                    int(row["Artenzahl"]) if pd.notna(row["Artenzahl"]) else 0
+                )
                 entries_count = len(new_rows)  # track to check added entries
 
                 # read date from german format dd. mmm, e.g. 15. Jan
@@ -392,30 +498,9 @@ def convert_raw_data_BEXIS():
                     )
 
                 # Extract values for each species column
-                for column in raw_data.columns[14:]:
+                for column in raw_data.columns[first_observation_row + 1 :]:
                     if column.lower() not in species_ignore_list:
-                        if isinstance(row[column], pd.Series):
-                            logger.warning(
-                                f"Found {len(row[column])} data rows for species {column}, "
-                                f"plot {station_code}, year {year}."
-                            )
-                            species_ignore_list.append(column.lower())
-                            column_value = float("nan")
-
-                            for entry in row[column]:
-                                entry = float(entry)
-
-                                if pd.notna(entry):
-                                    if pd.isna(column_value):
-                                        column_value = entry
-                                    elif entry != column_value:
-                                        raise ValueError(
-                                            f"Conflicting entries for species {column}, "
-                                            f"plot {station_code}, year {year}: {column_value} vs {entry}."
-                                        )
-
-                        else:
-                            column_value = float(row[column])
+                        column_value = row[column]
 
                         # Add new row if column value is finite and greater than 0
                         if pd.notna(column_value) and column_value > 0:
@@ -435,10 +520,6 @@ def convert_raw_data_BEXIS():
                                     "TOTAL_BIOMASS_G_M2": biomass_g_m2,
                                 }
                             )
-                    # else:
-                    #     logger.info(
-                    #         f"Skipping row '{column}' in reading species cover values."
-                    #     )
 
                 if species_count != len(new_rows) - entries_count:
                     logger.warning(
@@ -450,6 +531,11 @@ def convert_raw_data_BEXIS():
                     logger.warning(
                         f"No species observations found for plot {station_code}, year {year}."
                     )
+
+        if plots_excluded:
+            logger.warning(
+                f"Excluded {len(plots_excluded)} plots for site BEXIS-site-{site_name}: {plots_excluded}."
+            )
 
         # Save new data to a csv file
         new_file_name = (

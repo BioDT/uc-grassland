@@ -306,8 +306,9 @@ def get_management_map_file(
                     f"Local file '{map_file}' not found. Trying to access via URL ..."
                 )
 
-        # Get map file URL
-        map_file = f"https://zenodo.org/records/10609590/files/{file_name}"
+        # Get map file URL (seems unstable via zenodo, use OPENDAP instead)
+        # map_file = f"https://zenodo.org/records/10609590/files/{file_name}"
+        map_file = f"{ut.OPENDAP_ROOT}landUseMaps/{map_key}/{file_name}"
 
     # Return map file URL, if found
     if ut.check_url(map_file):
