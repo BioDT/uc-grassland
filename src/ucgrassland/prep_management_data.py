@@ -644,6 +644,32 @@ def get_EUR_hda_mowing_data(coordinates, years, *, folder="landUseMaps", map_cou
     return property_data, query_protocol
 
 
+def get_CZ_CVL_data(coordinates, years, *, map_bands=2):
+    # all of the sites have been mown (mostly once per year) since the regrassing onset
+    # up to the sampling date, without irrigation and fertilization (as far as we know);
+    # some of them started to be grazed afterwards (sites nr. 25, 27, 30, 40, 45, 51, 52)
+    # or the mowing ceased or started to be irregular (site nr. 24),
+    # some others were in 2022 even partially or completely ploughed (14, 15, 16, 17, 18, 82).
+    #
+    # assume fixed mow date May 15 for all requested years
+    logger.info("Creating management data for CZ_CVL site ...")
+    query_protocol = []
+
+    # Initialize property_data array with nans
+    property_data = np.full((len(years), map_bands + 1), np.nan, dtype=object)
+
+    for y_index, year in enumerate(years):
+        property_data[y_index, 0] = year
+        property_data[y_index, 1] = 1  # one mowing event
+        mow_date = 136 if calendar.isleap(year) else 135  # May 15
+        property_data[y_index, 2] = mow_date
+        logger.info(f"{year}, mowing: {property_data[y_index, 1]} event(s).")
+        mow_date = ut.day_of_year_to_date(year, int(mow_date))
+        logger.info(f"Mowing event 1: {mow_date.strftime('%Y-%m-%d')}.")
+
+    return property_data, query_protocol
+
+
 def get_mow_events(
     year, mow_days, data_source, *, mow_height=0.05, leap_year_considered=True
 ):
@@ -955,7 +981,7 @@ def convert_management_data(
     fert_source_per_year = np.full(years.shape, "", dtype=object)
 
     # MOWING
-    if map_key in ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]:
+    if map_key in ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing", "CZ_CVL"]:
         # Read mowing, same column for "GER_Lange", "GER_Schwieder" and "EUR_hda_mowing"
         mow_count_per_year = np.array([entry[1] for entry in management_data_raw])
         years_with_mow_data = years[~np.isnan(mow_count_per_year)]
@@ -970,7 +996,7 @@ def convert_management_data(
                     mow_height=mow_height,
                 )
                 management_events.extend(mow_schedule)
-        elif map_key in ["GER_Schwieder", "EUR_hda_mowing"]:
+        elif map_key in ["GER_Schwieder", "EUR_hda_mowing", "CZ_CVL"]:
             # Get specific mowing dates for each year with mowing, add to management events
             for index in np.where(mow_count_per_year > 0)[0]:
                 mow_count = int(mow_count_per_year[index])
@@ -992,7 +1018,7 @@ def convert_management_data(
                         years_with_data_conflict, years[index]
                     )
                 else:
-                    mow_days_per_year[index] = [int(x) for x in entry_dates]
+                    mow_days_per_year[index] = entry_dates
                     mow_events = get_mow_events(
                         years[index],
                         mow_days_per_year[index],
@@ -1003,55 +1029,60 @@ def convert_management_data(
                     management_events.extend(mow_events)
 
     # Fill mowing for years without data
-    fill_mode = fill_mode.lower()
-    epsilon = 1e-10
-    mow_count_fill = 0
-    no_mow_data_for_mean = False
+    if any(np.isnan(mow_count_per_year)):
+        fill_mode = fill_mode.lower()
+        epsilon = 1e-10
+        mow_count_fill = 0
+        no_mow_data_for_mean = False
 
-    if fill_mode == "mean":
-        # Use means of data retrieved for remaining years as well
-        logger.info("Completing management data with means from years with data ...")
-
-        if sum(~np.isnan(mow_count_per_year)) > 0:
-            mow_count_float = np.nanmean(mow_count_per_year)
-            mow_count_fill = round(mow_count_float + epsilon)
+        if fill_mode == "mean":
+            # Use means of data retrieved for remaining years as well
             logger.info(
-                f"Mean annual mowing events: {mow_count_float:.4f} "
-                f"(from {sum(~np.isnan(mow_count_per_year))} years). "
+                "Completing management data with means from years with data ..."
+            )
+
+            if sum(~np.isnan(mow_count_per_year)) > 0:
+                mow_count_float = np.nanmean(mow_count_per_year)
+                mow_count_fill = round(mow_count_float + epsilon)
+                logger.info(
+                    f"Mean annual mowing events: {mow_count_float:.4f} "
+                    f"(from {sum(~np.isnan(mow_count_per_year))} years). "
+                    f"Using {mow_count_fill} events per year."
+                )
+                data_source_str = (
+                    f"event assumed (fill mode: {fill_mode}, date: schedule)"
+                )
+            else:
+                # No data for any of the years, use default option instead
+                logger.warning(
+                    "No mowing data for any year to calculate mean and complete other years."
+                )
+                no_mow_data_for_mean = True
+
+        if fill_mode == "default" or no_mow_data_for_mean:
+            # Use default management settings for years without data
+            mow_count_fill = mow_count_default
+            logger.info(
+                "Completing management data with default values ... "
                 f"Using {mow_count_fill} events per year."
             )
-            data_source_str = f"event assumed (fill mode: {fill_mode}, date: schedule)"
-        else:
-            # No data for any of the years, use default option instead
-            logger.warning(
-                "No mowing data for any year to calculate mean and complete other years."
-            )
-            no_mow_data_for_mean = True
+            data_source_str = "event assumed (fill mode: default, date: schedule)"
 
-    if fill_mode == "default" or no_mow_data_for_mean:
-        # Use default management settings for years without data
-        mow_count_fill = mow_count_default
-        logger.info(
-            "Completing management data with default values ... "
-            f"Using {mow_count_fill} events per year."
-        )
-        data_source_str = "event assumed (fill mode: default, date: schedule)"
+        mow_count_per_year[np.isnan(mow_count_per_year)] = mow_count_fill
 
-    mow_count_per_year[np.isnan(mow_count_per_year)] = mow_count_fill
+        # Add all remaining mowing events to schedule
+        for index, year in enumerate(years):
+            if mow_count_per_year[index] > 0 and year not in years_with_mow_data:
+                source_str = (
+                    "event observed (date: not found, schedule)"
+                    if year in years_with_data_conflict
+                    else data_source_str
+                )
 
-    # Add all remaining mowing events to schedule
-    for index, year in enumerate(years):
-        if mow_count_per_year[index] > 0 and year not in years_with_mow_data:
-            source_str = (
-                "event observed (date: not found, schedule)"
-                if year in years_with_data_conflict
-                else data_source_str
-            )
-
-            mow_schedule = get_mow_schedule(
-                year, mow_count_per_year[index], source_str, mow_height=mow_height
-            )
-            management_events.extend(mow_schedule)
+                mow_schedule = get_mow_schedule(
+                    year, mow_count_per_year[index], source_str, mow_height=mow_height
+                )
+                management_events.extend(mow_schedule)
 
     # FERTILISATION
     if map_key == "GER_Lange":
@@ -1118,16 +1149,17 @@ def convert_management_data(
                 "event assumed (fill mode: like mowing, date: based on mowing)"
             )
 
-    # Add all fertilisation events to schedule
-    for index, year in enumerate(years):
-        if fert_count_per_year[index] > 0:
-            fert_schedule = get_fert_schedule(
-                year,
-                fert_count_per_year[index],
-                fert_source_per_year[index],
-                fert_days=fert_days_per_year[index],
-            )
-            management_events.extend(fert_schedule)
+    # Add all fertilisation events to schedule (no fertilization for CZ_CVL)
+    if map_key in ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]:
+        for index, year in enumerate(years):
+            if fert_count_per_year[index] > 0:
+                fert_schedule = get_fert_schedule(
+                    year,
+                    fert_count_per_year[index],
+                    fert_source_per_year[index],
+                    fert_days=fert_days_per_year[index],
+                )
+                management_events.extend(fert_schedule)
 
     try:
         management_events.sort(key=lambda x: x[0])
@@ -1191,6 +1223,11 @@ def get_management_data(
         map_properties = ["mowing", "date_1", "date_2", "date_3", "date_4"]
         management_data_raw, data_query_protocol = get_EUR_hda_mowing_data(
             coordinates, years, map_count=len(map_properties)
+        )
+    elif map_key == "CZ_CVL":
+        map_properties = ["mowing", "date_1"]
+        management_data_raw, data_query_protocol = get_CZ_CVL_data(
+            coordinates, years, map_bands=len(map_properties)
         )
     else:
         try:
@@ -1369,8 +1406,8 @@ def main():
         "--map_key",
         type=str,
         default="EUR_hda_mowing",
-        choices=["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"],
-        help="Options: 'GER_Lange', 'GER_Schwieder', 'EUR_hda_mowing'. (Can be extended.)",
+        choices=["GER_Lange", "GER_Schwieder", "EUR_hda_mowing", "CZ_CVL"],
+        help="Options: 'GER_Lange', 'GER_Schwieder', 'EUR_hda_mowing', 'CZ_CVL'. (Can be extended.)",
     )
     parser.add_argument(
         "--fill_mode",
