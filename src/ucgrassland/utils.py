@@ -1014,7 +1014,7 @@ def get_deims_coordinates(deims_id):
         # Use non-DEIMS location coordinates if available
         location = NON_DEIMS_LOCATIONS[deims_id]
         logger.warning(
-            f"Using non-DEIMS coordinates for ID '{deims_id}': Latitude: {location['lat']}, Longitude: {location['lon']}."
+            f"Using non-DEIMS coordinates for ID '{deims_id}': Latitude: {location['lat']}, longitude: {location['lon']}."
         )
 
         return location
@@ -1034,7 +1034,7 @@ def get_deims_coordinates(deims_id):
             name = deims_gdf.name[0]
             logger.info(
                 f"Coordinates for DEIMS.iD '{deims_id}' found ({name}). "
-                f"Latitude: {lat}, Longitude: {lon}"
+                f"Latitude: {lat}, longitude: {lon}."
             )
             return {
                 "lat": lat,
@@ -1083,7 +1083,7 @@ def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
 
 
 def get_plot_locations_from_csv(
-    csv_file, *, header_row=0, sep=";", merge_same_locations=True
+    csv_file, *, header_row=0, sep=";", merge_same_locations=True, deims_id=None
 ):
     """
     Extract plot locations from a CSV file and return as list of dictionaries.
@@ -1092,6 +1092,8 @@ def get_plot_locations_from_csv(
         csv_file (Path): Path to CSV file.
         header_row (int): Row number containing column names (default is 0).
         sep (str): Column separator between entries in rows (default is ';').
+        merge_same_locations (bool): Whether to merge locations with the same coordinates (default is True).
+        deims_id (str, optional): DEIMS.iD to be added to returned locations (default is None).
 
     Returns:
         list: List of dictionaries containing each unique location (latitude, longitude,
@@ -1182,6 +1184,9 @@ def get_plot_locations_from_csv(
                             "site_code": [site_code],
                         }
 
+                        if deims_id:
+                            location["deims_id"] = deims_id
+
                         locations.append(location)
                 else:
                     station_code = (
@@ -1211,6 +1216,10 @@ def get_plot_locations_from_csv(
                             "station_code": station_code,
                             "site_code": site_code,
                         }
+
+                        if deims_id:
+                            location["deims_id"] = deims_id
+
                         locations.append(location)
 
         return locations
@@ -1398,10 +1407,7 @@ def extract_raster_value(
                             "Cannot access file modification time for URL. Using file reading time instead."
                         )
                     else:
-                        time_stamp = datetime.fromtimestamp(
-                            tif_file.stat().st_mtime,
-                            tz=timezone.utc,
-                        ).isoformat(timespec="seconds")
+                        time_stamp = get_file_date(tif_file)
 
                     # Code for trying to use tifftag_datetime in commits before 2025-08-12 (but tag never found)
 
@@ -1708,12 +1714,12 @@ def get_country(coordinates, *, attempts=5, delay_exponential=2, delay_linear=2)
 
                 if country_code:
                     logger.info(
-                        f"Country code '{country_code}' found for coordinates ({coordinates['lat']}, {coordinates['lon']})."
+                        f"Country code '{country_code}' found for latitude: {coordinates['lat']}, longitude: {coordinates['lon']}."
                     )
                     return country_code
                 else:
                     logger.warning(
-                        f"Country code not found for coordinates ({coordinates['lat']}, {coordinates['lon']})."
+                        f"Country code not found for latitude: {coordinates['lat']}, longitude: {coordinates['lon']}."
                     )
             else:
                 logger.error(
@@ -1733,3 +1739,28 @@ def get_country(coordinates, *, attempts=5, delay_exponential=2, delay_linear=2)
                 time.sleep(delay_linear)
 
     return None
+
+
+def get_file_date(file_name):
+    """
+    Get the modification date of a file as an ISO 8601 formatted string.
+
+    Parameters:
+        file_name (Path): Path to the file.
+
+    Returns:
+        str: ISO 8601 formatted modification date of the file.
+    """
+    if not file_name.is_file():
+        try:
+            raise FileNotFoundError(f"File '{file_name}' not found.")
+        except FileNotFoundError as e:
+            logger.error(e)
+            raise
+
+    time_stamp = datetime.fromtimestamp(
+        file_name.stat().st_mtime,
+        tz=timezone.utc,
+    ).isoformat(timespec="seconds")
+
+    return time_stamp

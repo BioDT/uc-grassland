@@ -200,6 +200,8 @@ def convert_raw_data_KUL():
     site_code = "KUL-site"
     vert_offset = "NA"
 
+    # OPTION: read other data with "year since last mowing" entries and add...
+
     # For each row in raw_data, extract the column entries with general information
     for _, row in raw_data.iterrows():
         station_code = row["Plot_ID"]

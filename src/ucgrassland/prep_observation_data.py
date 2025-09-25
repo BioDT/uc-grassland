@@ -54,7 +54,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "variables": ["cover"],
             "short_names": {"cover": "VMM-C"},
             "file_names": {"cover": "IT_Matschertal_data_abund.csv"},
-            "observation_columns": {"cover": "default"},
+            "observation_columns": {"cover": "default", "management": "default"},
             "pft_lookup_files": {
                 "cover": "lat46.692800_lon10.615700__PFT__data_abund.txt"
             },
@@ -80,6 +80,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                     "value": "VALUE",
                     "unit": "UNIT",
                 },
+                "management": None,
             },
             # "pft_lookup_files": {
             #     "cover": "lat53.360000_lon13.800000__PFT__data_cover.txt"
@@ -113,6 +114,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                     "value": "",
                     "unit": "",
                 },
+                "management": None,
             },
             "pft_lookup_files": {
                 "cover": "lat48.600000_lon-1.533330__PFT__reference.txt",
@@ -134,7 +136,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "variables": ["cover"],
             "short_names": {"cover": "STB-C"},
             "file_names": {"cover": "AT_Stubai_data_abund.csv"},
-            "observation_columns": {"cover": "default"},
+            "observation_columns": {"cover": "default", "management": "default"},
             "pft_lookup_files": {
                 "cover": "lat47.116700_lon11.300000__PFT__data_abund.txt"
             },
@@ -149,7 +151,10 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             ],  # FREQ (pres/abs in 100 subplots of 1 m²)
             "short_names": {"absolute_frequency": "OGL-AF"},
             "file_names": {"absolute_frequency": "AT_Obergurgl_data.csv"},
-            "observation_columns": {"absolute_frequency": "default"},
+            "observation_columns": {
+                "absolute_frequency": "default",
+                "management": None,
+            },
             "pft_lookup_files": {
                 "absolute_frequency": "lat46.867100_lon11.024900__PFT__data.txt"
             },
@@ -171,6 +176,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "observation_columns": {
                 "cover": "default",
                 "abundance_gloria_1_8": "default",
+                "management": None,
             },
             "pft_lookup_files": {
                 "cover": "lat47.622020_lon15.149292__PFT__data_cover.txt",
@@ -185,7 +191,10 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "variables": ["cover_braun_blanquet"],
             "short_names": {"cover_braun_blanquet": "RND-CBB"},
             "file_names": {"cover_braun_blanquet": "LV_RanduMeadows_data_abund.csv"},
-            "observation_columns": {"cover_braun_blanquet": "default"},
+            "observation_columns": {
+                "cover_braun_blanquet": "default",
+                "management": None,
+            },
             "pft_lookup_files": {
                 "cover_braun_blanquet": "lat57.814301_lon24.339609__PFT__data_abund.txt"
             },
@@ -198,7 +207,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "variables": ["cover"],
             "short_names": {"cover": "ENG-C"},
             "file_names": {"cover": "LV_Engure_data_cover.csv"},
-            "observation_columns": {"cover": "default"},
+            "observation_columns": {"cover": "default", "management": None},
             "pft_lookup_files": {
                 "cover": "lat57.216700_lon23.135000__PFT__data_cover.txt"
             },
@@ -211,7 +220,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "variables": ["cover"],
             "short_names": {"cover": "SCH-C"},
             "file_names": {"cover": "AT_Schrankogel_data_cover.csv"},
-            "observation_columns": {"cover": "default"},
+            "observation_columns": {"cover": "default", "management": None},
             "pft_lookup_files": {
                 "cover": "lat47.041162_lon11.098057__PFT__data_cover.txt"
             },
@@ -226,7 +235,10 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "file_names": {
                 "cover_braun_blanquet": "IT_MontagnadiTorricchio_data_abund.csv"
             },
-            "observation_columns": {"cover_braun_blanquet": "default"},
+            "observation_columns": {
+                "cover_braun_blanquet": "default",
+                "management": None,
+            },
             "pft_lookup_files": {
                 "cover_braun_blanquet": "lat42.961400_lon13.019200__PFT__reference.txt"
             },
@@ -249,7 +261,10 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "file_names": {
                 "absolute_frequency": "ES_OrdesaYMontePerdido_data_freq.csv"
             },
-            "observation_columns": {"absolute_frequency": "default"},
+            "observation_columns": {
+                "absolute_frequency": "default",
+                "management": None,
+            },
             "pft_lookup_files": {
                 "absolute_frequency": "lat42.650000_lon0.030000__PFT__data_freq.txt"
             },
@@ -274,6 +289,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                     "value": "VALUE",
                     "unit": "UNIT",
                 },
+                "management": None,
             },
             "pft_lookup_files": {
                 # "cover_braun_blanquet": "lat50.267302_lon9.269139__PFT__abund_data.txt"
@@ -286,11 +302,17 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
         "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
             "name": "Torgnon grassland Tellinod (IT19 Aosta Valley)",
             "variables": ["frequency_daget_poissonet"],  # relative abundance?
+            # According to the method of Daget and Poissonet (1971), the specific contributions
+            # are derived as the quotient between the frequency of a species and the sum
+            # of the frequencies of all species.
             "short_names": {"frequency_daget_poissonet": "TGT-F"},
             "file_names": {
                 "frequency_daget_poissonet": "IT_TorgnonGrasslandTellinod_data_abund.csv"
             },
-            "observation_columns": {"frequency_daget_poissonet": "default"},
+            "observation_columns": {
+                "frequency_daget_poissonet": "default",
+                "management": None,
+            },
             "pft_lookup_files": {
                 "frequency_daget_poissonet": "lat45.846063_lon7.579028__PFT__data_abund.txt"
             },
@@ -312,7 +334,8 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                     "species": "TAXA",
                     "value": "VALUE",
                     "unit": "UNIT",
-                }
+                },
+                "management": None,
             },
             "pft_lookup_files": {
                 "cover": "lat55.680000_lon8.610000__PFT__data_cover.txt"
@@ -328,7 +351,10 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "file_names": {
                 "cover_braun_blanquet": "IT_AppenninoCentrale_data_abund.csv"
             },
-            "observation_columns": {"cover_braun_blanquet": "default"},
+            "observation_columns": {
+                "cover_braun_blanquet": "default",
+                "management": None,
+            },
             "pft_lookup_files": {
                 "cover_braun_blanquet": "lat42.446250_lon13.554978__PFT__data_abund.txt"
             },
@@ -345,7 +371,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "file_names": {
                 "cover": "IT_AppenninoCentroMeridionale_data_cover__from_FEM_Revised.csv"
             },
-            "observation_columns": {"cover": "default"},
+            "observation_columns": {"cover": "default", "management": None},
             "pft_lookup_files": {
                 "cover": "lat42.086116_lon14.085206__PFT__data_cover.txt"
             },
@@ -360,7 +386,10 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             ],  # unit of measure of density or biomass - semi-quantitative ordinal scale
             "short_names": {"cover_categories_1_9": "JAD-C19"},
             "file_names": {"cover_categories_1_9": "SK_JaloveckaDolina_data_cover.csv"},
-            "observation_columns": {"cover_categories_1_9": "default"},
+            "observation_columns": {
+                "cover_categories_1_9": "default",
+                "management": None,
+            },
             "pft_lookup_files": {
                 "cover_categories_1_9": "lat49.217800_lon19.671900__PFT__data_cover.txt"
             },
@@ -374,7 +403,10 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "variables": ["cover"],  # "biomass"
             "short_names": {"cover": "KUL-C"},
             "file_names": {"cover": "BE_KUL-site_cover__from_VanMeerbeek_data.csv"},
-            "observation_columns": {"cover": "default"},
+            "observation_columns": {
+                "cover": "default",
+                "management": None,
+            },  # TODO: handle specific management data
             "pft_lookup_files": {
                 "cover": "lat51.000000_lon5.000000__PFT__cover__from_VanMeerbeek_data.txt"
             },
@@ -389,7 +421,10 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "file_names": {
                 "cover": "CZ_Certoryje-Vojsice_cover__from_regrassed_fields_Bile_Karpaty.csv"
             },
-            "observation_columns": {"cover": "default"},
+            "observation_columns": {
+                "cover": "default",
+                "management": None,
+            },  # TODO: handle specific management data
             "pft_lookup_files": {
                 "cover": "lat48.854200_lon17.426100__PFT__cover__from_regrassed_fields_Bile_Karpaty.txt"
             },
@@ -404,7 +439,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "file_names": {
                 "cover": "DE_BEXIS-site-SEG_data_cover__from_31973_5_Dataset.csv"
             },
-            "observation_columns": {"cover": "default"},
+            "observation_columns": {"cover": "default", "management": None},
             "pft_lookup_files": {
                 "cover": "lat53.007100_lon13.769500__PFT__data_cover__from_31973_5_Dataset.txt"
             },
@@ -419,7 +454,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "file_names": {
                 "cover": "DE_BEXIS-site-HEG_data_cover__from_31973_5_Dataset.csv"
             },
-            "observation_columns": {"cover": "default"},
+            "observation_columns": {"cover": "default", "management": None},
             "pft_lookup_files": {
                 "cover": "lat51.158000_lon10.476200__PFT__data_cover__from_31973_5_Dataset.txt"
             },
@@ -434,7 +469,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "file_names": {
                 "cover": "DE_BEXIS-site-AEG_data_cover__from_31973_5_Dataset.csv"
             },
-            "observation_columns": {"cover": "default"},
+            "observation_columns": {"cover": "default", "management": None},
             "pft_lookup_files": {
                 "cover": "lat48.437400_lon9.389380__PFT__data_cover__from_31973_5_Dataset.txt"
             },
@@ -466,6 +501,20 @@ DEFAULT_OBSERVATION_COLUMNS = MappingProxyType(
         "species": "TAXA",
         "value": "VALUE",
         "unit": "UNIT",
+    }
+)
+
+# default management columns, NOTE: no subplot or layer handling!
+DEFAULT_MANAGEMENT_COLUMNS = MappingProxyType(
+    {
+        "plot": "STATION_CODE",
+        "time": "TIME",
+        "defoliation": "DEFOLIATION_TYPE",  # M: mowing, G: grazing, C: combined, A: abandoned, N: no
+        "mowing": "ANNUAL_MOWINGS",  # mowing events per year
+        "fertilization": "ANNUAL_FERTILIZATIONS",  # fertilization events per year
+        "fertilization_organic": "ANNUAL_FERT_ORGANIC",  # fertilization with organic manure
+        "fertilization_mineral": "ANNUAL_FERT_MINERAL",  # fertilization with mineral fertilizer
+        "grazing": "ANNUAL_GRAZING",  # grazing months per year
     }
 )
 
@@ -938,7 +987,14 @@ def check_for_grass_layer(
 
 
 def process_observation_data(
-    observation_data, variable, pft_lookup, *, columns="default", new_file=None
+    observation_data,
+    variable,
+    pft_lookup,
+    coordinates_list,
+    *,
+    columns="default",
+    new_file=None,
+    management_columns=None,
 ):
     """
     Process observation data for a specific variable and map to PFTs.
@@ -947,8 +1003,10 @@ def process_observation_data(
         observation_data (list): List of lists with observation data.
         variable (str): Observation variable name.
         pft_lookup (dict): Dictionary with species-PFT mapping.
+        coordinates_list (list): List of dictionaries with plot names ('station_code') and their coordinates ('lat' and 'lon').
         columns (dict): Dictionary with column names for the observation data (default is 'default').
         new_file (Path): Path to the new file to save processed observation data (default is None for not saving).
+        management_columns (dict): Dictionary with management-related column names, if applicable (default is None).
 
     Returns:
         DataFrame: Processed observation data mapped to PFTs or None if variable is not processed.
@@ -967,11 +1025,76 @@ def process_observation_data(
 
         return None
 
-    if columns == "default" or columns is None:
-        columns = DEFAULT_OBSERVATION_COLUMNS
-
     if new_file:
         target_folder = new_file.parent
+
+    # Check if "time" column is present in observation data
+    time_column = ut.find_column_index(observation_data, "TIME", warn_not_found=False)
+    header_lines = 1
+
+    if time_column is None:
+        logger.warning(
+            f"No 'TIME' column found in raw observation data for variable '{variable}'."
+        )
+    else:
+        # Format entries in 'time' column using ut.format_datestring
+        for index, entry in enumerate(observation_data[header_lines:]):
+            observation_data[index + header_lines][time_column] = ut.format_datestring(
+                entry[time_column]
+            )
+
+    if columns == "default":  # or columns is None:
+        columns = DEFAULT_OBSERVATION_COLUMNS
+
+    # Export management data if existing
+    if management_columns is not None:
+        if management_columns == "default":
+            management_columns = DEFAULT_MANAGEMENT_COLUMNS
+
+        management_data, management_columns_found = ut.get_list_of_columns(
+            observation_data, management_columns.values()
+        )
+        management_columns_found = [
+            key
+            for key in management_columns
+            if management_columns[key] in management_columns_found
+        ]
+
+        # Convert time entries in management data, keep only the year
+        if "time" in management_columns_found:
+            time_column = management_columns_found.index("time")
+
+            for entry in management_data[header_lines:]:
+                entry[time_column] = entry[time_column].split("-")[0]
+
+        # Get unique management entries, remove header lines
+        management_data = ut.remove_duplicates(management_data[header_lines:])
+
+        # Add lat/lon to management data if "plot" column is present and coordinates are available
+        if "plot" in management_columns_found:
+            plot_column = management_columns_found.index("plot")
+            management_columns_found = ["lat", "lon"] + management_columns_found
+
+            for index, entry in enumerate(management_data):
+                entry[plot_column] = (
+                    str(entry[plot_column]).replace("/", "_").replace("?", "？")
+                )
+
+                for coordinates in coordinates_list:
+                    if entry[plot_column] == coordinates.get("station_code"):
+                        management_data[index] = [
+                            round(coordinates.get("lat"), 6),
+                            round(coordinates.get("lon"), 6),
+                        ] + entry
+
+                        break
+
+        # Save management data to file
+        ut.list_to_file(
+            management_data,
+            target_folder / f"{new_file.name.split('PFT')[0]}Management.csv",
+            column_names=management_columns_found,
+        )
 
     # Reduce observation data to selected columns, remap column names accordingly
     observation_data, columns_found = ut.get_list_of_columns(
@@ -986,16 +1109,9 @@ def process_observation_data(
 
     # Process observation data
     if "plot" in columns and "time" in columns:
-        header_lines = 1
         plot_names = ut.get_unique_values_from_column(
             observation_data, columns["plot"], header_lines=header_lines
         )
-
-        # Format entries in 'time' column using ut.format_datestring
-        for index, entry in enumerate(observation_data[header_lines:]):
-            observation_data[index + header_lines][columns["time"]] = (
-                ut.format_datestring(entry[columns["time"]])
-            )
 
         pfts = ["grass", "forb", "legume", "other", "not_assigned"]
         observation_pft = pd.DataFrame(
@@ -1334,6 +1450,7 @@ def get_observations_from_files(
     location,
     observation_data_specs,
     source_folder,
+    coordinates_list,
     *,
     target_folder=None,
     target_suffix=".txt",
@@ -1345,6 +1462,7 @@ def get_observations_from_files(
         location (dict): Dictionary with 'name', 'deims_id', 'lat' and 'lon' keys.
         observation_data_specs (dict): Dictionary with 'name' and 'file_names' keys.
         source_folder (Path): Path to the folder containing observation data files.
+        coordinates_list (list): List of dictionaries with plot names ('station_code') and their coordinates ('lat' and 'lon').
         target_folder (Path): Path to the folder to save processed observation data (default is None).
         target_suffix (str): Suffix for target files (default is '.txt').
 
@@ -1408,8 +1526,12 @@ def get_observations_from_files(
                     observation_data,
                     variable,
                     pft_lookup,
+                    coordinates_list,
                     columns=observation_data_specs["observation_columns"][variable],
                     new_file=target_file,
+                    management_columns=observation_data_specs["observation_columns"][
+                        "management"
+                    ],
                 )
 
                 # Get summary for processed observation data
@@ -1474,14 +1596,6 @@ def prep_observation_data(
         location["formatted_lat"] = f"lat{location['lat']:.6f}"
         location["formatted_lon"] = f"lon{location['lon']:.6f}"
 
-        location_summary = get_observations_from_files(
-            location,
-            observation_data_specs,
-            source_subfolder,
-            target_folder=target_subfolder,
-            target_suffix=target_suffix,
-        )
-
         # Create coordinates file
         station_file = (
             source_folder
@@ -1500,6 +1614,16 @@ def prep_observation_data(
             coordinates_list,
             coordinates_file,
             column_names=["site_code", "station_code", "lat", "lon"],
+        )
+
+        # Get observation data from files
+        location_summary = get_observations_from_files(
+            location,
+            observation_data_specs,
+            source_subfolder,
+            coordinates_list,
+            target_folder=target_subfolder,
+            target_suffix=target_suffix,
         )
 
         return location_summary

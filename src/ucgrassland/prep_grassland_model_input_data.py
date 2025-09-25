@@ -222,10 +222,23 @@ def get_input_data(
         logger.info("Management data preparation skipped.")
     else:
         for coordinates in coordinates_list:
+            land_use_map_keys = ["EUR_hda_mowing"]
+
+            # add German land use maps for locations in Germany
             if ut.get_country(coordinates) == "DE":
-                land_use_map_keys = ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]
-            else:
-                land_use_map_keys = ["EUR_hda_mowing"]
+                land_use_map_keys.extend(["GER_Lange", "GER_Schwieder"])
+
+            # add specific management regimes to look up from observations/assumptions
+            if coordinates.get("deims_id"):
+                if coordinates["deims_id"] == "4c8082f9-1ace-4970-a603-330544f22a23":
+                    # Certoryje-Vojsicke Louky meadows
+                    land_use_map_keys.extend(["CZ_CVL"])
+                elif coordinates["deims_id"] == "11696de6-0ab9-4c94-a06b-7ce40f56c964":
+                    # IT25 - Val Mazia-Matschertal
+                    land_use_map_keys.extend(["IT_VMM"])
+                elif coordinates["deims_id"] == "324f92a3-5940-4790-9738-5aa21992511c":
+                    # Stubai (combination of Neustift meadows and Kaserstattalm)
+                    land_use_map_keys.extend(["AT_STB"])
 
             for map_key in land_use_map_keys:
                 file_name = (
@@ -309,9 +322,9 @@ def prep_grassland_model_input_data(
                 raise
     else:
         skip_grass_check = True
-        # skip_weather = True
+        skip_weather = True
         skip_soil = True
-        skip_management = True
+        # skip_management = True
 
         # Example locations list
         # locations = ut.parse_locations(
@@ -379,26 +392,26 @@ def prep_grassland_model_input_data(
         # #     country="ALL",  # "DE" "AT"
         # # )
         site_ids = [
-            # "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
-            # # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
-            # "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
-            # "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
-            # # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-            # # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
-            # "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
-            # "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
-            # "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
-            # # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
-            # # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
-            # # "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
-            # "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
-            # "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
-            # "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
-            # "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
-            # "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
+            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+            # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
+            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
+            "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
+            # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
+            # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
+            "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
+            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
+            # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
+            # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
+            # "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+            "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
+            "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
+            "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
+            "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
+            "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
             # # # # not eLTER plus
-            # "KUL-site",  # KU Leuven, Belgium
-            # "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
+            "KUL-site",  # KU Leuven, Belgium
+            "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
             "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4",  # BEXIS-site-SEG
             "56c467e5-093f-4b60-b5cf-880490621e8d",  # BEXIS-site-HEG
             "a51f9249-ddc8-4a90-95a8-c7bbebb35d29",  # BEXIS-site-AEG
@@ -413,7 +426,10 @@ def prep_grassland_model_input_data(
                 / deims_id
                 / OBSERVATION_DATA_SPECS_PER_SITE[deims_id]["station_file"]
             )
-            coordinates_list = ut.get_plot_locations_from_csv(station_file)
+            coordinates_list = ut.get_plot_locations_from_csv(
+                station_file,
+                deims_id=deims_id if deims_id not in ["KUL-site"] else None,
+            )
 
             # Specify site-specific time range, 1951 min year because dataset starts 1950 and last month of previous year needed
             first_year = max(

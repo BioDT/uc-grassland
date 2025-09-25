@@ -70,6 +70,7 @@ import calendar
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from ucgrassland import utils as ut
 from ucgrassland.get_wekeo_data import request_hda_grassland_data
@@ -309,6 +310,28 @@ def get_management_map_file(
         # Get map file URL (seems unstable via zenodo, use OPENDAP instead)
         # map_file = f"https://zenodo.org/records/10609590/files/{file_name}"
         map_file = f"{ut.OPENDAP_ROOT}landUseMaps/{map_key}/{file_name}"
+    elif map_key in ["IT_VMM", "AT_STB"]:
+        deims_ids_for_maps = {
+            "IT_VMM": "11696de6-0ab9-4c94-a06b-7ce40f56c964",
+            "AT_STB": "324f92a3-5940-4790-9738-5aa21992511c",
+        }
+        target_folder = (
+            Path.cwd() / "grasslandSites" / deims_ids_for_maps[map_key] / "Observations"
+        )
+        location = ut.get_deims_coordinates(deims_ids_for_maps[map_key])
+
+        if location["found"]:
+            file_name = f"lat{location['lat']:.6f}_lon{location['lon']:.6f}__Observation__Management.csv"
+            map_file = target_folder / file_name
+
+            if map_file.is_file():
+                return map_file
+            else:
+                logger.error(f"File '{map_file}' not found.")
+                return None
+        else:
+            logger.error("Cannot construct management data file name.")
+            return None
 
     # Return map file URL, if found
     if ut.check_url(map_file):
@@ -318,7 +341,7 @@ def get_management_map_file(
         return None
 
 
-def get_GER_Lange_data(coordinates, map_properties, years):
+def get_GER_Lange_data(coordinates, years):
     """
     Read management data for given coordinates from 'GER_Lange' map for respective year and return as array.
     Only works for locations classified as grassland according to German ATKIS digital landscape model 2015.
@@ -334,14 +357,14 @@ def get_GER_Lange_data(coordinates, map_properties, years):
 
     Parameters:
         coordinates (tuple): Coordinates ('lat', 'lon') to extract management data.
-        map_properties (list): List of properties to extract.
         years (list): List of years to process.
 
     Returns:
         tuple: Property data for given years (2D numpy.ndarray, nan if no grassland or outside area of applicability),
-            and list of query sources and time stamps.
+            , list of query sources and time stamps, and list of map properties.
     """
     map_key = "GER_Lange"
+    map_properties = ["mowing", "fertilisation", "grazing", "LUI"]
     logger.info(f"Reading management data from '{map_key}' map ...")
     query_protocol = []
 
@@ -403,10 +426,10 @@ def get_GER_Lange_data(coordinates, map_properties, years):
                             f"{year}, {property} : {property_value}. Not used, outside area of applicability."
                         )
 
-    return property_data, query_protocol
+    return property_data, query_protocol, map_properties
 
 
-def get_GER_Schwieder_data(coordinates, years, *, map_bands=7):
+def get_GER_Schwieder_data(coordinates, years):
     """
     Read mowing data for given coordinates from 'GER_Schwieder' map for respective year and return as array.
     Only works for locations classified as (permanent) grassland in 2017, 2018 and 2019 according to Blickensdörfer et al. (2021).
@@ -416,17 +439,26 @@ def get_GER_Schwieder_data(coordinates, years, *, map_bands=7):
 
     Parameters:
         coordinates (tuple): Coordinates ('lat', 'lon') to extract management data.
-        map_properties (list): List of properties to extract.
         years (list of int): List of years to process.
 
     Returns:
         tuple: Property data for given years (2D numpy.ndarray, nan if no grassland or no mowing event),
-            and list of query sources and time stamps.
+            , list of query sources and time stamps, and list of map properties.
     """
     map_key = "GER_Schwieder"
+    map_properties = [
+        "mowing",
+        "date_1",
+        "date_2",
+        "date_3",
+        "date_4",
+        "date_5",
+        "date_6",
+    ]
+    property = map_properties[0]
+    map_bands = len(map_properties)
     logger.info(f"Reading management data from '{map_key}' map ...")
     query_protocol = []
-    property = "mowing"
 
     # Initialize property_data array with nans
     property_data = np.full((len(years), map_bands + 1), np.nan, dtype=object)
@@ -475,23 +507,24 @@ def get_GER_Schwieder_data(coordinates, years, *, map_bands=7):
                             f"{property.capitalize()} event {band_index - 1}: {band_date.strftime('%Y-%m-%d')}."
                         )
 
-    return property_data, query_protocol
+    return property_data, query_protocol, map_properties
 
 
-def get_EUR_hda_mowing_data(coordinates, years, *, folder="landUseMaps", map_count=5):
+def get_EUR_hda_mowing_data(coordinates, years, *, folder="landUseMaps"):
     """
     Get mowing data from the EUR HDA for the specified coordinates, properties, and years.
 
     Parameters:
         coordinates (tuple): Coordinates ('lat', 'lon') to extract mowing data.
-        map_properties (list): List of properties to extract.
         years (list of int): List of years to process.
+        folder (str or Path): Folder where data files are stored (default is 'landUseMaps').
 
     Returns:
         tuple: Mowing data for given years (2D numpy.ndarray, nan if no grassland or no mowing event),
-            and list of query sources and time stamps.
+            , list of query sources and time stamps, and list of map properties.
     """
     map_key = "EUR_hda_mowing"
+    map_properties = ["mowing", "date_1", "date_2", "date_3", "date_4"]
     logger.info(f"Reading mowing data from '{map_key}' map ...")
     query_protocol = []
     warn_no_grassland = True
@@ -524,7 +557,7 @@ def get_EUR_hda_mowing_data(coordinates, years, *, folder="landUseMaps", map_cou
         )
 
     # Initialize property_data array with nans
-    property_data = np.full((len(years), map_count + 1), np.nan, dtype=object)
+    property_data = np.full((len(years), len(map_properties) + 1), np.nan, dtype=object)
 
     # Extract values from tif maps for each year and each property
     for y_index, year in enumerate(years):
@@ -641,10 +674,22 @@ def get_EUR_hda_mowing_data(coordinates, years, *, folder="landUseMaps", map_cou
 
                     break
 
-    return property_data, query_protocol
+    return property_data, query_protocol, map_properties
 
 
-def get_CZ_CVL_data(coordinates, years, *, map_bands=2):
+def get_CZ_CVL_data(years):
+    """
+    Create mowing data for CZ_CVL site based on expert knowledge/observations,
+    assuming one mowing event on May 15 for each year.
+
+    Parameters:
+        years (list of int): List of years to process.
+
+    Returns:
+        tuple: Property data for given years (2D numpy.ndarray),
+            list of query sources and time stamps (empty, as no external data source used),
+            and list of map properties.
+    """
     # all of the sites have been mown (mostly once per year) since the regrassing onset
     # up to the sampling date, without irrigation and fertilization (as far as we know);
     # some of them started to be grazed afterwards (sites nr. 25, 27, 30, 40, 45, 51, 52)
@@ -652,11 +697,13 @@ def get_CZ_CVL_data(coordinates, years, *, map_bands=2):
     # some others were in 2022 even partially or completely ploughed (14, 15, 16, 17, 18, 82).
     #
     # assume fixed mow date May 15 for all requested years
+
+    map_properties = ["mowing", "date_1"]
     logger.info("Creating management data for CZ_CVL site ...")
     query_protocol = []
 
     # Initialize property_data array with nans
-    property_data = np.full((len(years), map_bands + 1), np.nan, dtype=object)
+    property_data = np.full((len(years), len(map_properties) + 1), np.nan, dtype=object)
 
     for y_index, year in enumerate(years):
         property_data[y_index, 0] = year
@@ -667,7 +714,60 @@ def get_CZ_CVL_data(coordinates, years, *, map_bands=2):
         mow_date = ut.day_of_year_to_date(year, int(mow_date))
         logger.info(f"Mowing event 1: {mow_date.strftime('%Y-%m-%d')}.")
 
-    return property_data, query_protocol
+    return property_data, query_protocol, map_properties
+
+
+def get_EUR_observation_data(coordinates, years, map_key):
+    map_properties = [
+        "mowing",
+        "fertilization",
+        "fertilization_mineral",
+        "fertilization_organic",
+        "grazing",
+    ]
+    property_data = np.full((len(years), len(map_properties) + 1), np.nan, dtype=float)
+    query_protocol = []
+    map_file = get_management_map_file(map_key, None)
+
+    if map_file and map_file.is_file():
+        logger.info(f"Management observation data file found. Using '{map_file}'.")
+        management_df = pd.read_csv(
+            map_file, header=0, encoding="ISO-8859-1", delimiter=";"
+        )
+        time_stamp = ut.get_file_date(map_file)
+        query_protocol.append([map_file, time_stamp])
+
+        for y_index, year in enumerate(years):
+            property_data[y_index, 0] = year
+            entry = management_df[
+                (management_df["time"] == year)
+                & (management_df["lat"] == round(coordinates["lat"], 6))
+                & (management_df["lon"] == round(coordinates["lon"], 6))
+            ]
+
+            if not entry.empty:
+                if len(entry) > 1:
+                    first_plot = entry["plot"].values[0]
+                    entry = entry.drop(columns=["plot", "defoliation"])
+                    entry = entry.drop_duplicates()
+
+                    if len(entry) > 1:
+                        logger.warning(
+                            f"{len(entry)} non-unique management entries found for {year} at "
+                            f"latitude: {coordinates['lat']:.6f}, longitude: {coordinates['lon']:.6f})."
+                            f" Using the first one (plot '{first_plot}')."
+                        )
+                        entry = entry.iloc[[0]]
+
+                for p_index, property in enumerate(map_properties, start=1):
+                    if property in entry.columns:
+                        value = float(entry[property].iloc[0])
+
+                        if not pd.isna(value):
+                            property_data[y_index, p_index] = value
+                            logger.info(f"{year}, {property}: {value}.")
+
+    return property_data, query_protocol, map_properties
 
 
 def get_mow_events(
@@ -728,26 +828,29 @@ def get_mow_schedule(year, mow_count, data_source, mow_height=0.05):
             columns 2 to 6: value NaN (for no fertilisation, no irrigation and no seeds at this management event).
             column 7: 'data_source' string to specify data source.
     """
-    # Check if mow_count is NaN
     if np.isnan(mow_count):
         logger.warning("mow_count is NaN. No schedule will be generated.")
 
         return np.array([])
 
-    # Check if mow_count is between 1 and 5
-    if mow_count < 1:
-        mow_count = 1
-        logger.warning(
-            "'mow_count' is smaller than 1. Value between 1 and 5 expected. Set to 1."
-        )
-    elif mow_count > 5:
+    if mow_count < 0:
+        logger.warning("mow_count is negative. No schedule will be generated.")
+
+        return np.array([])
+
+    epsilon = 1e-10
+    mow_count = round(mow_count + epsilon)
+
+    if mow_count == 0:
+        logger.info("'mow_count' is zero. No schedule will be generated.")
+
+        return np.array([])
+
+    if mow_count > 5:
         mow_count = 5
         logger.warning(
             "'mow_count' is greater than 5. Value between 1 and 5 expected. Set to 5."
         )
-
-    # Convert mow_count to int
-    mow_count = int(mow_count)
 
     # Define specific days for each number of mow events (cf. Filipiak et al. 2022, Table S6)
     mow_days = {
@@ -868,26 +971,29 @@ def get_fert_schedule(year, fert_count, data_source, fert_days=None):
             columns 3 to 6: value NaN (for no irrigation and no seeds at this management event).
             column 7: 'data_source' string to specify data source.
     """
-    # Check if fert_count is NaN
     if np.isnan(fert_count):
         logger.warning("fert_count is NaN. No schedule will be generated.")
 
         return np.array([])
 
-    # Check if fert_count is between 1 and 5
-    if fert_count < 1:
-        fert_count = 1
-        logger.warning(
-            "'fert_count' is smaller than 1. Value between 1 and 5 expected. Set to 1."
-        )
-    elif fert_count > 5:
+    if fert_count < 0:
+        logger.warning("'fert_count' is negative. No schedule will be generated.")
+
+        return np.array([])
+
+    epsilon = 1e-10
+    fert_count = round(fert_count + epsilon)
+
+    if fert_count == 0:
+        logger.info("Rounded 'fert_count' is zero. No schedule will be generated.")
+
+        return np.array([])
+
+    if fert_count > 5:
         fert_count = 5
         logger.warning(
             "'fert_count' is greater than 5. Value between 1 and 5 expected. Set to 5."
         )
-
-    # Convert fert_count to int
-    fert_count = int(fert_count)
 
     # Check if specific days for fertilisation events are provided
     if fert_days:
@@ -981,12 +1087,19 @@ def convert_management_data(
     fert_source_per_year = np.full(years.shape, "", dtype=object)
 
     # MOWING
-    if map_key in ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing", "CZ_CVL"]:
+    if map_key in [
+        "GER_Lange",
+        "GER_Schwieder",
+        "EUR_hda_mowing",
+        "CZ_CVL",
+        "IT_VMM",
+        "AT_STB",
+    ]:
         # Read mowing, same column for "GER_Lange", "GER_Schwieder" and "EUR_hda_mowing"
         mow_count_per_year = np.array([entry[1] for entry in management_data_raw])
         years_with_mow_data = years[~np.isnan(mow_count_per_year)]
 
-        if map_key == "GER_Lange":
+        if map_key in ["GER_Lange", "IT_VMM", "AT_STB"]:
             # Add mowing events to management events, using default schedule
             for index in np.where(mow_count_per_year > 0)[0]:
                 mow_schedule = get_mow_schedule(
@@ -1085,29 +1198,39 @@ def convert_management_data(
                 management_events.extend(mow_schedule)
 
     # FERTILISATION
-    if map_key == "GER_Lange":
-        # Read fertilisation data for "GER_Lange"
-        fertilised_per_year = np.array([entry[2] for entry in management_data_raw])
-        fert_count_per_year = np.zeros_like(fertilised_per_year)
+    if map_key in ["GER_Lange", "IT_VMM", "AT_STB"]:
+        if map_key == "GER_Lange":
+            # Read fertilisation data for "GER_Lange"
+            fertilised_per_year = np.array([entry[2] for entry in management_data_raw])
+            fert_count_per_year = np.full(fertilised_per_year.shape, np.nan)
 
-        # If data say fertilisation, adapt number of events to mowing events (even if mowing==0)!
-        for index in np.where(fertilised_per_year == 1)[0]:
-            fert_count_per_year[index] = mow_count_per_year[index]
-            fert_source_per_year[index] = "event observed (date: schedule)"
+            # If data say fertilisation, adapt number of events to mowing events (even if mowing==0)!
+            for index in np.where(fertilised_per_year == 1)[0]:
+                fert_count_per_year[index] = mow_count_per_year[index]
+                fert_source_per_year[index] = "event observed (date: schedule)"
+        elif map_key in ["IT_VMM", "AT_STB"]:
+            # Read fertilisation data for "IT_VMM" and "AT_STB"
+            # NOTE: entry[2] for all fertilisation, entry[3] for mineral fertilisation
+            #       entries can be non integer, e.g. 1.5
+            fert_count_per_year = np.array([entry[2] for entry in management_data_raw])
+
+            for index in np.where(fert_count_per_year > 0)[0]:
+                fert_source_per_year[index] = "event observed (date: schedule)"
 
         # Fill fertilisation years without data
-        index_to_fill = np.where(np.isnan(fertilised_per_year))[0]
+        index_to_fill = np.where(np.isnan(fert_count_per_year))[0]
         no_fert_data_for_mean = False
 
         if fill_mode == "mean":
-            if np.any(~np.isnan(fertilised_per_year)):
+            if np.any(~np.isnan(fert_count_per_year)):
                 # Use means of data retrieved for remaining years as well
                 fert_count_float = np.mean(
-                    fert_count_per_year[~np.isnan(fertilised_per_year)]
+                    fert_count_per_year[~np.isnan(fert_count_per_year)]
                 )
                 fert_count_fill = round(fert_count_float + epsilon)
                 logger.info(
-                    f"Mean number of fertilisation events: {fert_count_float:.4f} per year. "
+                    f"Mean annual fertilisation events: {fert_count_float:.4f} "
+                    f"(from {sum(~np.isnan(fert_count_per_year))} years). "
                     f"Using {fert_count_fill} events per year (but never more than mowing events of the same year)."
                 )
 
@@ -1150,7 +1273,7 @@ def convert_management_data(
             )
 
     # Add all fertilisation events to schedule (no fertilization for CZ_CVL)
-    if map_key in ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing"]:
+    if map_key in ["GER_Lange", "GER_Schwieder", "EUR_hda_mowing", "IT_VMM", "AT_STB"]:
         for index, year in enumerate(years):
             if fert_count_per_year[index] > 0:
                 fert_schedule = get_fert_schedule(
@@ -1202,32 +1325,24 @@ def get_management_data(
             raise
 
     if map_key == "GER_Lange":
-        map_properties = ["mowing", "fertilisation", "grazing", "LUI"]
-        management_data_raw, data_query_protocol = get_GER_Lange_data(
-            coordinates, map_properties, years
+        management_data_raw, data_query_protocol, map_properties = get_GER_Lange_data(
+            coordinates, years
         )
     elif map_key == "GER_Schwieder":
-        map_properties = [
-            "mowing",
-            "date_1",
-            "date_2",
-            "date_3",
-            "date_4",
-            "date_5",
-            "date_6",
-        ]
-        management_data_raw, data_query_protocol = get_GER_Schwieder_data(
-            coordinates, years, map_bands=len(map_properties)
+        management_data_raw, data_query_protocol, map_properties = (
+            get_GER_Schwieder_data(coordinates, years)
         )
     elif map_key == "EUR_hda_mowing":
-        map_properties = ["mowing", "date_1", "date_2", "date_3", "date_4"]
-        management_data_raw, data_query_protocol = get_EUR_hda_mowing_data(
-            coordinates, years, map_count=len(map_properties)
+        management_data_raw, data_query_protocol, map_properties = (
+            get_EUR_hda_mowing_data(coordinates, years)
         )
     elif map_key == "CZ_CVL":
-        map_properties = ["mowing", "date_1"]
-        management_data_raw, data_query_protocol = get_CZ_CVL_data(
-            coordinates, years, map_bands=len(map_properties)
+        management_data_raw, data_query_protocol, map_properties = get_CZ_CVL_data(
+            years
+        )
+    elif map_key in ["IT_VMM", "AT_STB"]:
+        management_data_raw, data_query_protocol, map_properties = (
+            get_EUR_observation_data(coordinates, years, map_key)
         )
     else:
         try:
