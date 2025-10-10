@@ -1329,7 +1329,7 @@ def set_no_data_value(tif_file, no_data_value):
             current_no_data = src.nodata
 
         if current_no_data is None or float(current_no_data) != no_data_value:
-            with rasterio.open(tif_file, "r+") as src:
+            with rasterio.open(tif_file, "r+", IGNORE_COG_LAYOUT_BREAK="YES") as src:
                 src.nodata = no_data_value
 
             logger.info(
