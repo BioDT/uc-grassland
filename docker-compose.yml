@@ -1,0 +1,22 @@
+services:
+  grassmind-simulation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: grassmind-simulation:latest
+    container_name: grassmind-simulation
+    environment:
+      # Coordinates and time range
+      - LAT=51.391900
+      - LON=11.878700
+      - startYear=2022
+      - endYear=2023
+      - DEIMS=102ae489-04e3-481d-97df-45905837dc1a
+      # CDS API credentials
+      - CDSAPI_URL=https://cds.climate.copernicus.eu/api
+      - CDSAPI_KEY=${CDSAPI_KEY}
+    command: /bin/bash -c "cd /uc-grassland-model && ./prep_and_run.sh"
+    volumes:
+      # Mount output directory that won't conflict with container content
+      - ./output:/output
+    working_dir: /uc-grassland-model
