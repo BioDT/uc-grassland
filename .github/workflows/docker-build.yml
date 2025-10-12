@@ -1,0 +1,141 @@
+name: Docker Build
+
+on:
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      dependencies-changed: ${{ steps.changes.outputs.dependencies }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for dependency changes
+        id: changes
+        run: |
+          # Check if Dockerfile lines 1-32 (dependencies stage) have changed
+          if git diff HEAD^ HEAD -- Dockerfile | grep -E '^\+.*' | grep -v '^\+\+\+' | head -32 | grep -q '^+'; then
+            echo "dependencies=true" >> $GITHUB_OUTPUT
+            echo "Dependencies have changed"
+          else
+            # Also check if this is the first commit or Dockerfile doesn't exist in previous commit
+            if ! git rev-parse HEAD^ >/dev/null 2>&1 || ! git show HEAD^:Dockerfile >/dev/null 2>&1; then
+              echo "dependencies=true" >> $GITHUB_OUTPUT
+              echo "First build or Dockerfile newly added"
+            else
+              echo "dependencies=false" >> $GITHUB_OUTPUT
+              echo "Dependencies have not changed"
+            fi
+          fi
+
+  build-dependencies:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.dependencies-changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for dependencies
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dependencies
+          tags: |
+            type=sha,prefix={{branch}}-
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push dependencies stage
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          target: dependencies
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dependencies:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dependencies:buildcache,mode=max
+
+  build-simulation:
+    needs: [detect-changes, build-dependencies]
+    if: always() && (needs.build-dependencies.result == 'success' || needs.build-dependencies.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine base image
+        id: base
+        run: |
+          if [ "${{ needs.detect-changes.outputs.dependencies-changed }}" == "true" ]; then
+            # Use the newly built dependencies image
+            echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "Using newly built dependencies from this commit"
+          else
+            # Use the latest dependencies image from the branch or main
+            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+            echo "tag=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+            echo "Using existing dependencies from branch: ${BRANCH_NAME}"
+          fi
+
+      - name: Extract metadata for simulation
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push simulation stage
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          target: simulation
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
