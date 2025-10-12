@@ -1,4 +1,5 @@
-FROM python:3.12-slim-bookworm
+# Stage 1: Dependencies
+FROM python:3.12-slim-bookworm AS dependencies
 
 RUN apt-get update && apt-get install -y \
     git \
@@ -27,6 +28,11 @@ RUN wget https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.39
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ENV PATH=/usr/local/bin:$PATH
 
+RUN pip install cfgrib eccodes
+
+# Stage 2: Main simulation installation
+FROM dependencies AS simulation
+
 WORKDIR /
 
 RUN git clone --depth 1 --branch unix https://github.com/BioDT/uc-grassland-model.git
@@ -34,11 +40,7 @@ RUN git clone --depth 1 --branch unix https://github.com/BioDT/uc-grassland-mode
 WORKDIR /uc-grassland-model/build 
 RUN cmake .. && make
 
-
-RUN pip install cfgrib eccodes
-# Alternatively, if you want to install directly from GitHub without copying:
 RUN pip install git+https://github.com/BioDT/uc-grassland.git@gdal-nodatavalue-fix
-# Install additional Python packages for GRIB file support
 
 WORKDIR /uc-grassland-model/
 
