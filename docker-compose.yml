@@ -15,7 +15,7 @@ services:
       # CDS API credentials
       - CDSAPI_URL=https://cds.climate.copernicus.eu/api
       - CDSAPI_KEY=${CDSAPI_KEY}
-    command: /bin/bash -c "cd /uc-grassland-model && ./prep_and_run.sh"
+    command: /bin/bash -c "cd /uc-grassland-model && ./run_pipeline_uc_grassland.sh"
     volumes:
       # Mount output directory that won't conflict with container content
       - ./output:/output

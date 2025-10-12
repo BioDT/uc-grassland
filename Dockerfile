@@ -44,6 +44,6 @@ RUN pip install git+https://github.com/BioDT/uc-grassland.git@gdal-nodatavalue-f
 
 WORKDIR /uc-grassland-model/
 
-COPY prep_and_run.sh /uc-grassland-model/prep_and_run.sh
-RUN chmod +x /uc-grassland-model/prep_and_run.sh
-CMD ["/uc-grassland-model/prep_and_run.sh"]
+COPY run_pipeline_uc_grassland.sh /uc-grassland-model/run_pipeline_uc_grassland.sh
+RUN chmod +x /uc-grassland-model/run_pipeline_uc_grassland.sh
+CMD ["/uc-grassland-model/run_pipeline_uc_grassland.sh"]
