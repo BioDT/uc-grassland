@@ -43,6 +43,7 @@ from pathlib import Path
 from types import MappingProxyType
 
 import deims
+import numpy as np
 import pandas as pd
 import pyproj
 import rasterio
@@ -87,6 +88,8 @@ def add_string_to_file_name(file_name, string_to_add, *, new_suffix=None):
 
         return file_name.with_name(file_name.stem + string_to_add + new_suffix)
 
+    logger.error("File name is empty. Cannot add string.")
+
     return ""
 
 
@@ -113,6 +116,12 @@ def get_source_from_elter_data_file_name(
         source = split_delimiter.join(
             source.split(split_delimiter)[front_strings_to_remove:]
         )
+
+        if source == "":
+            logger.error(
+                f"File name '{file_name}' does not conform to expected eLTER data file name format. "
+                "Cannot extract data source."
+            )
 
         return source
     else:
@@ -202,14 +211,61 @@ def get_tuple_list(
     header_lines=0,
 ):
     """
-    Convert a list of lists to a list of tuples.
+    Convert a list of lists or tuples or strings to a list of tuples.
 
     Parameters:
-        input_list (list): List of lists.
+        input_list (list): List of lists or tuples or strings.
+        replace_nan (str): String to replace nan values (default is 'nan').
+        replace_none (str): String to replace None values (default is 'None').
+        columns_to_remove (list): List of column indices to remove (default is empty).
+        return_sorted (bool): Whether to return the list sorted (default is False).
+        header_lines (int): Number of header lines to skip and return unchanged in the output (default is 0).
 
     Returns:
         list: List of tuples.
     """
+    if not isinstance(input_list, list):
+        try:
+            raise ValueError("Input must be a list of lists or tuples or strings.")
+        except ValueError as e:
+            logger.error(e)
+            raise
+
+    # Check input list for consistency
+    entry_type = None
+
+    for entry in input_list[header_lines:]:
+        if isinstance(entry, (list, tuple, str)):
+            if entry_type is None:
+                entry_type = type(entry)
+                entry_length = len(entry)  # if isinstance(entry, (list, tuple)) else 1
+            else:
+                # Error if not all entries of the same type
+                if type(entry) is not entry_type:
+                    try:
+                        raise ValueError(
+                            "Input list must contain only lists, or only tuples, or only strings."
+                        )
+                    except ValueError as e:
+                        logger.error(e)
+                        raise
+
+                # Error if not all lists or tuples of the same length
+                if isinstance(entry, (list, tuple)) and len(entry) != entry_length:
+                    try:
+                        raise ValueError(
+                            "All lists or tuples in the input list must have the same length."
+                        )
+                    except ValueError as e:
+                        logger.error(e)
+                        raise
+        else:
+            try:
+                raise ValueError("Input must be a list of lists or tuples or strings.")
+            except ValueError as e:
+                logger.error(e)
+                raise
+
     # Convert each sublist to a tuple, if not already
     tuple_list = []
 
@@ -220,12 +276,11 @@ def get_tuple_list(
             tuple_list.append(entry)
         elif isinstance(entry, str):
             tuple_list.append((entry,))
-        else:
-            logger.warning(f"List entry '{entry}' is not a list, tuple, or string.")
 
+    # Replace nan values, if they are not None
     if replace_nan:
         tuple_list = [
-            tuple(replace_nan if pd.isna(x) else x for x in entry)
+            tuple(replace_nan if pd.isna(x) and x is not None else x for x in entry)
             for entry in tuple_list
         ]
 
@@ -242,7 +297,12 @@ def get_tuple_list(
         ]
 
     if return_sorted:
-        tuple_list.sort(key=lambda x: x)
+        # will throw an error if entries are not comparable, but needed for sorting
+        try:
+            tuple_list.sort()
+        except TypeError:
+            logger.error("Cannot sort tuple list. Entries are not comparable.")
+            raise
 
     return input_list[:header_lines] + tuple_list
 
@@ -1096,7 +1156,7 @@ def get_plot_locations_from_csv(
         deims_id (str, optional): DEIMS.iD to be added to returned locations (default is None).
 
     Returns:
-        list: List of dictionaries containing each unique location (latitude, longitude,
+        list: List of dictionaries containing each unique location (latitude, longitude, altitude,
               station code(s), site code(s), and DEIMS.iD, if found).
     """
     if not csv_file.exists():
@@ -1119,16 +1179,16 @@ def get_plot_locations_from_csv(
         entries_required = ["lat", "lon", "station_code", "site_code"]
         # or leave out site code and station code?
 
-        # Helper function to check if coordinates already exist in locations
         def find_existing_coordinates(lat, lon):
+            """Helper function to check if coordinates already exist in locations."""
             for location in locations:
                 if location["lat"] == lat and location["lon"] == lon:
                     return location
 
             return None
 
-        # Helper function to check if station code already exists in locations
         def find_existing_station_code(station_code):
+            """Helper function to check if station code already exists in locations."""
             for location in locations:
                 if isinstance(location["station_code"], list):
                     if station_code in location["station_code"]:
@@ -1137,6 +1197,33 @@ def get_plot_locations_from_csv(
                     return location
 
             return None
+
+        def check_altitude(lat, lon, altitude_from_file, station_code):
+            """Helper function to get altitude for coordinates and compare with station file altitude."""
+            altitude = get_elevation(lat, lon)
+
+            if np.isnan(altitude):
+                if np.isnan(altitude_from_file):
+                    logger.warning(
+                        f"Could not get altitude for latitude '{lat}' and longitude '{lon}' "
+                        f"for station code '{station_code}' (neither from elevation data nor from station file)."
+                    )
+                else:
+                    logger.warning(
+                        f"Could not get altitude from elevation data for latitude '{lat}' and longitude '{lon}' "
+                        f"for station code '{station_code}'. Using altitude from station file ({altitude_from_file} m)."
+                    )
+                    altitude = altitude_from_file
+            else:
+                if not np.isnan(altitude_from_file) and not np.isclose(
+                    altitude_from_file, altitude, atol=5
+                ):
+                    logger.warning(
+                        f"Altitude from elevation data ({altitude:.0f} m) and station file ({altitude_from_file:.0f} m) differ by more than 5 m for "
+                        f"latitude '{lat}' and longitude '{lon}' (station code '{station_code}'). Using altitude from elevation data."
+                    )
+
+            return altitude
 
         # Extract all entries from station file
         for _, row in df.iterrows():
@@ -1165,6 +1252,14 @@ def get_plot_locations_from_csv(
                     )
                     continue
 
+                altitude_from_file = entries_raw.get("altitude") or np.nan
+
+                if np.isnan(altitude_from_file):
+                    logger.warning(
+                        f"No altitude entry found for station code '{station_code}' "
+                        f"and site code '{site_code}' in station file."
+                    )
+
                 # deims_id check not reasonable, code in commits before 2025-07
 
                 if merge_same_locations:
@@ -1177,9 +1272,18 @@ def get_plot_locations_from_csv(
                         if site_code not in existing_location["site_code"]:
                             existing_location["site_code"].append(site_code)
                     else:
+                        # Check altitude only for new coordinates
+                        # NOTE: this could miss altitude differences for same coordinates but different station codes in station file, but:
+                        #       - it saves requests to elevation service
+                        #       - such cases are unlikely,
+                        #       - altitude from elevation service is preferred anyways
+                        altitude = check_altitude(
+                            lat, lon, altitude_from_file, station_code
+                        )
                         location = {
                             "lat": lat,
                             "lon": lon,
+                            "altitude": altitude,
                             "station_code": [station_code],
                             "site_code": [site_code],
                         }
@@ -1210,9 +1314,13 @@ def get_plot_locations_from_csv(
                             )
                     else:
                         # Add new location with just one (modified) station and site code
+                        altitude = check_altitude(
+                            lat, lon, altitude_from_file, station_code
+                        )
                         location = {
                             "lat": lat,
                             "lon": lon,
+                            "altitude": altitude,
                             "station_code": station_code,
                             "site_code": site_code,
                         }
@@ -1329,7 +1437,7 @@ def set_no_data_value(tif_file, no_data_value):
             current_no_data = src.nodata
 
         if current_no_data is None or float(current_no_data) != no_data_value:
-            with rasterio.open(tif_file, "r+") as src:
+            with rasterio.open(tif_file, "r+", IGNORE_COG_LAYOUT_BREAK="YES") as src:  #
                 src.nodata = no_data_value
 
             logger.info(
@@ -1489,7 +1597,7 @@ def download_file_opendap(
     new_file_name=None,
     attempts=5,
     delay=2,
-    warn_not_found=True,
+    log_infos=True,
 ):
     """
     Download a file from OPeNDAP server 'grasslands-pdt'.
@@ -1501,13 +1609,15 @@ def download_file_opendap(
         new_file_name (str): New name for downloaded file (default is None, file_name will be used).
         attempts (int): Number of attempts to download the file (default is 5).
         delay (int): Number of seconds to wait between attempts (default is 2).
-        warn_not_found (bool): Warn if file not found on OPeNDAP server (default is True).
+        log_infos (bool): Log info messages (default is True).
 
     Returns:
         None
     """
     url = f"{OPENDAP_ROOT}{opendap_folder}/{file_name}"
-    logger.info(f"Trying to download '{url}' ...")
+
+    if log_infos:
+        logger.info(f"Trying to download '{url}' ...")
 
     while attempts > 0:
         try:
@@ -1529,13 +1639,14 @@ def download_file_opendap(
                 with open(target_file, "wb") as file:
                     file.write(response.content)
 
-                logger.info(f"File downloaded successfully to '{target_file}'.")
+                if log_infos:
+                    logger.info(f"File downloaded successfully to '{target_file}'.")
+
                 return
             elif response.status_code == 404:
-                if warn_not_found:
+                if log_infos:
                     logger.warning(f"File '{file_name}' not found on OPeNDAP server.")
-                else:
-                    logger.info(f"File '{file_name}' not found on OPeNDAP server.")
+
                 return
             else:
                 attempts -= 1
@@ -1548,7 +1659,8 @@ def download_file_opendap(
             if attempts > 0:
                 time.sleep(delay)
 
-    logger.warning(f"File '{file_name}' download failed repeatedly.")
+    if log_infos:
+        logger.warning(f"File '{file_name}' download failed repeatedly.")
 
 
 def day_of_year_to_date(year, day_of_year, leap_year_considered=True):
@@ -1741,12 +1853,63 @@ def get_country(coordinates, *, attempts=5, delay_exponential=2, delay_linear=2)
     return None
 
 
+def get_elevation(lat, lon, *, attempts=5, delay_exponential=2, delay_linear=2):
+    """
+    Get elevation for specified coordinates using Open-Elevation API.
+
+    Parameters:
+        lat (float): Latitude.
+        lon (float): Longitude.
+    Returns:
+        float: Elevation in meters or NA if not found.
+    """
+    while attempts > 0:
+        attempts -= 1
+
+        try:
+            response = requests.get(
+                "https://api.open-elevation.com/api/v1/lookup",
+                params={"locations": f"{lat},{lon}"},
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                elevation = data["results"][0]["elevation"]
+
+                if elevation is None:
+                    logger.warning(
+                        f"Elevation not found for latitude '{lat}' and longitude '{lon}'."
+                    )
+                    return pd.NA
+                else:
+                    return elevation
+            else:
+                logger.error(
+                    f"Elevation request failed (Status code {response.status_code})."
+                )
+
+                if attempts > 0:
+                    logger.info(f"Retrying in {delay_exponential} seconds ...")
+                    time.sleep(delay_exponential)
+                    delay_exponential *= 2
+
+        except requests.ConnectionError as e:
+            logger.error(f"Elevation request failed ({e}).")
+
+            if attempts > 0:
+                logger.info(f"Retrying in {delay_linear} seconds ...")
+                time.sleep(delay_linear)
+
+    return pd.NA
+
+
 def get_file_date(file_name):
     """
     Get the modification date of a file as an ISO 8601 formatted string.
 
     Parameters:
         file_name (Path): Path to the file.
+
 
     Returns:
         str: ISO 8601 formatted modification date of the file.
