@@ -296,7 +296,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover_braun_blanquet": "lat50.267302_lon9.269139__PFT__data_abund_V2.txt"
             },
             "pft_lookup_specs": {"cover_braun_blanquet": "default"},
-            "station_file": "DE_RhineMainObservatory_station.csv",
+            "station_file": "DE_RhineMainObservatory_station_reduced.csv",
             "start_year": 2010,
         },
         "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
@@ -785,23 +785,35 @@ def process_single_plot_observation_data(
         plot_data, columns["time"], header_lines=0
     )
 
-    for time_point in time_points:
-        if "value" in columns:
+    if "value" in columns:
+        if "layer" in columns:
+            for time_point in time_points:
+                time_data = ut.get_rows_with_value_in_column(
+                    plot_data, columns["time"], time_point
+                )
+                grass_layer_check = check_for_grass_layer(
+                    time_data,
+                    columns,
+                    plot_name=plot_name,
+                    time_point=time_point,
+                    variable=variable,
+                    non_grass_maximum=5.0,  # allow up to 5% cover from non-grass layer
+                )
+
+                if grass_layer_check is not True:
+                    break  # no need to check further time points if one failed
+        else:
+            logger.warning(
+                f"No 'layer' column found in observation data for plot '{plot_name}'. "
+                "Assuming all entries belong to grass layer. Using all data."
+            )
+            grass_layer_check = True
+
+        for time_point in time_points:
             # Get rows from observation data for this plot and time point
             time_data = ut.get_rows_with_value_in_column(
                 plot_data, columns["time"], time_point
             )
-
-            if "layer" in columns:
-                grass_layer_check = check_for_grass_layer(
-                    time_data, columns, plot_name=plot_name, time_point=time_point
-                )
-            else:
-                logger.warning(
-                    f"No 'layer' column found in observation data for plot '{plot_name}' at time '{time_point}'. "
-                    "Assuming all entries belong to grass layer. Using all data."
-                )
-                grass_layer_check = True
 
             if grass_layer_check is True:
                 # Remove remaining duplicates from retrieved observation data for this plot and time point
@@ -901,8 +913,15 @@ def process_single_plot_observation_data(
                         "invalid_observation": grass_layer_check,
                     }
                 )
-        else:
-            # No 'value' column found, add empty row for this plot and time point
+
+            # Add new row to observation_pft, can be empty if duplicates were found
+            new_row_df = pd.DataFrame([new_row])
+            observation_pft = pd.concat(
+                [observation_pft, new_row_df], ignore_index=True
+            )
+    else:
+        # No 'value' column found, add empty row for this plot and all time points
+        for time_point in time_points:
             new_row = {key: "" for key in observation_pft.columns}
             new_row.update(
                 {
@@ -912,9 +931,11 @@ def process_single_plot_observation_data(
                 }
             )
 
-        # Add new row to observation_pft, can be empty if duplicates were found
-        new_row_df = pd.DataFrame([new_row])
-        observation_pft = pd.concat([observation_pft, new_row_df], ignore_index=True)
+            # Add new row to observation_pft, can be empty if duplicates were found
+            new_row_df = pd.DataFrame([new_row])
+            observation_pft = pd.concat(
+                [observation_pft, new_row_df], ignore_index=True
+            )
 
     return observation_pft
 
@@ -925,7 +946,10 @@ def check_for_grass_layer(
     *,
     plot_name="not specified",
     time_point="not specified",
+    variable="not specified",
+    non_grass_maximum=0,
     grass_layer_names=["F", "COVE_F", "herb layer"],
+    moss_layer_names=["moss layer"],  # "M", "COVE_M" ?
 ):
     """
     Check if data snippet only includes entries from the grass layer.
@@ -935,7 +959,9 @@ def check_for_grass_layer(
         columns (dict): Dictionary with column names for the data.
         plot_name (str): Plot name of the data (default is "not specified").
         time_point (str): Time point of the data (default is "not specified").
+        variable (str): Variable name of the data (default is "not specified").
         grass_layer_names (list): List of valid grass layer names to look for (default is ["F", "COVE_F", "herb layer"]).
+        moss_layer_names (list): List of valid moss layer names to look for (default is ["moss layer"]).
 
     Returns:
         bool or str: True if grass layer check is successful, otherwise a string with an error message.
@@ -948,36 +974,66 @@ def check_for_grass_layer(
         if len(layer_entries) == 1:
             if layer_entries[0] in grass_layer_names:
                 # Only one valid layer entry found, use this layer
-                logger.info(
-                    f"All entries belong to grass layer ('{layer_entries[0]}') for plot '{plot_name}' at time '{time_point}'."
-                    " Using all data."
-                )
+                # logger.info(
+                #     f"All entries belong to grass layer ('{layer_entries[0]}') for plot '{plot_name}' at time '{time_point}'."
+                # )
+                return True
             elif layer_entries[0] == "nan":
                 # No layer information, use this layer
                 # Problem: nan could point to missing info, potentially not all data from grass layer,
                 #          might be cause for duplicates, but also go unnoticed if no duplicates are found
                 logger.warning(
                     f"Only 'nan' found as layer entry for plot '{plot_name}' at time '{time_point}'."
-                    " Assuming all entries belong to grass layer, but this might not be the case. Using all data."
+                    " Assuming all entries belong to grass layer, but this might not be the case."
                 )
+                return True
             else:
-                # Only one invalid layer entry found, skip data
+                # Only one non-grass layer entry found
+                # NOTE: allowed, unless non-grass layer cover is too high, cf. below
                 logger.warning(
                     f"Only '{layer_entries[0]}' found as layer entry for plot '{plot_name}' at time '{time_point}'."
-                    " No grass layer available. Skipping data."
+                    " No grass layer available."
                 )
-
-                return "No grass layer available."
         else:
-            # Different layer entries, cannot use data, skip data
-            # If returning to using such data, consider allowing for herb layer and moss layer here
+            # Multiple layers found, inspect more thouroughly
             logger.warning(
                 f"{len(layer_entries)} different layer entries ({layer_entries}) found for plot '{plot_name}' at time '{time_point}'."
-                " Cannot safely filter grass layer and/or assume the data are reasonable for grassland"
-                " (if affected by vegetation in other layers). Skipping data."
+            )
+            grass_layer_count = sum(
+                1 for entry in layer_entries if entry in grass_layer_names
             )
 
-            return "Different layer entries. Data not usable."
+            if grass_layer_count > 1:
+                # Multiple valid grass layer entries found, skip data
+                # NOTE: zero grass layer entries are allowed, unless non-grass layer cover is too high, cf. below
+                logger.warning(
+                    f"{grass_layer_count} valid grass layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
+                    " Need exactly one valid grass layer entry to safely filter data. Skipping data."
+                )
+
+                return "Different grass layer entries. Data not usable."
+
+        # Total value for all entries not belonging to grass layer or moss layer
+        non_grass_value = 0
+
+        for i in range(len(data_snippet)):
+            if data_snippet[i][columns["layer"]] not in [
+                grass_layer_names + moss_layer_names
+            ]:
+                value = check_observation_value(
+                    data_snippet[i][columns["value"]], variable
+                )
+
+                if value is not None and not pd.isna(value):
+                    non_grass_value += value
+
+        if non_grass_value > non_grass_maximum:
+            logger.warning(
+                f"Non-grass layer cover exceeds maximum allowed ({non_grass_value:.2f} > {non_grass_maximum}) "
+                f"for plot '{plot_name}' at time '{time_point}'. Skipping all data for this plot."
+            )
+
+            return f"Non-grass layer cover too high ({non_grass_value:.2f} > {non_grass_maximum}%). Data not usable."
     else:
         logger.warning(
             "No 'layer' column found. Assuming all data belong to grass layer."
@@ -1613,7 +1669,7 @@ def prep_observation_data(
         ut.list_to_file(
             coordinates_list,
             coordinates_file,
-            column_names=["site_code", "station_code", "lat", "lon"],
+            column_names=["site_code", "station_code", "lat", "lon", "altitude"],
         )
 
         # Get observation data from files
@@ -1694,7 +1750,7 @@ def prep_observation_data_for_sites(
     if site_ids is None:
         # Specify selected site IDs, these need to be in species_data_specs
         site_ids = [
-            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia-Matschertal
             # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
             "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
             "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
@@ -1705,7 +1761,7 @@ def prep_observation_data_for_sites(
             "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
             # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
             # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
-            # "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+            "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
             "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
             "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
             "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia

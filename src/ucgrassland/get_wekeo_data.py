@@ -234,7 +234,6 @@ def request_hda_grassland_data(
                                     hda_file_tif.name,
                                     opendap_folder,
                                     hda_file_tif.parent,
-                                    warn_not_found=False,
                                 )
 
                                 # stop searching if file is found
@@ -291,7 +290,6 @@ def request_hda_grassland_data(
                                     hda_file_tif.name,
                                     opendap_folder,
                                     hda_file_tif.parent,
-                                    warn_not_found=False,
                                 )
 
                             # If file still not available, download from HDA API

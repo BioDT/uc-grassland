@@ -817,25 +817,25 @@ def main():
 
         # Example coordinates for checking without DEIMS.iDs
         args.locations = [
-            {"lat": 51.03444444, "lon": 5.8},  # test
-            {"lat": 50.80843333, "lon": 5.453983333},  # test
-            {"lat": 49.04341667, "lon": 17.93125},  # test
-            {"lat": 49.2167247, "lon": 19.6718631},  # test
-            {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
-            {
-                "lat": 51.3919,
-                "lon": 11.8787,
-            },  # GER, GCEF grassland site, centroid, non-grassland in HRL!
-            # {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
-            # {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
-            # {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city
-            # {"lat": 51.7123725, "lon": 12.5833917},  # GER, forest outside of city
-            # {"lat": 46.8710811, "lon": 11.0244728},  # AT, should be grassland
-            # {"lat": 64.2304403, "lon": 27.6856269},  # FIN, near LUMI site
-            # {"lat": 64.2318989, "lon": 27.6952722},  # FIN, LUMI site
-            # {"lat": 49.8366436, "lon": 18.1540575},  # CZ, near IT4I Ostrava
-            # {"lat": 43.173, "lon": 8.467},  # Mediterranean Sea
-            # {"lat": 30, "lon": 1},  # out of Europe
+            # {"lat": 51.03444444, "lon": 5.8},  # test
+            # {"lat": 50.80843333, "lon": 5.453983333},  # test
+            # {"lat": 49.04341667, "lon": 17.93125},  # test
+            # {"lat": 49.2167247, "lon": 19.6718631},  # test
+            # {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+            # {
+            #     "lat": 51.3919,
+            #     "lon": 11.8787,
+            # },  # GER, GCEF grassland site, centroid, non-grassland in HRL!
+            {"lat": 51.3521825, "lon": 12.4289394},  # GER, UFZ Leipzig
+            {"lat": 51.4429008, "lon": 12.3409231},  # GER, Schladitzer See, lake
+            {"lat": 51.3130786, "lon": 12.3551142},  # GER, Auwald, forest within city
+            {"lat": 51.7123725, "lon": 12.5833917},  # GER, forest outside of city
+            {"lat": 46.8710811, "lon": 11.0244728},  # AT, should be grassland
+            {"lat": 64.2304403, "lon": 27.6856269},  # FIN, near LUMI site
+            {"lat": 64.2318989, "lon": 27.6952722},  # FIN, LUMI site
+            {"lat": 49.8366436, "lon": 18.1540575},  # CZ, near IT4I Ostrava
+            {"lat": 43.173, "lon": 8.467},  # Mediterranean Sea
+            {"lat": 30, "lon": 1},  # out of Europe
         ]
 
     # Default file name will be used as no file name is passed here, return argument not needed here
