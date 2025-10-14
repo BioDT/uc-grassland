@@ -75,6 +75,16 @@ python ../runReplicatedSimulations.py "$LAT" "$LON" "$startYear" "$endYear"
 
 echo "Simulation completed successfully!"
 
-cp -r ./* /output/ 2>/dev/null || true
+mkdir -p /output/simulations/project_lat${LAT}_lon${LON}
+cp -r ./* /output/simulations/project_lat${LAT}_lon${LON}/ 2>/dev/null || true
+
+mkdir -p /output/scenarios
+cp -r /uc-grassland-model/scenarios/lat${LAT}_lon${LON}/* /output/scenarios/
+
+# Save a copy of the parameters used by the model into the output folder so they are
+# preserved alongside the simulation results. This will include any in-place edits
+# performed by modifyConfig.py.
+mkdir -p /output/parameters
+cp -r /uc-grassland-model/parameters/* /output/parameters/ 2>/dev/null || true
 
 echo "Results saved to ./output/"
