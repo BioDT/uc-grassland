@@ -30,10 +30,12 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 from datetime import datetime
 from pathlib import Path
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 from dotenv import dotenv_values
 
+from ucgrassland.assign_pfts import get_gbif_family
 from ucgrassland.logger_config import logger
 
 
@@ -199,6 +201,7 @@ def convert_raw_data_KUL(forbidden_cover_threshold=0):
     source_folder = Path(f"{dotenv_config['ELTER_DATA_PROCESSED']}/KUL-site")
     file_name = "VanMeerbeek_data.xlsx"
     plots_excluded = []
+    pft_dict = {}
 
     # Read other data from xls file
     other_data = pd.read_excel(source_folder / file_name, sheet_name="Other data")
@@ -249,6 +252,11 @@ def convert_raw_data_KUL(forbidden_cover_threshold=0):
         for column in raw_data.columns[2:]:
             column_name = column.replace("_", " ")
             column_value = row[column]
+            pft = pft_dict.get(column_name)
+
+            if pft is None:
+                pft = get_pft_KUL(column_name)
+                pft_dict[column_name] = pft
 
             # Add new row if column value is finite and greater than 0
             if pd.notna(column_value) and column_value > 0:
@@ -262,6 +270,7 @@ def convert_raw_data_KUL(forbidden_cover_threshold=0):
                         "TAXA": column_name,
                         "VALUE": column_value,
                         "UNIT": "%",
+                        "PFT_ORIGINAL": pft,
                     }
                 )
 
@@ -274,6 +283,140 @@ def convert_raw_data_KUL(forbidden_cover_threshold=0):
     new_file_name = "BE_KUL-site_cover__from_VanMeerbeek_data.csv"
     new_data = pd.DataFrame(new_rows)
     new_data.to_csv(source_folder / new_file_name, index=False, sep=";")
+
+    # Read and extract plot locations from shapefile
+    shapefile_path = source_folder / "Natuurgebieden" / "GPS_data.shp"
+    output_csv_path = source_folder / "BE_KUL-site_station_from_shape.csv"
+    extract_plot_locations(shapefile_path, output_csv_path, site_code=site_code)
+
+
+def extract_plot_locations(shapefile_path, output_csv_path, site_code="KUL-site"):
+    """
+    Extract plot locations from shapefile and save to CSV format.
+
+    Parameters
+    ----------
+    shapefile_path : str or Path
+        Path to the input shapefile.
+    output_csv_path : str or Path
+        Path to the output CSV file.
+    site_code : str
+        The site code to be used in the output (default: "KUL-site").
+    """
+    try:
+        # Read the shapefile
+        gdf = gpd.read_file(shapefile_path)
+
+        # Convert to WGS84 (EPSG:4326) if not already in that CRS
+        if gdf.crs != "EPSG:4326":
+            gdf = gdf.to_crs("EPSG:4326")
+
+        # Extract coordinates
+        gdf["LAT"] = gdf.geometry.y
+        gdf["LON"] = gdf.geometry.x
+
+        for _, row in gdf.iterrows():
+            if not np.isclose(row["LAT"], row["lat_dec"], atol=1e-6, rtol=0):
+                logger.warning(
+                    f"Latitude mismatch for plot {row['Proefvlak']}: {row['LAT']} (from geometry) != {row['lat_dec']} (from attribute). Using {row['LAT']}."
+                )
+
+                if not np.isclose(row["LAT"], row["lat_dec"], atol=1e-4, rtol=0):
+                    logger.error(
+                        f"Significant latitude difference for plot {row['Proefvlak']}: {row['LAT']} (from geometry) vs {row['lat_dec']} (from attribute)."
+                    )
+
+            if not np.isclose(row["LON"], row["lon_dec"], atol=1e-6, rtol=0):
+                logger.warning(
+                    f"Longitude mismatch for plot {row['Proefvlak']}: {row['LON']} (from geometry) != {row['lon_dec']} (from attribute). Using {row['LON']}."
+                )
+
+                if not np.isclose(row["LON"], row["lon_dec"], atol=1e-4, rtol=0):
+                    logger.error(
+                        f"Significant longitude difference for plot {row['Proefvlak']}: {row['LON']} (from geometry) vs {row['lon_dec']} (from attribute)."
+                    )
+
+        # Rename station codes, e.g. KVM 80A --> KVM_80
+        gdf["STATION_CODE"] = (
+            gdf["Proefvlak"].str.replace(" ", "_").str.replace("A", "")
+        )
+
+        # Create final dataframe with required columns
+        shape_df = pd.DataFrame(
+            {
+                "SITE_CODE": site_code,
+                "STATION_CODE": gdf["STATION_CODE"],
+                "LAT": gdf["LAT"],
+                "LON": gdf["LON"],
+            }
+        )
+
+        # Save to CSV
+        shape_df.to_csv(output_csv_path, index=False, sep=";")
+
+    except Exception as e:
+        print(f"Error processing shapefile: {e}")
+        return None
+
+
+def get_pft_KUL(species_name):
+    """
+    Get plant functional type (PFT) for a given species name based on predefined mappings.
+
+    Parameters
+    ----------
+    species_name : str
+        The name of the species.
+
+    Returns
+    -------
+    str
+        The corresponding PFT ("woody", "reed", "grass", "legume", or "forb").
+    """
+    # Woody species according to van Meerbeek, personal communication
+    if species_name in [
+        "Acer pseudoplatanus",
+        "Amelanchier lamarckii",
+        "Betula pendula",
+        "Betula pubescens",
+        "Calluna vulgaris",
+        "Crataegus monogyna",
+        "Erica cinerea",
+        "Erica tetralix",
+        "Frangula alnus",
+        "Fraxinus excelsior",
+        "Genista anglica",
+        "Hippophae rhamnoides",
+        "Myrica gale",
+        "Pinus sylvestris",
+        "Populus tremula",
+        "Prunus avium",
+        "Quercus petraea",
+        "Quercus robur",
+        "Quercus rubra",
+        "Salix caprea",
+        "Salix cinerea",
+        "Salix repens",
+        "Sorbus aucuparia",
+        "Vaccinium myrtillus",
+    ]:
+        return "(woody)"
+
+    # Family Poaceae, but treated as separate PFT here
+    if species_name in ["Phragmites australis"]:
+        return "(reed)"
+
+    # Get GBIF family, can be "not found" with an error message
+    family = get_gbif_family(species_name)
+
+    if family in ["Poaceae", "Cyperaceae", "Juncaceae"]:
+        return "grass"
+
+    if family == "Fabaceae":
+        return "legume"
+
+    # All other species are treated as forb, including "not found"
+    return "forb"
 
 
 def convert_raw_data_CVL(moss_cover_threshold=50):
@@ -648,7 +791,7 @@ def convert_raw_data_BEXIS(forbidden_cover_threshold=0, moss_cover_threshold=50.
 
 if __name__ == "__main__":
     forbidden_cover_threshold = 5.0
-    moss_cover_threshold = 100.0
+    moss_cover_threshold = 200.0
     convert_raw_data_BEXIS(
         forbidden_cover_threshold=forbidden_cover_threshold,
         moss_cover_threshold=moss_cover_threshold,

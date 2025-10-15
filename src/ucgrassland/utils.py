@@ -1219,7 +1219,8 @@ def get_plot_locations_from_csv(
                     altitude_from_file, altitude, atol=5
                 ):
                     logger.warning(
-                        f"Altitude from elevation data ({altitude:.0f} m) and station file ({altitude_from_file:.0f} m) differ by more than 5 m for "
+                        f"Altitude from elevation data ({altitude:.0f} m) and station file ({altitude_from_file:.0f} m) "
+                        f"differ by {altitude - altitude_from_file:.0f} m for "
                         f"latitude '{lat}' and longitude '{lon}' (station code '{station_code}'). Using altitude from elevation data."
                     )
 

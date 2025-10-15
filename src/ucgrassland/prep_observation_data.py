@@ -411,7 +411,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover": "lat51.000000_lon5.000000__PFT__cover__from_VanMeerbeek_data.txt"
             },
             "pft_lookup_specs": {"cover": "default"},
-            "station_file": "BE_KUL-site_station.csv",
+            "station_file": "BE_KUL-site_station_from_shape.csv",  # "BE_KUL-site_station_from_obs.csv"
             "start_year": 2009,
         },
         "4c8082f9-1ace-4970-a603-330544f22a23": {
@@ -1538,6 +1538,7 @@ def get_observations_from_files(
             "lat_deims": location["lat"],
             "lon_deims": location["lon"],
         }
+        coordinates_found = []
 
         for variable in observation_data_specs["variables"]:
             file_name = observation_data_specs["file_names"][variable]
@@ -1604,7 +1605,29 @@ def get_observations_from_files(
                     )
                     location_summary[variable].update(observation_summary)
 
-        return location_summary
+                    # Keep only entries from coordinates_list that occur in observation_pft
+                    # NOTE: entries with excluded observation data will remain, as they have an entry in observation_pft
+
+                    for plot_name in observation_pft["plot"].values:
+                        for entry in coordinates_list:
+                            if entry["station_code"] == plot_name:
+                                coordinates_found.append(entry)
+                                coordinates_list.remove(entry)
+                                break
+
+                    if coordinates_list != []:
+                        logger.warning(
+                            f"{len(coordinates_list)} plots were not found in processed observation data "
+                            f"for site {location['name']} and variable '{variable}': "
+                            f"{[entry['station_code'] for entry in coordinates_list]}."
+                        )
+
+                else:
+                    logger.warning(
+                        f"No processed observation data for site {location['name']} and variable '{variable}'."
+                    )
+
+        return location_summary, coordinates_found
     else:
         # Stop with error if location names do not match (apparently can be changed in DEIMS package)
         try:
@@ -1661,19 +1684,9 @@ def prep_observation_data(
         coordinates_list = ut.get_plot_locations_from_csv(
             station_file, merge_same_locations=False
         )
-        coordinates_file = (
-            target_subfolder
-            / "Observations"
-            / f"{location['formatted_lat']}_{location['formatted_lon']}__Observation__Plot_Coordinates.txt"
-        )
-        ut.list_to_file(
-            coordinates_list,
-            coordinates_file,
-            column_names=["site_code", "station_code", "lat", "lon", "altitude"],
-        )
 
         # Get observation data from files
-        location_summary = get_observations_from_files(
+        location_summary, coordinates_list = get_observations_from_files(
             location,
             observation_data_specs,
             source_subfolder,
@@ -1681,6 +1694,19 @@ def prep_observation_data(
             target_folder=target_subfolder,
             target_suffix=target_suffix,
         )
+
+        # Save coordinates of plots used in observation data to file
+        if coordinates_list != []:
+            coordinates_file = (
+                target_subfolder
+                / "Observations"
+                / f"{location['formatted_lat']}_{location['formatted_lon']}__Observation__Plot_Coordinates.txt"
+            )
+            ut.list_to_file(
+                coordinates_list,
+                coordinates_file,
+                column_names=["site_code", "station_code", "lat", "lon", "altitude"],
+            )
 
         return location_summary
     else:

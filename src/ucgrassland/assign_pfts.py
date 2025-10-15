@@ -222,7 +222,7 @@ SPECIES_DATA_SPECS_PER_SITE = MappingProxyType(
             "name": "KUL-site (KU Leuven)",
             "file_names": ["BE_KUL-site_cover__from_VanMeerbeek_data.csv"],
             "species_columns": ["TAXA"],
-            "extra_columns": [[]],
+            "extra_columns": [["PFT_ORIGINAL"]],
         },
         "4c8082f9-1ace-4970-a603-330544f22a23": {
             "name": "Certoryje-Vojsicke Louky meadows",
