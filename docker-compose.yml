@@ -13,7 +13,7 @@ services:
       - startYear=${startYear}
       - endYear=${endYear}
       # CDS API credentials
-      - CDSAPI_URL=${CDSAPI_UR}
+      - CDSAPI_URL=${CDSAPI_URL}
       - CDSAPI_KEY=${CDSAPI_KEY}
       # HDA credentials
       - HDA_USER=${HDA_USER}
