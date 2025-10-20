@@ -40,7 +40,9 @@ RUN git clone --depth 1 --branch unix https://github.com/BioDT/uc-grassland-mode
 WORKDIR /uc-grassland-model/build 
 RUN cmake .. && make
 
-RUN pip install git+https://github.com/BioDT/uc-grassland.git@gdal-nodatavalue-fix
+# Copy local source code and install from source
+COPY . /tmp/uc-grassland/
+RUN pip install /tmp/uc-grassland/
 
 WORKDIR /uc-grassland-model/
 
