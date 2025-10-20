@@ -137,15 +137,26 @@ def create_hda_client(hda_configuration_folder=None, retry_max=6, sleep_max=8):
         elif (Path.home() / ".hdarc").is_file():
             logger.info(f"Using HDA credentials from {Path.home() / '.hdarc'}")
         else:
-            logger.warning("No HDA credentials found. Asking for credentials manually.")
-            import getpass
+            # Check if we're in an interactive environment before prompting
+            if os.isatty(0):  # stdin is a terminal (interactive)
+                logger.warning("No HDA credentials found. Asking for credentials manually.")
+                import getpass
 
-            USERNAME = input("Enter your username: ")
-            PASSWORD = getpass.getpass("Enter your password: ")
+                USERNAME = input("Enter your username: ")
+                PASSWORD = getpass.getpass("Enter your password: ")
 
-            with open(Path.home() / ".hdarc", "w") as f:
-                f.write(f"user:{USERNAME}\n")
-                f.write(f"password:{PASSWORD}\n")
+                with open(Path.home() / ".hdarc", "w") as f:
+                    f.write(f"user:{USERNAME}\n")
+                    f.write(f"password:{PASSWORD}\n")
+            else:
+                # Non-interactive environment (Docker, CI, etc.)
+                logger.error(
+                    "No HDA credentials found. Please set HDA_USER and HDA_PASSWORD environment variables "
+                    "or provide a .hdarc configuration file."
+                )
+                raise ValueError(
+                    "HDA credentials not found. Set HDA_USER and HDA_PASSWORD environment variables."
+                )
 
     hda_client = hda.Client(config=config, retry_max=retry_max, sleep_max=sleep_max)
     logger.info("HDA Client created successfully.")
