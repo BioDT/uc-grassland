@@ -27,20 +27,25 @@ if [ -z "$CDSAPI_KEY" ]; then
     exit 1
 fi
 
-echo "Running with LAT=$LAT, LON=$LON, startYear=$startYear, endYear=$endYear, DEIMS=$DEIMS"
+# Format LAT and LON to 6 decimal places to match Python's formatting
+# Python uses: f"lat{coordinates['lat']:.6f}" which always produces 6 decimals
+LAT_FORMATTED=$(printf "%.6f" "$LAT")
+LON_FORMATTED=$(printf "%.6f" "$LON")
+
+echo "Running with LAT=$LAT_FORMATTED, LON=$LON_FORMATTED, startYear=$startYear, endYear=$endYear, DEIMS=$DEIMS"
 
 ####################################
 ## create input data ##############
 ####################################
 
-cd scenarios
+cd /uc-grassland-model/scenarios
 python <<EOF
 from ucgrassland import prep_grassland_model_input_data
-prep_grassland_model_input_data([{'lat': ${LAT}, 'lon': ${LON}}], ${startYear}, ${endYear})
+prep_grassland_model_input_data([{'lat': ${LAT_FORMATTED}, 'lon': ${LON_FORMATTED}}], ${startYear}, ${endYear})
 EOF
 
-cd ..
-cp -r "scenarios/grasslandModelInputFiles/lat${LAT}_lon${LON}" "scenarios/lat${LAT}_lon${LON}"
+cd /uc-grassland-model
+cp -r "scenarios/grasslandModelInputFiles/lat${LAT_FORMATTED}_lon${LON_FORMATTED}" "scenarios/lat${LAT_FORMATTED}_lon${LON_FORMATTED}"
 
 rm -rf scenarios/grasslandModelInputFiles
 
@@ -49,37 +54,37 @@ rm -rf scenarios/grasslandModelInputFiles
 ####################################
 
 cd simulations
-mkdir -p "project_${LAT}_${LON}"
-cp "project_template/latLAT_lonLON__startYear-01-01_endYear-12-31__configuration__generic_v1.txt" "project_${LAT}_${LON}/"
-cp "project_template/latLAT_lonLON__startYear-01-01_endYear-12-31__outputWritingDates.txt" "project_${LAT}_${LON}/"
-cp "project_template/runSimulation.cmd" "project_${LAT}_${LON}/" 2>/dev/null || true
+mkdir -p "project_${LAT_FORMATTED}_${LON_FORMATTED}"
+cp "project_template/latLAT_lonLON__startYear-01-01_endYear-12-31__configuration__generic_v1.txt" "project_${LAT_FORMATTED}_${LON_FORMATTED}/"
+cp "project_template/latLAT_lonLON__startYear-01-01_endYear-12-31__outputWritingDates.txt" "project_${LAT_FORMATTED}_${LON_FORMATTED}/"
+cp "project_template/runSimulation.cmd" "project_${LAT_FORMATTED}_${LON_FORMATTED}/" 2>/dev/null || true
 
-cd "project_${LAT}_${LON}"
+cd "project_${LAT_FORMATTED}_${LON_FORMATTED}"
 configDir="$(pwd)"
 
 # Rename the template files with actual coordinates and dates
 mv "${configDir}/latLAT_lonLON__startYear-01-01_endYear-12-31__configuration__generic_v1.txt" \
-   "${configDir}/lat${LAT}_lon${LON}__${startYear}-01-01_${endYear}-12-31__configuration__generic_v1.txt"
+   "${configDir}/lat${LAT_FORMATTED}_lon${LON_FORMATTED}__${startYear}-01-01_${endYear}-12-31__configuration__generic_v1.txt"
 
 mv "${configDir}/latLAT_lonLON__startYear-01-01_endYear-12-31__outputWritingDates.txt" \
-   "${configDir}/lat${LAT}_lon${LON}__${startYear}-01-01_${endYear}-12-31__outputWritingDates.txt"
+   "${configDir}/lat${LAT_FORMATTED}_lon${LON_FORMATTED}__${startYear}-01-01_${endYear}-12-31__outputWritingDates.txt"
 
 # Run the config modification script
-python ../modifyConfig.py "$LAT" "$LON" "$startYear" "$endYear" "$DEIMS"
+python ../modifyConfig.py "$LAT_FORMATTED" "$LON_FORMATTED" "$startYear" "$endYear" "$DEIMS"
 
 ####################################
 ####### run the simulation #########
 ####################################
 
-python ../runReplicatedSimulations.py "$LAT" "$LON" "$startYear" "$endYear"
+python ../runReplicatedSimulations.py "$LAT_FORMATTED" "$LON_FORMATTED" "$startYear" "$endYear"
 
 echo "Simulation completed successfully!"
 
-mkdir -p /output/simulations/project_lat${LAT}_lon${LON}
-cp -r ./* /output/simulations/project_lat${LAT}_lon${LON}/ 2>/dev/null || true
+mkdir -p /output/simulations/project_lat${LAT_FORMATTED}_lon${LON_FORMATTED}
+cp -r ./* /output/simulations/project_lat${LAT_FORMATTED}_lon${LON_FORMATTED}/ 2>/dev/null || true
 
 mkdir -p /output/scenarios
-cp -r /uc-grassland-model/scenarios/lat${LAT}_lon${LON}/* /output/scenarios/
+cp -r /uc-grassland-model/scenarios/lat${LAT_FORMATTED}_lon${LON_FORMATTED}/* /output/scenarios/
 
 # Save a copy of the parameters used by the model into the output folder so they are
 # preserved alongside the simulation results. This will include any in-place edits
@@ -88,3 +93,5 @@ mkdir -p /output/parameters
 cp -r /uc-grassland-model/parameters/* /output/parameters/ 2>/dev/null || true
 
 echo "Results saved to ./output/"
+
+exit 0
