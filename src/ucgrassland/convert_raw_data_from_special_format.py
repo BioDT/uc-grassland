@@ -376,6 +376,7 @@ def get_pft_KUL(species_name):
     # Woody species according to van Meerbeek, personal communication
     if species_name in [
         "Acer pseudoplatanus",
+        "Alnus glutinosa",
         "Amelanchier lamarckii",
         "Betula pendula",
         "Betula pubescens",
