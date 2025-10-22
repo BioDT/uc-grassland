@@ -43,6 +43,7 @@ from pathlib import Path
 from types import MappingProxyType
 
 import deims
+import numpy as np
 import pandas as pd
 import pyproj
 import rasterio
@@ -87,6 +88,8 @@ def add_string_to_file_name(file_name, string_to_add, *, new_suffix=None):
 
         return file_name.with_name(file_name.stem + string_to_add + new_suffix)
 
+    logger.error("File name is empty. Cannot add string.")
+
     return ""
 
 
@@ -113,6 +116,12 @@ def get_source_from_elter_data_file_name(
         source = split_delimiter.join(
             source.split(split_delimiter)[front_strings_to_remove:]
         )
+
+        if source == "":
+            logger.error(
+                f"File name '{file_name}' does not conform to expected eLTER data file name format. "
+                "Cannot extract data source."
+            )
 
         return source
     else:
@@ -202,14 +211,61 @@ def get_tuple_list(
     header_lines=0,
 ):
     """
-    Convert a list of lists to a list of tuples.
+    Convert a list of lists or tuples or strings to a list of tuples.
 
     Parameters:
-        input_list (list): List of lists.
+        input_list (list): List of lists or tuples or strings.
+        replace_nan (str): String to replace nan values (default is 'nan').
+        replace_none (str): String to replace None values (default is 'None').
+        columns_to_remove (list): List of column indices to remove (default is empty).
+        return_sorted (bool): Whether to return the list sorted (default is False).
+        header_lines (int): Number of header lines to skip and return unchanged in the output (default is 0).
 
     Returns:
         list: List of tuples.
     """
+    if not isinstance(input_list, list):
+        try:
+            raise ValueError("Input must be a list of lists or tuples or strings.")
+        except ValueError as e:
+            logger.error(e)
+            raise
+
+    # Check input list for consistency
+    entry_type = None
+
+    for entry in input_list[header_lines:]:
+        if isinstance(entry, (list, tuple, str)):
+            if entry_type is None:
+                entry_type = type(entry)
+                entry_length = len(entry)  # if isinstance(entry, (list, tuple)) else 1
+            else:
+                # Error if not all entries of the same type
+                if type(entry) is not entry_type:
+                    try:
+                        raise ValueError(
+                            "Input list must contain only lists, or only tuples, or only strings."
+                        )
+                    except ValueError as e:
+                        logger.error(e)
+                        raise
+
+                # Error if not all lists or tuples of the same length
+                if isinstance(entry, (list, tuple)) and len(entry) != entry_length:
+                    try:
+                        raise ValueError(
+                            "All lists or tuples in the input list must have the same length."
+                        )
+                    except ValueError as e:
+                        logger.error(e)
+                        raise
+        else:
+            try:
+                raise ValueError("Input must be a list of lists or tuples or strings.")
+            except ValueError as e:
+                logger.error(e)
+                raise
+
     # Convert each sublist to a tuple, if not already
     tuple_list = []
 
@@ -220,12 +276,11 @@ def get_tuple_list(
             tuple_list.append(entry)
         elif isinstance(entry, str):
             tuple_list.append((entry,))
-        else:
-            logger.warning(f"List entry '{entry}' is not a list, tuple, or string.")
 
+    # Replace nan values, if they are not None
     if replace_nan:
         tuple_list = [
-            tuple(replace_nan if pd.isna(x) else x for x in entry)
+            tuple(replace_nan if pd.isna(x) and x is not None else x for x in entry)
             for entry in tuple_list
         ]
 
@@ -242,7 +297,12 @@ def get_tuple_list(
         ]
 
     if return_sorted:
-        tuple_list.sort(key=lambda x: x)
+        # will throw an error if entries are not comparable, but needed for sorting
+        try:
+            tuple_list.sort()
+        except TypeError:
+            logger.error("Cannot sort tuple list. Entries are not comparable.")
+            raise
 
     return input_list[:header_lines] + tuple_list
 
@@ -287,6 +347,7 @@ def remove_duplicates(input_list, *, duplicates=None, header_lines=0):
     if duplicates is None:
         duplicates = count_duplicates(input_list, key_column="all")
 
+    # TODO: shortcut if no duplicates found, but still sort apart from header lines
     tuple_list = get_tuple_list(
         input_list, return_sorted=True, header_lines=header_lines
     )
@@ -657,8 +718,52 @@ def get_list_of_columns(input_list, columns_wanted):
     return sublist, columns_found
 
 
+def unify_dict_keys(
+    dict_1, dict_2, *, default_value_1=None, default_value_2=None, sort_keys=False
+):
+    """
+    Unify keys of two dictionaries by adding missing keys with a default value.
+
+    Parameters:
+        dict1 (dict): First dictionary.
+        dict2 (dict): Second dictionary.
+        default_value1: Default value to assign to missing keys in dict1 (default is None).
+        default_value2: Default value to assign to missing keys in dict2 (default is None).
+        sort_keys (bool): Whether to sort the unified keys (default is False).
+
+    Returns:
+        tuple: Two dictionaries with unified keys.
+    """
+    all_keys = set(dict_1.keys()) | set(dict_2.keys())
+
+    if sort_keys:
+        all_keys = sorted(all_keys)
+
+    # If a default value is a dict, copy it for each key to avoid shared references
+    if isinstance(default_value_1, dict):
+        unified_dict_1 = {
+            key: dict_1.get(key, default_value_1.copy()) for key in all_keys
+        }
+    else:
+        unified_dict_1 = {key: dict_1.get(key, default_value_1) for key in all_keys}
+
+    if isinstance(default_value_2, dict):
+        unified_dict_2 = {
+            key: dict_2.get(key, default_value_2.copy()) for key in all_keys
+        }
+    else:
+        unified_dict_2 = {key: dict_2.get(key, default_value_2) for key in all_keys}
+
+    return unified_dict_1, unified_dict_2
+
+
 def add_to_dict(
-    dict_prev, dict_to_add, value_name_prev="info1", value_name_add="info2"
+    dict_prev,
+    dict_to_add,
+    *,
+    value_prev="info1",
+    value_add="info2",
+    unify_keys=True,
 ):
     """
     Add values from a dictionary to an existing dictionary under a specified key.
@@ -666,31 +771,57 @@ def add_to_dict(
     Parameters:
         dict_prev (dict): Existing dictionary.
         dict_to_add (dict): Dictionary of new values to add.
-        value_name_prev (str): Name for existing values in the updated dictionary (default is 'info1').
-        value_name_add (str): Name for new values in the updated dictionary (default is 'info2').
+        value_prev (str): Name for existing values in the updated dictionary (default is 'info1').
+        value_add (str): Name for new values in the updated dictionary (default is 'info2').
+        unify_keys (bool): Unify keys of both dictionaries if different (default is True).
 
     Returns:
         dict: Updated dictionary with combined old and new values.
     """
-    # Check if keys are the same
+    if dict_prev == {}:
+        dict_prev = {"no_entries": 1}
+
+    if dict_to_add == {}:
+        dict_to_add = {"no_entries": 1}
+    else:
+        # not needed, but to consistently have a "no_entries" key in the result
+        dict_to_add["no_entries"] = 0
+
     if set(dict_prev.keys()) != set(dict_to_add.keys()):
-        try:
-            raise ValueError(
-                "Keys in previous dictionary and added dictionary must be the same."
+        if unify_keys:
+            if all(isinstance(value, dict) for value in dict_prev.values()):
+                # default value as dict with keys of first entry of dict_prev, and values 0
+                default_value_prev = {
+                    key: 0 for key in dict_prev[next(iter(dict_prev))].keys()
+                }
+            else:
+                default_value_prev = 0
+
+            dict_prev, dict_to_add = unify_dict_keys(
+                dict_prev,
+                dict_to_add,
+                default_value_1=default_value_prev,
+                default_value_2=0,
+                sort_keys=True,
             )
-        except ValueError as e:
-            logger.error(e)
-            raise
+        else:
+            try:
+                raise ValueError(
+                    "Keys in previous dictionary and added dictionary differ and unifying is set to False. Cannot add values."
+                )
+            except ValueError as e:
+                logger.error(e)
+                raise
 
     # Convert dict_prev to a dictionary of dictionaries if not already
     if all(isinstance(value, dict) for value in dict_prev.values()):
         dict_added = dict_prev
     else:
-        dict_added = {key: {value_name_prev: value} for key, value in dict_prev.items()}
+        dict_added = {key: {value_prev: value} for key, value in dict_prev.items()}
 
     # Add new values to each key
     for key, value in dict_to_add.items():
-        dict_added[key][value_name_add] = value
+        dict_added[key][value_add] = value
 
     return dict_added
 
@@ -733,23 +864,6 @@ def add_to_list(list_prev, list_to_add):
         (*prev[0:], *to_add[1:]) for prev, to_add in zip(list_prev, list_to_add)
     ]
     return list_added
-
-
-def lookup_info_in_dict(key, info_lookup):
-    """
-    Look up info for a given key in a dictionary.
-
-    Parameters:
-        key: Key to look up.
-        info_lookup (dict): Dictionary containing key-value pairs.
-
-    Returns:
-        Value associated with given key if found, or "not found" otherwise.
-    """
-    if key in info_lookup:
-        return info_lookup[key]
-
-    return "not found"
 
 
 def add_columns_to_list(input_list, columns_to_add):
@@ -800,11 +914,11 @@ def add_info_to_list(list_to_lookup, info_dict):
 
     for entry in list_to_lookup:
         if isinstance(entry, tuple):
-            info_list.append(entry + (lookup_info_in_dict(entry[0], info_dict),))
+            info_list.append(entry + (info_dict.get(entry[0], "not found"),))
         elif isinstance(entry, list):
-            info_list.append(entry + [lookup_info_in_dict(entry[0], info_dict)])
+            info_list.append(entry + [info_dict.get(entry[0], "not found")])
         else:
-            info_list.append((entry, lookup_info_in_dict(entry, info_dict)))
+            info_list.append((entry, info_dict.get(entry, "not found")))
 
     return info_list
 
@@ -1096,7 +1210,7 @@ def get_plot_locations_from_csv(
         deims_id (str, optional): DEIMS.iD to be added to returned locations (default is None).
 
     Returns:
-        list: List of dictionaries containing each unique location (latitude, longitude,
+        list: List of dictionaries containing each unique location (latitude, longitude, altitude,
               station code(s), site code(s), and DEIMS.iD, if found).
     """
     if not csv_file.exists():
@@ -1119,16 +1233,16 @@ def get_plot_locations_from_csv(
         entries_required = ["lat", "lon", "station_code", "site_code"]
         # or leave out site code and station code?
 
-        # Helper function to check if coordinates already exist in locations
         def find_existing_coordinates(lat, lon):
+            """Helper function to check if coordinates already exist in locations."""
             for location in locations:
                 if location["lat"] == lat and location["lon"] == lon:
                     return location
 
             return None
 
-        # Helper function to check if station code already exists in locations
         def find_existing_station_code(station_code):
+            """Helper function to check if station code already exists in locations."""
             for location in locations:
                 if isinstance(location["station_code"], list):
                     if station_code in location["station_code"]:
@@ -1137,6 +1251,34 @@ def get_plot_locations_from_csv(
                     return location
 
             return None
+
+        def check_altitude(lat, lon, altitude_from_file, station_code, tolerance=10):
+            """Helper function to get altitude for coordinates and compare with station file altitude."""
+            altitude = get_elevation(lat, lon)
+
+            if np.isnan(altitude):
+                if np.isnan(altitude_from_file):
+                    logger.warning(
+                        f"Could not get altitude for latitude '{lat}' and longitude '{lon}' "
+                        f"for station code '{station_code}' (neither from elevation data nor from station file)."
+                    )
+                else:
+                    logger.warning(
+                        f"Could not get altitude from elevation data for latitude '{lat}' and longitude '{lon}' "
+                        f"for station code '{station_code}'. Using altitude from station file ({altitude_from_file} m)."
+                    )
+                    altitude = altitude_from_file
+            else:
+                if not np.isnan(altitude_from_file) and not np.isclose(
+                    altitude_from_file, altitude, atol=tolerance
+                ):
+                    logger.warning(
+                        f"Altitude from elevation data ({altitude:.0f} m) and station file ({altitude_from_file:.0f} m) "
+                        f"differ by {altitude - altitude_from_file:.0f} m for "
+                        f"latitude '{lat}' and longitude '{lon}' (station code '{station_code}'). Using altitude from elevation data."
+                    )
+
+            return altitude
 
         # Extract all entries from station file
         for _, row in df.iterrows():
@@ -1165,6 +1307,14 @@ def get_plot_locations_from_csv(
                     )
                     continue
 
+                altitude_from_file = entries_raw.get("altitude") or np.nan
+
+                if np.isnan(altitude_from_file):
+                    logger.warning(
+                        f"No altitude entry found for station code '{station_code}' "
+                        f"and site code '{site_code}' in station file."
+                    )
+
                 # deims_id check not reasonable, code in commits before 2025-07
 
                 if merge_same_locations:
@@ -1177,9 +1327,18 @@ def get_plot_locations_from_csv(
                         if site_code not in existing_location["site_code"]:
                             existing_location["site_code"].append(site_code)
                     else:
+                        # Check altitude only for new coordinates
+                        # NOTE: this could miss altitude differences for same coordinates but different station codes in station file, but:
+                        #       - it saves requests to elevation service
+                        #       - such cases are unlikely,
+                        #       - altitude from elevation service is preferred anyways
+                        altitude = check_altitude(
+                            lat, lon, altitude_from_file, station_code
+                        )
                         location = {
                             "lat": lat,
                             "lon": lon,
+                            "altitude": altitude,
                             "station_code": [station_code],
                             "site_code": [site_code],
                         }
@@ -1210,9 +1369,13 @@ def get_plot_locations_from_csv(
                             )
                     else:
                         # Add new location with just one (modified) station and site code
+                        altitude = check_altitude(
+                            lat, lon, altitude_from_file, station_code
+                        )
                         location = {
                             "lat": lat,
                             "lon": lon,
+                            "altitude": altitude,
                             "station_code": station_code,
                             "site_code": site_code,
                         }
@@ -1489,7 +1652,7 @@ def download_file_opendap(
     new_file_name=None,
     attempts=5,
     delay=2,
-    warn_not_found=True,
+    log_infos=True,
 ):
     """
     Download a file from OPeNDAP server 'grasslands-pdt'.
@@ -1501,13 +1664,15 @@ def download_file_opendap(
         new_file_name (str): New name for downloaded file (default is None, file_name will be used).
         attempts (int): Number of attempts to download the file (default is 5).
         delay (int): Number of seconds to wait between attempts (default is 2).
-        warn_not_found (bool): Warn if file not found on OPeNDAP server (default is True).
+        log_infos (bool): Log info messages (default is True).
 
     Returns:
         None
     """
     url = f"{OPENDAP_ROOT}{opendap_folder}/{file_name}"
-    logger.info(f"Trying to download '{url}' ...")
+
+    if log_infos:
+        logger.info(f"Trying to download '{url}' ...")
 
     while attempts > 0:
         try:
@@ -1529,13 +1694,14 @@ def download_file_opendap(
                 with open(target_file, "wb") as file:
                     file.write(response.content)
 
-                logger.info(f"File downloaded successfully to '{target_file}'.")
+                if log_infos:
+                    logger.info(f"File downloaded successfully to '{target_file}'.")
+
                 return
             elif response.status_code == 404:
-                if warn_not_found:
+                if log_infos:
                     logger.warning(f"File '{file_name}' not found on OPeNDAP server.")
-                else:
-                    logger.info(f"File '{file_name}' not found on OPeNDAP server.")
+
                 return
             else:
                 attempts -= 1
@@ -1548,7 +1714,8 @@ def download_file_opendap(
             if attempts > 0:
                 time.sleep(delay)
 
-    logger.warning(f"File '{file_name}' download failed repeatedly.")
+    if log_infos:
+        logger.warning(f"File '{file_name}' download failed repeatedly.")
 
 
 def day_of_year_to_date(year, day_of_year, leap_year_considered=True):
@@ -1741,12 +1908,63 @@ def get_country(coordinates, *, attempts=5, delay_exponential=2, delay_linear=2)
     return None
 
 
+def get_elevation(lat, lon, *, attempts=5, delay_exponential=2, delay_linear=2):
+    """
+    Get elevation for specified coordinates using Open-Elevation API.
+
+    Parameters:
+        lat (float): Latitude.
+        lon (float): Longitude.
+    Returns:
+        float: Elevation in meters or NA if not found.
+    """
+    while attempts > 0:
+        attempts -= 1
+
+        try:
+            response = requests.get(
+                "https://api.open-elevation.com/api/v1/lookup",
+                params={"locations": f"{lat},{lon}"},
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                elevation = data["results"][0]["elevation"]
+
+                if elevation is None:
+                    logger.warning(
+                        f"Elevation not found for latitude '{lat}' and longitude '{lon}'."
+                    )
+                    return pd.NA
+                else:
+                    return elevation
+            else:
+                logger.error(
+                    f"Elevation request failed (Status code {response.status_code})."
+                )
+
+                if attempts > 0:
+                    logger.info(f"Retrying in {delay_exponential} seconds ...")
+                    time.sleep(delay_exponential)
+                    delay_exponential *= 2
+
+        except requests.ConnectionError as e:
+            logger.error(f"Elevation request failed ({e}).")
+
+            if attempts > 0:
+                logger.info(f"Retrying in {delay_linear} seconds ...")
+                time.sleep(delay_linear)
+
+    return pd.NA
+
+
 def get_file_date(file_name):
     """
     Get the modification date of a file as an ISO 8601 formatted string.
 
     Parameters:
         file_name (Path): Path to the file.
+
 
     Returns:
         str: ISO 8601 formatted modification date of the file.

@@ -296,7 +296,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover_braun_blanquet": "lat50.267302_lon9.269139__PFT__data_abund_V2.txt"
             },
             "pft_lookup_specs": {"cover_braun_blanquet": "default"},
-            "station_file": "DE_RhineMainObservatory_station.csv",
+            "station_file": "DE_RhineMainObservatory_station_reduced.csv",
             "start_year": 2010,
         },
         "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
@@ -411,7 +411,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
                 "cover": "lat51.000000_lon5.000000__PFT__cover__from_VanMeerbeek_data.txt"
             },
             "pft_lookup_specs": {"cover": "default"},
-            "station_file": "BE_KUL-site_station.csv",
+            "station_file": "BE_KUL-site_station_from_shape.csv",  # "BE_KUL-site_station_from_obs.csv"
             "start_year": 2009,
         },
         "4c8082f9-1ace-4970-a603-330544f22a23": {
@@ -773,8 +773,32 @@ def read_observation_data(
 
 
 def process_single_plot_observation_data(
-    plot_data, columns, plot_name, variable, pft_lookup, observation_pft, *, pfts=None
+    plot_data,
+    columns,
+    plot_name,
+    variable,
+    pft_lookup,
+    observation_pft,
+    *,
+    pfts=None,
+    woody_maximum=5.0,
 ):
+    """
+    Process observation data for a single plot and variable, aggregating to PFTs.
+
+    Parameters:
+        plot_data (list): List of lists with observation data for the plot.
+        columns (dict): Dictionary mapping required column names to their indices in plot_data.
+        plot_name (str): Name of the plot.
+        variable (str): Variable name of the observation data.
+        pft_lookup (dict): Dictionary mapping species names to PFTs.
+        observation_pft (pd.DataFrame): DataFrame to store processed PFT observation data.
+        pfts (list): List of PFT names to aggregate to (default is None, which uses default PFTs).
+        woody_maximum (float): Maximum allowed cover value for woody PFTs (default is 5.0).
+
+    Returns:
+        pd.DataFrame: Updated DataFrame with processed PFT observation data.
+    """
     target_unit = get_target_unit(variable)
 
     # Use default PFTs if not specified
@@ -785,25 +809,60 @@ def process_single_plot_observation_data(
         plot_data, columns["time"], header_lines=0
     )
 
-    for time_point in time_points:
-        if "value" in columns:
+    if "value" in columns:
+        unit_check = None  # init unit_check, iteratively updated
+
+        # Check for non-grass (and non-moss) maximum based on layer information
+        if "layer" in columns:
+            for time_point in time_points:
+                time_data = ut.get_rows_with_value_in_column(
+                    plot_data, columns["time"], time_point
+                )
+                time_data = ut.remove_duplicates(time_data)
+                grass_layer_check = check_for_grass_layer(
+                    time_data,
+                    columns,
+                    plot_name=plot_name,
+                    time_point=time_point,
+                    variable=variable,
+                    woody_maximum=woody_maximum,
+                )
+
+                if grass_layer_check is not True:
+                    break  # no need to check further time points if one failed
+        else:
+            logger.warning(
+                f"No 'layer' column found in observation data for plot '{plot_name}'. "
+                "Assuming all entries belong to grass layer. Using all data."
+            )
+            grass_layer_check = True
+
+        # Check for woody maximum based on PFT information
+        for time_point in time_points:
+            time_data = ut.get_rows_with_value_in_column(
+                plot_data, columns["time"], time_point
+            )
+            time_data = ut.remove_duplicates(time_data)
+            woody_value_check = check_woody_values(
+                time_data,
+                columns,
+                pft_lookup,
+                plot_name=plot_name,
+                time_point=time_point,
+                variable=variable,
+                woody_maximum=woody_maximum,
+            )
+
+            if woody_value_check is not True:
+                break  # no need to check further time points if one failed
+
+        for time_point in time_points:
             # Get rows from observation data for this plot and time point
             time_data = ut.get_rows_with_value_in_column(
                 plot_data, columns["time"], time_point
             )
 
-            if "layer" in columns:
-                grass_layer_check = check_for_grass_layer(
-                    time_data, columns, plot_name=plot_name, time_point=time_point
-                )
-            else:
-                logger.warning(
-                    f"No 'layer' column found in observation data for plot '{plot_name}' at time '{time_point}'. "
-                    "Assuming all entries belong to grass layer. Using all data."
-                )
-                grass_layer_check = True
-
-            if grass_layer_check is True:
+            if grass_layer_check is True and woody_value_check is True:
                 # Remove remaining duplicates from retrieved observation data for this plot and time point
                 duplicates = ut.count_duplicates(time_data, key_column="all")
 
@@ -854,7 +913,6 @@ def process_single_plot_observation_data(
                         key: 0
                         for key in [f"#{pft}" for pft in pfts] + ["#invalid_value"]
                     }
-                    unit_check = None
 
                     for entry in time_data:
                         species = (
@@ -892,17 +950,31 @@ def process_single_plot_observation_data(
                     new_row.update(pft_values)
                     new_row.update(pft_counts)
             else:
-                # Grass layer check failed. Store error message string
+                # Grass layer and/or woody values check failed. Store error message string.
+                if grass_layer_check is True:
+                    check_message = woody_value_check
+                elif woody_value_check is True:
+                    check_message = grass_layer_check
+                else:
+                    check_message = f"{grass_layer_check}; {woody_value_check}"
+
                 new_row = {key: "" for key in observation_pft.columns}
                 new_row.update(
                     {
                         "plot": plot_name,
                         "time": time_point,
-                        "invalid_observation": grass_layer_check,
+                        "invalid_observation": check_message,
                     }
                 )
-        else:
-            # No 'value' column found, add empty row for this plot and time point
+
+            # Add new row to observation_pft, can be empty if duplicates were found
+            new_row_df = pd.DataFrame([new_row])
+            observation_pft = pd.concat(
+                [observation_pft, new_row_df], ignore_index=True
+            )
+    else:
+        # No 'value' column found, add empty row for this plot and all time points
+        for time_point in time_points:
             new_row = {key: "" for key in observation_pft.columns}
             new_row.update(
                 {
@@ -912,9 +984,11 @@ def process_single_plot_observation_data(
                 }
             )
 
-        # Add new row to observation_pft, can be empty if duplicates were found
-        new_row_df = pd.DataFrame([new_row])
-        observation_pft = pd.concat([observation_pft, new_row_df], ignore_index=True)
+            # Add new row to observation_pft, can be empty if duplicates were found
+            new_row_df = pd.DataFrame([new_row])
+            observation_pft = pd.concat(
+                [observation_pft, new_row_df], ignore_index=True
+            )
 
     return observation_pft
 
@@ -925,17 +999,24 @@ def check_for_grass_layer(
     *,
     plot_name="not specified",
     time_point="not specified",
+    variable="not specified",
+    woody_maximum=0,
     grass_layer_names=["F", "COVE_F", "herb layer"],
+    moss_layer_names=["moss layer"],  # "M", "COVE_M" ?
 ):
     """
-    Check if data snippet only includes entries from the grass layer.
+    Check if data snippet includes only entries from the grass layer, or otherwise if sum of woody layer entries
+        (i.e. ignoring grass and moss layers) exceeds maximum allowed value.
 
     Parameters:
         data_snippet (list): List of lists with observation data.
         columns (dict): Dictionary with column names for the data.
         plot_name (str): Plot name of the data (default is "not specified").
         time_point (str): Time point of the data (default is "not specified").
+        variable (str): Variable name of the data (default is "not specified").
+        woody_maximum (float): Maximum allowed value for woody layer entries (default is 0).
         grass_layer_names (list): List of valid grass layer names to look for (default is ["F", "COVE_F", "herb layer"]).
+        moss_layer_names (list): List of valid moss layer names to look for (default is ["moss layer"]).
 
     Returns:
         bool or str: True if grass layer check is successful, otherwise a string with an error message.
@@ -948,40 +1029,136 @@ def check_for_grass_layer(
         if len(layer_entries) == 1:
             if layer_entries[0] in grass_layer_names:
                 # Only one valid layer entry found, use this layer
-                logger.info(
-                    f"All entries belong to grass layer ('{layer_entries[0]}') for plot '{plot_name}' at time '{time_point}'."
-                    " Using all data."
-                )
+                return True
             elif layer_entries[0] == "nan":
                 # No layer information, use this layer
-                # Problem: nan could point to missing info, potentially not all data from grass layer,
-                #          might be cause for duplicates, but also go unnoticed if no duplicates are found
                 logger.warning(
                     f"Only 'nan' found as layer entry for plot '{plot_name}' at time '{time_point}'."
-                    " Assuming all entries belong to grass layer, but this might not be the case. Using all data."
+                    " Assuming all entries belong to grass layer, but this might not be the case."
                 )
+                return True
             else:
-                # Only one invalid layer entry found, skip data
+                # Only one non-grass layer entry found
+                # NOTE: allowed, unless non-grass layer cover is too high, cf. below
                 logger.warning(
                     f"Only '{layer_entries[0]}' found as layer entry for plot '{plot_name}' at time '{time_point}'."
-                    " No grass layer available. Skipping data."
+                    " No grass layer available."
                 )
-
-                return "No grass layer available."
         else:
-            # Different layer entries, cannot use data, skip data
-            # If returning to using such data, consider allowing for herb layer and moss layer here
+            # Multiple layers found, inspect more thouroughly
             logger.warning(
-                f"{len(layer_entries)} different layer entries ({layer_entries}) found for plot '{plot_name}' at time '{time_point}'."
-                " Cannot safely filter grass layer and/or assume the data are reasonable for grassland"
-                " (if affected by vegetation in other layers). Skipping data."
+                f"{len(layer_entries)} different layer entries ({layer_entries}) "
+                f"found for plot '{plot_name}' at time '{time_point}'."
+            )
+            grass_layer_count = sum(
+                1 for entry in layer_entries if entry in grass_layer_names
             )
 
-            return "Different layer entries. Data not usable."
+            if grass_layer_count > 1:
+                # Multiple valid grass layer entries found, skip data
+                # NOTE: the case of zero grass layer entries is allowed, unless non-grass layer cover is too high, cf. below
+                logger.warning(
+                    f"{grass_layer_count} valid grass layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
+                    " Need exactly one valid grass layer entry to safely filter data. Skipping data."
+                )
+
+                return "Different grass layer entries."
+
+        # Total value for all entries not belonging to grass layer or moss layer, i.e. woody layers
+        woody_value = 0
+
+        for i in range(len(data_snippet)):
+            if data_snippet[i][columns["layer"]] not in [
+                grass_layer_names + moss_layer_names
+            ]:
+                value = check_observation_value(
+                    data_snippet[i][columns["value"]], variable
+                )
+
+                if value is not None and not pd.isna(value):
+                    woody_value += value
+
+        if woody_value > woody_maximum:
+            logger.warning(
+                f"Woody cover (neither grass nor moss layer) exceeds maximum "
+                f"allowed ({woody_value:.2f} > {woody_maximum}) "
+                f"for plot '{plot_name}' at time '{time_point}'. Skipping all data for this plot."
+            )
+
+            return (
+                f"Woody layers cover too high ({woody_value:.2f} > {woody_maximum}%)."
+            )
     else:
         logger.warning(
             "No 'layer' column found. Assuming all data belong to grass layer."
         )
+
+    return True
+
+
+def check_woody_values(
+    data_snippet,
+    columns,
+    pft_lookup,
+    *,
+    plot_name="not specified",
+    time_point="not specified",
+    variable="not specified",
+    woody_maximum=5.0,
+):
+    """
+    Check woody values in the data snippet.
+
+    Parameters:
+        data_snippet (list): List of lists with observation data.
+        columns (dict): Dictionary with column names for the data.
+        pft_lookup (dict): Dictionary mapping species to their PFTs
+        plot_name (str): Plot name of the data (default is "not specified").
+        time_point (str): Time point of the data (default is "not specified").
+        variable (str): Variable name of the data (default is "not specified").
+        woody_maximum (float): Maximum allowed woody cover percentage (default is 5.0).
+
+    Returns:
+        bool or str: True if woody values are within limits, otherwise a string with an error message.
+    """
+    unit_check = None
+    woody_value = 0
+
+    for entry in data_snippet:
+        species = (
+            entry[columns["species"]].rstrip()  # remove spaces at end
+            if isinstance(entry[columns["species"]], str)
+            else entry[columns["species"]]
+        )
+        pft = apft.reduce_pft_info(
+            pft_lookup.get(species, "not found"), separate_woody=True
+        )
+
+        if pft == "woody":
+            unit = entry[columns["unit"]]
+            value = check_observation_value(
+                entry[columns["value"]],
+                variable,
+                unit=unit,
+                unit_check=unit_check,
+                plot_name=plot_name,
+                time_point=time_point,
+                species=species,
+            )
+
+            if not pd.isna(value):
+                woody_value += value
+
+                if not pd.isna(unit):
+                    unit_check = unit
+
+    if woody_value > woody_maximum:
+        logger.warning(
+            f"Woody PFT cover exceeds maximum allowed ({woody_value:.2f} > {woody_maximum}) "
+            f"for plot '{plot_name}' at time '{time_point}'. Skipping all data for this plot."
+        )
+
+        return f"Woody PFT cover too high ({woody_value:.2f} > {woody_maximum}%)."
 
     return True
 
@@ -1482,6 +1659,7 @@ def get_observations_from_files(
             "lat_deims": location["lat"],
             "lon_deims": location["lon"],
         }
+        coordinates_found = []
 
         for variable in observation_data_specs["variables"]:
             file_name = observation_data_specs["file_names"][variable]
@@ -1548,7 +1726,29 @@ def get_observations_from_files(
                     )
                     location_summary[variable].update(observation_summary)
 
-        return location_summary
+                    # Keep only entries from coordinates_list that occur in observation_pft
+                    # NOTE: entries with excluded observation data will remain, as they have an entry in observation_pft
+
+                    for plot_name in observation_pft["plot"].values:
+                        for entry in coordinates_list:
+                            if entry["station_code"] == plot_name:
+                                coordinates_found.append(entry)
+                                coordinates_list.remove(entry)
+                                break
+
+                    if coordinates_list != []:
+                        logger.warning(
+                            f"{len(coordinates_list)} plots were not found in processed observation data "
+                            f"for site {location['name']} and variable '{variable}': "
+                            f"{[entry['station_code'] for entry in coordinates_list]}."
+                        )
+
+                else:
+                    logger.warning(
+                        f"No processed observation data for site {location['name']} and variable '{variable}'."
+                    )
+
+        return location_summary, coordinates_found
     else:
         # Stop with error if location names do not match (apparently can be changed in DEIMS package)
         try:
@@ -1605,19 +1805,9 @@ def prep_observation_data(
         coordinates_list = ut.get_plot_locations_from_csv(
             station_file, merge_same_locations=False
         )
-        coordinates_file = (
-            target_subfolder
-            / "Observations"
-            / f"{location['formatted_lat']}_{location['formatted_lon']}__Observation__Plot_Coordinates.txt"
-        )
-        ut.list_to_file(
-            coordinates_list,
-            coordinates_file,
-            column_names=["site_code", "station_code", "lat", "lon"],
-        )
 
         # Get observation data from files
-        location_summary = get_observations_from_files(
+        location_summary, coordinates_list = get_observations_from_files(
             location,
             observation_data_specs,
             source_subfolder,
@@ -1625,6 +1815,19 @@ def prep_observation_data(
             target_folder=target_subfolder,
             target_suffix=target_suffix,
         )
+
+        # Save coordinates of plots used in observation data to file
+        if coordinates_list != []:
+            coordinates_file = (
+                target_subfolder
+                / "Observations"
+                / f"{location['formatted_lat']}_{location['formatted_lon']}__Observation__Plot_Coordinates.txt"
+            )
+            ut.list_to_file(
+                coordinates_list,
+                coordinates_file,
+                column_names=["site_code", "station_code", "lat", "lon", "altitude"],
+            )
 
         return location_summary
     else:
@@ -1694,7 +1897,7 @@ def prep_observation_data_for_sites(
     if site_ids is None:
         # Specify selected site IDs, these need to be in species_data_specs
         site_ids = [
-            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia/Matschertal
+            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia-Matschertal
             # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
             "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
             "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
@@ -1705,7 +1908,7 @@ def prep_observation_data_for_sites(
             "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
             # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
             # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
-            # "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
+            "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
             "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
             "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
             "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia

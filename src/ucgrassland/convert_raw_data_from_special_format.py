@@ -30,10 +30,12 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 from datetime import datetime
 from pathlib import Path
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 from dotenv import dotenv_values
 
+from ucgrassland.assign_pfts import get_gbif_family
 from ucgrassland.logger_config import logger
 
 
@@ -185,14 +187,37 @@ def convert_raw_data_ASQ_C():
     new_data.to_csv(source_folder / new_file_name, index=False, sep=";")
 
 
-def convert_raw_data_KUL():
+def convert_raw_data_KUL(forbidden_cover_threshold=0):
     """
     Convert raw data from xls file to standard format for eLTER site
     KUL-site (KU Leuven).
+
+    Parameters
+    ----------
+    forbidden_cover_threshold : float
+        The threshold for excluding plots based on cover of non-grassland species (default: 0).
     """
     dotenv_config = dotenv_values(".env")
     source_folder = Path(f"{dotenv_config['ELTER_DATA_PROCESSED']}/KUL-site")
     file_name = "VanMeerbeek_data.xlsx"
+    plots_excluded = []
+    pft_dict = {}
+
+    # Read other data from xls file
+    other_data = pd.read_excel(source_folder / file_name, sheet_name="Other data")
+
+    for _, row in other_data.iterrows():
+        station_code = row["Plot_ID"]
+        cover_woody = float(row["Cover_woody"]) if pd.notna(row["Cover_woody"]) else 0.0
+        cover_reed = float(row["Cover_reed"]) if pd.notna(row["Cover_reed"]) else 0.0
+        forbidden_cover = cover_woody + cover_reed
+
+        if forbidden_cover > forbidden_cover_threshold:
+            logger.warning(
+                f"Excluding plot {station_code} due to cover of non-grassland species (woody, reed): "
+                f"{forbidden_cover:.2f} > {forbidden_cover_threshold}."
+            )
+            plots_excluded.append(station_code)
 
     # Read data from xls file
     raw_data = pd.read_excel(source_folder / file_name, sheet_name="Vegetation data")
@@ -202,15 +227,36 @@ def convert_raw_data_KUL():
 
     # OPTION: read other data with "year since last mowing" entries and add...
 
+    if len(raw_data) == len(other_data):
+        # check that each entry in Plot_ID column of raw_data is also in other_data
+        for plot_id in raw_data["Plot_ID"]:
+            if plot_id not in other_data["Plot_ID"].values:
+                raise ValueError(
+                    f"Plot ID {plot_id} in 'Vegetation data' not found in 'Other data'."
+                )
+    else:
+        raise ValueError(
+            f"Number of rows in 'Vegetation data' ({len(raw_data)}) and in 'Other data' ({len(other_data)}) do not match."
+        )
+
     # For each row in raw_data, extract the column entries with general information
     for _, row in raw_data.iterrows():
         station_code = row["Plot_ID"]
         time = row["Date"]
 
+        if station_code in plots_excluded:
+            # logger.info(f"Skipping excluded plot {station_code}.")
+            continue
+
         # Extract values for each species column (E to end)
         for column in raw_data.columns[2:]:
             column_name = column.replace("_", " ")
             column_value = row[column]
+            pft = pft_dict.get(column_name)
+
+            if pft is None:
+                pft = get_pft_KUL(column_name)
+                pft_dict[column_name] = pft
 
             # Add new row if column value is finite and greater than 0
             if pd.notna(column_value) and column_value > 0:
@@ -224,19 +270,165 @@ def convert_raw_data_KUL():
                         "TAXA": column_name,
                         "VALUE": column_value,
                         "UNIT": "%",
+                        "PFT_ORIGINAL": pft,
                     }
                 )
+
+    if plots_excluded:
+        logger.warning(
+            f"Excluded {len(plots_excluded)} of {len(raw_data)} plots for site KUL-site: {plots_excluded}."
+        )
 
     # Save new data to a csv file
     new_file_name = "BE_KUL-site_cover__from_VanMeerbeek_data.csv"
     new_data = pd.DataFrame(new_rows)
     new_data.to_csv(source_folder / new_file_name, index=False, sep=";")
 
+    # Read and extract plot locations from shapefile
+    shapefile_path = source_folder / "Natuurgebieden" / "GPS_data.shp"
+    output_csv_path = source_folder / "BE_KUL-site_station_from_shape.csv"
+    extract_plot_locations(shapefile_path, output_csv_path, site_code=site_code)
 
-def convert_raw_data_CVL():
+
+def extract_plot_locations(shapefile_path, output_csv_path, site_code="KUL-site"):
+    """
+    Extract plot locations from shapefile and save to CSV format.
+
+    Parameters
+    ----------
+    shapefile_path : str or Path
+        Path to the input shapefile.
+    output_csv_path : str or Path
+        Path to the output CSV file.
+    site_code : str
+        The site code to be used in the output (default: "KUL-site").
+    """
+    try:
+        # Read the shapefile
+        gdf = gpd.read_file(shapefile_path)
+
+        # Convert to WGS84 (EPSG:4326) if not already in that CRS
+        if gdf.crs != "EPSG:4326":
+            gdf = gdf.to_crs("EPSG:4326")
+
+        # Extract coordinates
+        gdf["LAT"] = gdf.geometry.y
+        gdf["LON"] = gdf.geometry.x
+
+        for _, row in gdf.iterrows():
+            if not np.isclose(row["LAT"], row["lat_dec"], atol=1e-6, rtol=0):
+                logger.warning(
+                    f"Latitude mismatch for plot {row['Proefvlak']}: {row['LAT']} (from geometry) != {row['lat_dec']} (from attribute). Using {row['LAT']}."
+                )
+
+                if not np.isclose(row["LAT"], row["lat_dec"], atol=1e-4, rtol=0):
+                    logger.error(
+                        f"Significant latitude difference for plot {row['Proefvlak']}: {row['LAT']} (from geometry) vs {row['lat_dec']} (from attribute)."
+                    )
+
+            if not np.isclose(row["LON"], row["lon_dec"], atol=1e-6, rtol=0):
+                logger.warning(
+                    f"Longitude mismatch for plot {row['Proefvlak']}: {row['LON']} (from geometry) != {row['lon_dec']} (from attribute). Using {row['LON']}."
+                )
+
+                if not np.isclose(row["LON"], row["lon_dec"], atol=1e-4, rtol=0):
+                    logger.error(
+                        f"Significant longitude difference for plot {row['Proefvlak']}: {row['LON']} (from geometry) vs {row['lon_dec']} (from attribute)."
+                    )
+
+        # Rename station codes, e.g. KVM 80A --> KVM_80
+        gdf["STATION_CODE"] = (
+            gdf["Proefvlak"].str.replace(" ", "_").str.replace("A", "")
+        )
+
+        # Create final dataframe with required columns
+        shape_df = pd.DataFrame(
+            {
+                "SITE_CODE": site_code,
+                "STATION_CODE": gdf["STATION_CODE"],
+                "LAT": gdf["LAT"],
+                "LON": gdf["LON"],
+            }
+        )
+
+        # Save to CSV
+        shape_df.to_csv(output_csv_path, index=False, sep=";")
+
+    except Exception as e:
+        print(f"Error processing shapefile: {e}")
+        return None
+
+
+def get_pft_KUL(species_name):
+    """
+    Get plant functional type (PFT) for a given species name based on predefined mappings.
+
+    Parameters
+    ----------
+    species_name : str
+        The name of the species.
+
+    Returns
+    -------
+    str
+        The corresponding PFT ("woody", "reed", "grass", "legume", or "forb").
+    """
+    # Woody species according to van Meerbeek, personal communication
+    if species_name in [
+        "Acer pseudoplatanus",
+        "Alnus glutinosa",
+        "Amelanchier lamarckii",
+        "Betula pendula",
+        "Betula pubescens",
+        "Calluna vulgaris",
+        "Crataegus monogyna",
+        "Erica cinerea",
+        "Erica tetralix",
+        "Frangula alnus",
+        "Fraxinus excelsior",
+        "Genista anglica",
+        "Hippophae rhamnoides",
+        "Myrica gale",
+        "Pinus sylvestris",
+        "Populus tremula",
+        "Prunus avium",
+        "Quercus petraea",
+        "Quercus robur",
+        "Quercus rubra",
+        "Salix caprea",
+        "Salix cinerea",
+        "Salix repens",
+        "Sorbus aucuparia",
+        "Vaccinium myrtillus",
+    ]:
+        return "(woody)"
+
+    # Family Poaceae, but treated as separate PFT here
+    if species_name in ["Phragmites australis"]:
+        return "(reed)"
+
+    # Get GBIF family, can be "not found" with an error message
+    family = get_gbif_family(species_name)
+
+    if family in ["Poaceae", "Cyperaceae", "Juncaceae"]:
+        return "grass"
+
+    if family == "Fabaceae":
+        return "legume"
+
+    # All other species are treated as forb, including "not found"
+    return "forb"
+
+
+def convert_raw_data_CVL(moss_cover_threshold=50):
     """
     Convert raw data from xls file to standard format for eLTER site
     Certoryje-Vojsicke Louky meadows
+
+    Parameters
+    ----------
+    moss_cover_threshold : float
+        The threshold for excluding plots based on moss cover (default: 50%).
     """
     dotenv_config = dotenv_values(".env")
     source_folder = Path(
@@ -260,10 +452,20 @@ def convert_raw_data_CVL():
     site_code = "https://deims.org/4c8082f9-1ace-4970-a603-330544f22a23"
     vert_offset = "NA"
 
+    plots_excluded = []
+
     # For each row in raw_data, extract the column entries with general information
     for _, row in raw_data.iterrows():
         station_code = row["Sample (relevé) code"]
         time = row["Date of data collecting"]
+        moss_cover = row["Cover moss layer (%)"]
+
+        if pd.notna(moss_cover) and float(moss_cover) > moss_cover_threshold:
+            logger.warning(
+                f"Excluding plot {station_code} due to moss cover {moss_cover} > {moss_cover_threshold}."
+            )
+            plots_excluded.append(station_code)
+            continue
 
         # Extract values for each species column (in transposed data)
         for column in raw_data.columns[32:]:
@@ -283,6 +485,10 @@ def convert_raw_data_CVL():
                         "UNIT": "%",
                     }
                 )
+    if plots_excluded:
+        logger.warning(
+            f"Excluded {len(plots_excluded)} of {len(raw_data)} plots for site CVL: {plots_excluded}."
+        )
 
     # Save new data to a csv file
     new_file_name = "CZ_Certoryje-Vojsice_cover__from_regrassed_fields_Bile_Karpaty.csv"
@@ -290,10 +496,15 @@ def convert_raw_data_CVL():
     new_data.to_csv(source_folder / new_file_name, index=False, sep=";")
 
 
-def convert_raw_data_BEXIS():
+def convert_raw_data_BEXIS(forbidden_cover_threshold=0, moss_cover_threshold=50.0):
     """
     Convert raw data from xls file to standard format for eLTER site
     BEXIS-sites (Germany).
+
+    Parameters
+    ----------
+    forbidden_cover_threshold : float
+        The threshold for excluding plots based on cover of non-grassland species (default: 0).
     """
     dotenv_config = dotenv_values(".env")
     site_ids = [
@@ -320,11 +531,18 @@ def convert_raw_data_BEXIS():
         "Dez": "12",
     }
 
+    pft_map = {
+        "gräser": "grass",
+        "leguminosen": "legume",
+        "kräuter": "forb",
+        "bäume und sträucher": "(woody)",
+        "farngewächse": "(fern)",
+    }
+
     first_observation_row = 13
     valid_entries = ["gräser", "leguminosen", "kräuter"]
     forbidden_entries = ["bäume und sträucher", "farngewächse"]
-    species_ignore_list = valid_entries + forbidden_entries
-    forbidden_cover_threshold = 2.0
+    pft_list = valid_entries + forbidden_entries
 
     # Read data from xls files
     for site_name in site_names:
@@ -361,6 +579,8 @@ def convert_raw_data_BEXIS():
             columns_to_convert = raw_data.columns[first_observation_row:].tolist() + [
                 "Deckung Sträucher",
                 "Deckung Kräuter",
+                "Deckung Moose",
+                "Deckung Flechten",
                 "Deckung offener Boden",
                 "Artenzahl",
                 "Biomasse (dt/ha)",
@@ -447,10 +667,22 @@ def convert_raw_data_BEXIS():
                         break
 
             if station_code not in plots_excluded:
-                if raw_data["Deckung Sträucher"].max() > forbidden_cover_threshold:
+                # NOTE: select types of non-grassland species to consider for exclusion
+                forbidden_cover = raw_data["Deckung Sträucher"].fillna(0)
+                moss_cover = raw_data["Deckung Moose"].fillna(0) + raw_data[
+                    "Deckung Flechten"
+                ].fillna(0)
+
+                if forbidden_cover.max() > forbidden_cover_threshold:
                     logger.warning(
-                        f"Excluding plot {station_code} due to maximum shrub cover {raw_data['Deckung Sträucher'].max()} "
-                        f"> {forbidden_cover_threshold}."
+                        f"Excluding plot {station_code} due to maximum total cover of non-grassland species (shrubs): "
+                        f"{forbidden_cover.max()} > {forbidden_cover_threshold}."
+                    )
+                    plots_excluded.append(station_code)
+                elif moss_cover.max() > moss_cover_threshold:
+                    logger.warning(
+                        f"Excluding plot {station_code} due to maximum moss cover (moss + lichens): "
+                        f"{moss_cover.max()} > {moss_cover_threshold}."
                     )
                     plots_excluded.append(station_code)
 
@@ -459,6 +691,9 @@ def convert_raw_data_BEXIS():
 
             # For each row in raw_data, extract the column entries with general information, rows should be named by year now
             for year, row in raw_data.iterrows():
+                # reset pft to be sure it is not carried over from previous year or site
+                pft = "NA"
+
                 herb_cover = row["Deckung Kräuter"]
                 open_soil_cover = row["Deckung offener Boden"]
                 biomass_g_m2 = round(row["Biomasse (dt/ha)"] * 10, 2)
@@ -501,7 +736,14 @@ def convert_raw_data_BEXIS():
 
                 # Extract values for each species column
                 for column in raw_data.columns[first_observation_row + 1 :]:
-                    if column.lower() not in species_ignore_list:
+                    if column.lower() in pft_list:
+                        pft = pft_map[column.lower()]
+                    else:
+                        if pft == "NA":
+                            raise ValueError(
+                                f"Missing PFT information for species '{column}' in plot {station_code}, year {year}."
+                            )
+
                         column_value = row[column]
 
                         # Add new row if column value is finite and greater than 0
@@ -516,6 +758,7 @@ def convert_raw_data_BEXIS():
                                     "TAXA": column,
                                     "VALUE": column_value,
                                     "UNIT": "%",
+                                    "PFT_ORIGINAL": pft,
                                     " ": "",
                                     "TOTAL_HERB_COVER": herb_cover,
                                     "OPEN_SOIL_COVER": open_soil_cover,
@@ -536,7 +779,7 @@ def convert_raw_data_BEXIS():
 
         if plots_excluded:
             logger.warning(
-                f"Excluded {len(plots_excluded)} plots for site BEXIS-site-{site_name}: {plots_excluded}."
+                f"Excluded {len(plots_excluded)} of {len(sheet_names)} plots for site BEXIS-site-{site_name}: {plots_excluded}."
             )
 
         # Save new data to a csv file
@@ -548,8 +791,13 @@ def convert_raw_data_BEXIS():
 
 
 if __name__ == "__main__":
-    convert_raw_data_BEXIS()
-    # convert_raw_data_KUL()
-    # convert_raw_data_CVL()
-    # convert_raw_data_MAM_C()
+    forbidden_cover_threshold = 5.0
+    moss_cover_threshold = 200.0
+    convert_raw_data_BEXIS(
+        forbidden_cover_threshold=forbidden_cover_threshold,
+        moss_cover_threshold=moss_cover_threshold,
+    )
+    convert_raw_data_KUL(forbidden_cover_threshold=forbidden_cover_threshold)
+    convert_raw_data_CVL(moss_cover_threshold=moss_cover_threshold)
+    convert_raw_data_MAM_C()
     # convert_raw_data_ASQ_C()

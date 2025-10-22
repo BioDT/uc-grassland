@@ -11,5 +11,6 @@ soilgrids @ git+https://github.com/BioDT/general-soilgrids-soil-data.git@main
 
 # other packages
 deims>=4.0
+geopandas>=1.1.1
 hda>=2.34
 pygbif>=0.6.3

@@ -53,7 +53,7 @@ def prep_weather_data(
         target_folder (str or Path): Target folder for .txt files (default is 'weatherDataPrepared').
     """
     if years is None:
-        years = list(range(1998, 1999))
+        years = list(range(1998, 2000))
         # years = list(range(1999, 2011))  # list(range(..., 2023))
 
     if coordinates_list:
@@ -91,30 +91,21 @@ def prep_weather_data(
         #     {"lat": 53, "lon": -70},
         # ]
 
-        # coordinates_list = [
-        #     {"lat": 47.622021, "lon": 15.149292},
-        #     {"lat": 47.622030, "lon": 15.149292},
-        #     {"lat": 47.622120, "lon": 15.149292},
-        #     {"lat": 47.623020, "lon": 15.149292},
-        #     {"lat": 47.632020, "lon": 15.149292},
-        #     {"lat": 47.722020, "lon": 15.149292},
-        #     {"lat": 47.622019, "lon": 15.149292},
-        #     {"lat": 47.622010, "lon": 15.149292},
-        #     {"lat": 47.621920, "lon": 15.149292},
-        #     {"lat": 47.621020, "lon": 15.149292},
-        #     {"lat": 47.612020, "lon": 15.149292},
-        #     {"lat": 47.522020, "lon": 15.149292},
-        # ]
-
-        # # example: GCEF small scale difference
+        # example within larger area, for which data is already downloaded
         coordinates_list = [
-            {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
-            {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
-            {
-                "lat": 51.3919,
-                "lon": 11.8787,
-            },  # GER, GCEF grassland site, centroid, non-grassland in HRL
+            {"lat": 46.55, "lon": 10.73},
+            {"lat": 46.88, "lon": 10.52},
         ]
+
+        # # # example: GCEF small scale difference
+        # coordinates_list = [
+        #     {"lat": 51.390427, "lon": 11.876855},  # GER, GCEF grassland site
+        #     {"lat": 51.392331, "lon": 11.883838},  # GER, GCEF grassland site
+        #     {
+        #         "lat": 51.3919,
+        #         "lon": 11.8787,
+        #     },  # GER, GCEF grassland site, centroid, non-grassland in HRL
+        # ]
 
         get_weather_data(
             years,
