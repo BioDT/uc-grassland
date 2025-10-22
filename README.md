@@ -4,6 +4,8 @@ Main repository for workflows belonging to the grassland Digital Twin.
 <a href="https://doi.org/10.5281/zenodo.15784817"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.15784817.svg" alt="DOI"></a>
 
 ## Installation
+
+### Python Package Installation
 The current development version can be installed as:
 
     pip install git+https://github.com/BioDT/uc-grassland.git@main
@@ -12,6 +14,9 @@ It requires also installing the following packages:
 
     pip install git+https://github.com/BioDT/general-copernicus-weather-data.git@main
     pip install git+https://github.com/BioDT/general-soilgrids-soil-data.git@main
+
+### Docker Installation
+Alternatively, you can use Docker Compose to run the complete pipeline without manual Python package installation. This is the recommended approach for production environments. See [Usage with Docker Compose](#usage-with-docker-compose) for details.
     
 ## Usage
 Download all input data and prepare as needed for grassland model simulations:
@@ -56,6 +61,58 @@ Parameters:
 - skip_weather (bool): Skip weather data preparation (default is False).
 - skip_soil (bool): Skip soil data preparation (default is False).
 - skip_management (bool): Skip management data preparation (default is False).
+
+### Usage with Docker Compose
+
+The grassland Digital Twin can be run using Docker Compose, which handles both data preparation and model simulation.
+
+#### Prerequisites
+
+1. Copy `.env.example` to `.env` file in the repository root with your credentials:
+```bash
+# WEkEO HDA credentials (for Copernicus data access)
+HDA_USER=your_wekeo_username
+HDA_PASSWORD=your_wekeo_password
+
+# CDS API key (for ERA5 weather data)
+CDSAPI_KEY=your_cds_api_key
+
+# Location parameters
+LAT=51.3919
+LON=11.8787
+startYear=2017
+endYear=2021
+DEIMS=
+```
+
+**Important**: `HDA_PASSWORD` should be your actual WEkEO account password, not an API token. The HDA library will automatically obtain and manage access tokens internally.
+
+2. Ensure you have Docker and Docker Compose installed on your system.
+
+#### Running the Pipeline
+
+Execute the full pipeline (data preparation + model simulation):
+
+```bash
+docker compose up
+```
+
+This will:
+1. Build the Docker image with all dependencies
+2. Download and prepare input data (land cover, weather, soil, management)
+3. Run the grassland model simulations
+4. Save all outputs to the `./output` directory
+
+#### Output Structure
+
+Results are saved in `./output/` with the following structure:
+```
+output/
+├── parameters/          # Model parameter files used in the simulation
+├── lat{LAT}_lon{LON}/   # Location-specific results
+│   ├── scenarios/       # Input scenarios for the model
+│   └── simulations/     # Model simulation outputs
+```
 
 
 ## Developers

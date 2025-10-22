@@ -1,0 +1,25 @@
+services:
+  grassmind-simulation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: grassmind-simulation:latest
+    container_name: grassmind-simulation
+    environment:
+      # Coordinates and time range
+      - DEIMS=${DEIMS}
+      - LAT=${LAT}
+      - LON=${LON}
+      - startYear=${startYear}
+      - endYear=${endYear}
+      # CDS API credentials
+      - CDSAPI_URL=${CDSAPI_URL}
+      - CDSAPI_KEY=${CDSAPI_KEY}
+      # HDA credentials
+      - HDA_USER=${HDA_USER}
+      - HDA_PASSWORD=${HDA_PASSWORD}
+    command: "/uc-grassland-model/run_pipeline_uc_grassland.sh"
+    volumes:
+      # Mount output directory that won't conflict with container content
+      - ./output:/output
+    working_dir: /uc-grassland-model

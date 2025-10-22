@@ -95,36 +95,70 @@ def create_hda_client(hda_configuration_folder=None, retry_max=6, sleep_max=8):
     """
     Create a WEkEO HDA API Client for accessing the Copernicus High-Resolution Layers (HRL) data.
 
-    Creates a configuration file (.hdarc) containing user credentials (username and password)
-    in the user's home directory if it does not already exist.
+    The HDA library's Configuration class handles authentication in the following priority order:
+    1. Environment variables: HDA_USER and HDA_PASSWORD (recommended for Docker/CI environments)
+    2. Custom .hdarc configuration file if hda_configuration_folder is provided
+    3. Default $HOME/.hdarc file
+    4. Interactive prompt for credentials (creates $HOME/.hdarc file)
+
+    For more details on authentication, see: https://hda.readthedocs.io/en/latest/usage.html#client-configuration
 
     Parameters:
-        hda_configuration_folder (str or Path): Path to the folder where the .hdarc file should be created.
-            (default is None, if None the user's home directory will be used).
+        hda_configuration_folder (str or Path): Path to the folder where a custom .hdarc file exists.
+            If None, the library will check HDA_USER/HDA_PASSWORD environment variables first,
+            then fall back to $HOME/.hdarc, or prompt for credentials if neither exists.
         retry_max (int): Maximum number of retry attempts for the client creation (default is 6).
         sleep_max (int): Maximum sleep time in seconds between retry attempts for the client creation (default is 8).
 
     Returns:
         hda.Client: An instance of the HDA client configured with the user's credentials.
     """
-    hdarc_file = (
-        Path(Path.home() / ".hdarc")
-        if hda_configuration_folder is None
-        else Path(hda_configuration_folder) / ".hdarc"
-    )
 
-    # Create hda configuration file (only if it does not already exist)
-    if not hdarc_file.is_file():
-        import getpass
+    import os
 
-        USERNAME = input("Enter your username: ")
-        PASSWORD = getpass.getpass("Enter your password: ")
+    # Use custom configuration path if provided, otherwise let Configuration handle defaults
+    if hda_configuration_folder is not None:
+        custom_config_path = Path(hda_configuration_folder) / ".hdarc"
+        if custom_config_path.is_file():
+            logger.info(f"Using HDA credentials from custom config file: {custom_config_path}")
+            config = hda.Configuration(path=str(custom_config_path))
+        else:
+            logger.warning(f"Custom config path specified but file not found: {custom_config_path}")
+            logger.info("Falling back to environment variables or $HOME/.hdarc")
+            config = hda.Configuration()
+    else:
+        # Let Configuration class handle credential resolution automatically
+        # (checks HDA_USER/HDA_PASSWORD env vars first, then $HOME/.hdarc)
+        config = hda.Configuration()
+        
+        # Log which method is being used
+        if os.getenv("HDA_USER") and os.getenv("HDA_PASSWORD"):
+            logger.info("Using HDA credentials from environment variables (HDA_USER and HDA_PASSWORD).")
+        elif (Path.home() / ".hdarc").is_file():
+            logger.info(f"Using HDA credentials from {Path.home() / '.hdarc'}")
+        else:
+            # Check if we're in an interactive environment before prompting
+            if os.isatty(0):  # stdin is a terminal (interactive)
+                logger.warning("No HDA credentials found. Asking for credentials manually.")
+                import getpass
 
-        with open(Path.home() / ".hdarc", "w") as f:
-            f.write(f"user:{USERNAME}\n")
-            f.write(f"password:{PASSWORD}\n")
+                USERNAME = input("Enter your username: ")
+                PASSWORD = getpass.getpass("Enter your password: ")
 
-    hda_client = hda.Client(retry_max=retry_max, sleep_max=sleep_max)
+                with open(Path.home() / ".hdarc", "w") as f:
+                    f.write(f"user:{USERNAME}\n")
+                    f.write(f"password:{PASSWORD}\n")
+            else:
+                # Non-interactive environment (Docker, CI, etc.)
+                logger.error(
+                    "No HDA credentials found. Please set HDA_USER and HDA_PASSWORD environment variables "
+                    "or provide a .hdarc configuration file."
+                )
+                raise ValueError(
+                    "HDA credentials not found. Set HDA_USER and HDA_PASSWORD environment variables."
+                )
+
+    hda_client = hda.Client(config=config, retry_max=retry_max, sleep_max=sleep_max)
     logger.info("HDA Client created successfully.")
 
     return hda_client

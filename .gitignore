@@ -219,3 +219,6 @@ grasslandModelInputFiles
 # LUMI simulation files
 slurm*.out
 # *.sh
+
+# output directory from docker compose
+output
