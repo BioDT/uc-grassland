@@ -71,6 +71,7 @@ import argparse
 import shutil
 import time
 import warnings
+from collections import defaultdict
 from pathlib import Path
 from types import MappingProxyType
 
@@ -80,6 +81,90 @@ from pygbif import species
 
 from ucgrassland import utils as ut
 from ucgrassland.logger_config import logger
+
+GRASS_FAMILIES = ("Poaceae", "Cyperaceae", "Juncaceae")
+LEGUME_FAMILIES = (
+    "Fabaceae",  # legume family,
+    "Leguminosae",  # legume family, old name
+)
+
+# NOTE: Family classifications based on global botanical references
+# (WFO, POWO, Judd et al.) and general botanical knowledge, with the
+# assumption that families with rare woody/herbaceous exceptions globally
+# likely have no such exceptions in Europe, unless European-specific
+# exceptions are documented in accessible literature.
+#
+# These classifications represent educated assessments rather than systematic
+# quantitative analyses. "Exclusively" classifications indicate literature
+# consensus that families contain only one growth form in Europe.
+# "Predominantly" classifications indicate "rare" exceptions are possible
+# but comprehensive quantitative verification against European species inventories
+# has not been performed.
+#
+# Thus, we always trust species-level woodiness data over family-level inference.
+
+# NOTE: Family classifications based on global botanical references
+# (WFO, POWO, Judd et al.) and general botanical knowledge, with the
+# assumption that families with rare woody/herbaceous exceptions globally
+# likely have no such exceptions in Europe, unless European-specific
+# exceptions are documented in accessible literature.
+#
+# Family growth form descriptions from World Flora Online (WFO) and
+# Plants of the World Online (POWO) have been consulted and documented
+# in the project wiki to support these classifications.
+#
+# These classifications represent educated assessments rather than systematic
+# quantitative analyses. "Exclusively" classifications indicate literature
+# consensus that families contain only one growth form in Europe.
+# "Predominantly" classifications indicate rare exceptions are possible,
+# but comprehensive quantitative verification against European species inventories
+# has not been performed.
+#
+# Thus, we trust species-level woodiness data over family-level inference
+# in the assignment heuristics.
+
+EXCLUSIVELY_WOODY_FAMILIES = (
+    "Aceraceae",  # maple family (should be Sapindaceae, but here if listed separately)
+    "Betulaceae",  # birch family
+    "Cupressaceae",  # cypress family
+    "Fagaceae",  # beech and oak family
+    "Juglandaceae",  # walnut family
+    "Pinaceae",  # pine family
+    "Platanaceae",  # plane tree family
+    "Taxaceae",  # yew family
+    "Tiliaceae",  # linden family (could be Malvaceae, but then not assignable)
+    "Ulmaceae",  # elm family
+)
+
+PREDOMINANTLY_WOODY_FAMILIES = (
+    "Anacardiaceae",  # cashew and sumac family
+    "Caprifoliaceae",  # honeysuckle family
+    "Cornaceae",  # dogwood family
+    "Oleaceae",  # olive family,
+    "Salicaceae",  # willow and poplar family
+    "Sapindaceae",  # soapberry family
+    "Vitaceae",  # grape family
+)
+
+EXCLUSIVELY_HERBACEOUS_FAMILIES = (
+    "Droseraceae",  # sundew family
+    "Eriocaulaceae",  # pipewort family
+    "Lentibulariaceae",  # bladderwort family
+    "Primulaceae",  # primrose family
+)
+
+PREDOMINANTLY_HERBACEOUS_FAMILIES = (
+    "Amaranthaceae",  # amaranth family
+    "Boraginaceae",  # borage family
+    "Brassicaceae",  # mustard family
+    "Campanulaceae",  # bellflower family
+    "Caryophyllaceae",  # pink/carnation family
+    "Orobanchaceae",  # broomrape family
+    "Papaveraceae",  # poppy family
+    "Ranunculaceae",  # buttercup family
+    "Violaceae",  # violet family
+)
+
 
 # Define species data specifications for selected eLTER sites.
 # Cf. data at https://b2share.eudat.eu/records/?q=biodt&sort=-&page=1&size=25.
@@ -367,7 +452,7 @@ def resolve_species_info_dicts(
     return resolved_dict
 
 
-def reduce_pft_info(info):
+def reduce_pft_info(info, *, separate_woody=False):
     """
     Map PFT information to coarse category.
 
@@ -377,21 +462,23 @@ def reduce_pft_info(info):
     Returns:
         str: Reduced PFT information entry.
     """
-    if info in ["not assigned", "not found"] or info.startswith("conflicting"):
+    if info in ["(fern)", "conflicting (fern vs. forb)"]:
+        return "forb"
+
+    if info in ["not assigned", "not found"]:  # or info.startswith("conflicting"):
         return "not_assigned"
-    elif info in [
-        "(tree)",
-        "(shrub)",
-        "(shrub/tree)",
-        "(fern)",
-        "(moss)",
-        "(lichen)",
-        "(legume?)",
-        "(woody)",
-    ]:
+
+    # for debugging remaining conflicting cases
+    if info.startswith("conflicting"):
+        return "not_assigned"
+
+    if info in ["(tree)", "(shrub)", "(shrub/tree)", "(woody)"]:
+        return "woody" if separate_woody else "other"
+
+    if info in ["(moss)", "(lichen)", "(legume?)"]:
         return "other"
-    else:
-        return info
+
+    return info
 
 
 def get_valid_infos(info_name):
@@ -618,7 +705,6 @@ def get_gbif_species(spec, *, accepted_ranks=["GENUS"]):
     elif spec_gbif_dict["matchType"] == "NONE":
         # No match, return input species
         logger.warning(f"'{spec}' not found.")
-
         return spec
     elif spec_gbif_dict["rank"] == "SPECIES":
         if "species" in spec_gbif_dict:
@@ -730,7 +816,15 @@ def get_gbif_family(spec):
         return "not found"
 
 
-def get_pft_from_family_woodiness(spec, family_dict, woodiness_dict):
+def get_pft_from_family_woodiness(
+    spec,
+    family_dict,
+    woodiness_dict,
+    *,
+    accept_predominantly_woody_families=True,
+    accept_predominantly_herbaceous_families=True,
+    pft_from_family_counts=None,
+):
     """
     Determine PFT based on species family and woodiness.
 
@@ -738,49 +832,165 @@ def get_pft_from_family_woodiness(spec, family_dict, woodiness_dict):
         spec (str): Species name to find PFT.
         family_dict (dict): Dictionary where species names are keys, and family infos are values.
         woodiness_dict (dict): Dictionary where species names are keys, and woodiness infos are values.
+        accept_predominantly_woody_families (bool): Accept predominantly woody families as PFT 'woody' if
+          species woodiness is unclear (default is True).
+        accept_predominantly_herbaceous_families (bool): Accept predominantly herbaceous families as PFT 'forb' if
+          species woodiness is unclear (default is False).
+        pft_from_family_counts (defaultdict): Dictionary to add counts of PFT assignments, conflicts or non-assignments
+          from family info (default is None, new defaultdict(int) will be created).
 
     Returns:
         str: PFT info or "not assigned."
+        defaultdict: Updated counts of PFT assignments, conflicts or non-assignments from family info.
     """
-    # Get family or throw warning if not found
-    if spec in family_dict:
-        family = family_dict[spec]
-    else:
-        logger.warning(
-            f"Family for '{spec}' not found in lookup table. Returning 'not found'."
-        )
-        family = "not found"
+    family = family_dict.get(spec, "not found")
+    woodiness = woodiness_dict.get(spec, "not found")
 
-    # Get woodiness or throw warning if not found
-    if spec in woodiness_dict:
-        woodiness = woodiness_dict[spec]
-    else:
-        logger.warning(
-            f"Woodiness for '{spec}' not found in lookup table. Returning 'not found'."
-        )
-        woodiness = "not found"
+    # Initialize PFT from family counts dictionary if not provided
+    if pft_from_family_counts is None:
+        pft_from_family_counts = defaultdict(int)
 
-    # Return "not found" as PFT if no info was found
     if family == "not found" and woodiness == "not found":
-        return "not found"
+        return "not found", pft_from_family_counts
+
+    # NOTE: assigning woodiness based on family is not implemented to keep the (missing) woodiness info
+    woodiness_info = get_woodiness_info_from_family(family)
+
+    def throw_log_message(
+        woodiness, spec, family, woodiness_info, pft_assigned, *, log_level="warning"
+    ):
+        message = (
+            f"Woodiness is '{woodiness}' for '{spec}'. Family '{family}' is {woodiness_info}. "
+            f"Assigning PFT '{pft_assigned}'."
+        )
+        if log_level == "error":
+            logger.error(message)
+        elif log_level == "warning":
+            logger.warning(message)
 
     # Assign PFT according to heuristics
-    grass_families = ["Poaceae", "Cyperaceae", "Juncaceae"]
+    # Check for conflicts between family and woodiness, assign PFT accordingly if suitable
+    if family in GRASS_FAMILIES:
+        pft_assigned = "grass"
 
-    if family in grass_families:
-        return "grass"
+        # error message, but overrule any conflicting woodiness for grass families
+        if woodiness in [
+            "woody",
+            "fern",
+            "moss",
+            "lichen",
+            "(woody)",
+            "(fern)",
+            "(moss)",
+            "(lichen)",
+        ] or woodiness.startswith("conflicting"):
+            throw_log_message(
+                woodiness, spec, family, woodiness_info, pft_assigned, log_level="error"
+            )
+            pft_from_family_counts[family + "_conflict"] += 1
     elif woodiness == "herbaceous":
-        if family == "Fabaceae":
-            return "legume"
+        if family in LEGUME_FAMILIES:
+            pft_assigned = "legume"
+        elif family in EXCLUSIVELY_WOODY_FAMILIES:
+            pft_assigned = "conflicting (forb vs. woody)"
+            throw_log_message(
+                woodiness, spec, family, woodiness_info, pft_assigned, log_level="error"
+            )
+            pft_from_family_counts[family + "_conflict"] += 1
         else:
-            return "forb"
-    elif woodiness in ["woody", "fern", "moss", "lichen"]:
-        return f"({woodiness})"
-    elif woodiness in ["(woody)", "(fern)", "(moss)", "(lichen)"]:
-        return woodiness
+            pft_assigned = "forb"
+
+            if family in PREDOMINANTLY_WOODY_FAMILIES:
+                throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
+                pft_from_family_counts[family + "_conflict"] += 1
+    elif woodiness in ["woody", "(woody)"]:
+        if family in EXCLUSIVELY_HERBACEOUS_FAMILIES:
+            pft_assigned = "conflicting (forb vs. woody)"
+            throw_log_message(
+                woodiness, spec, family, woodiness_info, pft_assigned, log_level="error"
+            )
+            pft_from_family_counts[family + "_conflict"] += 1
+        else:
+            pft_assigned = "(woody)"
+
+            if family in PREDOMINANTLY_HERBACEOUS_FAMILIES:
+                throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
+                pft_from_family_counts[family + "_conflict"] += 1
+    elif woodiness in ["fern", "moss", "lichen", "(fern)", "(moss)", "(lichen)"]:
+        if family in LEGUME_FAMILIES:
+            pft_assigned = ut.combine_info_strings("legume", woodiness)
+        elif family in EXCLUSIVELY_WOODY_FAMILIES:
+            pft_assigned = ut.combine_info_strings("woody", woodiness)
+        elif family in EXCLUSIVELY_HERBACEOUS_FAMILIES:
+            pft_assigned = ut.combine_info_strings("forb", woodiness)
+        else:
+            pft_assigned = woodiness if woodiness.startswith("(") else f"({woodiness})"
+
+        if pft_assigned.startswith("conflicting"):
+            if woodiness in ["fern", "(fern)"]:
+                throw_log_message(
+                    woodiness,
+                    spec,
+                    family,
+                    woodiness_info + ", but contains no fern species",
+                    pft_assigned,
+                    log_level="error",
+                )
+            else:
+                throw_log_message(
+                    woodiness,
+                    spec,
+                    family,
+                    woodiness_info,
+                    pft_assigned,
+                    log_level="error",
+                )
+
+            pft_from_family_counts[family + "_conflict"] += 1
+    elif woodiness == "conflicting (herbaceous vs. woody)":
+        # Assignment for conflict herbaceous vs. woody is possible here
+        if family in LEGUME_FAMILIES:
+            # Legumes can be herbaceous or woody, keep conflict but specify
+            pft_assigned = "conflicting (legume vs. woody)"
+        else:
+            pft_assigned = "conflicting (forb vs. woody)"
+            # NOTE: we keep the conflict even if family suggests exclusively herbaceous or woody,
+            #       because we have higher trust in the species-level woodiness info
+
+        # Error if family is strictly herbaceous or strictly woody, warning otherwise
+        if woodiness_info.startswith("exclusively"):
+            throw_log_message(
+                woodiness, spec, family, woodiness_info, pft_assigned, log_level="error"
+            )
+        else:
+            throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
+
+        pft_from_family_counts[family + "_conflict"] += 1
+    elif family in EXCLUSIVELY_WOODY_FAMILIES:
+        pft_assigned = "(woody)"
+        pft_from_family_counts[family + "_assigned"] += 1
+    elif accept_predominantly_woody_families and family in PREDOMINANTLY_WOODY_FAMILIES:
+        pft_assigned = "(woody)"
+        throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
+        pft_from_family_counts[family + "_assigned"] += 1
+    elif family in EXCLUSIVELY_HERBACEOUS_FAMILIES:
+        pft_assigned = "forb"
+        pft_from_family_counts[family + "_assigned"] += 1
+    elif (
+        accept_predominantly_herbaceous_families
+        and family in PREDOMINANTLY_HERBACEOUS_FAMILIES
+    ):
+        pft_assigned = "forb"
+        throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
+        pft_from_family_counts[family + "_assigned"] += 1
     else:
-        return "not assigned"
-        # Note: conflicting woodiness cannot be resolved here
+        pft_assigned = "not assigned"
+        throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
+        pft_from_family_counts[family + "_not_assignable"] += 1
+        # NOTE: conflicting woodiness cannot be resolved here
+        # NOTE: legume families could be legume or woody, cannot be resolved here
+
+    return pft_assigned, pft_from_family_counts
 
 
 def read_species_list(
@@ -1103,7 +1313,7 @@ def get_species_info(
 
     for spec in species_list:
         if spec not in info_dict:
-            info_dict[spec] = ut.lookup_info_in_dict(spec, info_lookup)
+            info_dict[spec] = info_lookup.get(spec, "not found")
 
     # Check for unclear infos, sort, and save dictionary to file if specified
     info_dict = check_unclear_infos(info_name, info_dict, ask_user_input=ask_user_input)
@@ -1176,12 +1386,22 @@ def get_species_pft_from_family_woodiness(
         f"Family: '{lookup_source_family}' and Woodiness: '{lookup_source_woodiness}' ..."
     )
     info_dict = {}
+    pft_from_family_counts = defaultdict(int)
 
     for spec in species_list:
         if spec not in info_dict:
-            info_dict[spec] = get_pft_from_family_woodiness(
-                spec, family_dict, woodiness_dict
+            info_dict[spec], pft_from_family_counts = get_pft_from_family_woodiness(
+                spec,
+                family_dict,
+                woodiness_dict,
+                pft_from_family_counts=pft_from_family_counts,
             )
+
+    logger.info("PFT assignment summary based on family heuristics:")
+    pft_from_family_counts = dict(sorted(pft_from_family_counts.items()))
+
+    for key, count in pft_from_family_counts.items():
+        logger.info(f"{key}: {count}")
 
     # Check for unclear infos, sort, and save dictionary to file if specified
     info_dict = check_unclear_infos(info_name, info_dict, ask_user_input=ask_user_input)
@@ -1194,7 +1414,33 @@ def get_species_pft_from_family_woodiness(
         )
         ut.dict_to_file(info_dict, file_name, column_names=["Species", info_name])
 
-    return info_dict
+    return info_dict, pft_from_family_counts
+
+
+def get_woodiness_info_from_family(family):
+    """
+    Get woodiness information for a given family.
+
+    Parameters:
+        family (str): Family name to find woodiness.
+
+    Returns:
+        str: Woodiness information or "not allowing clear assignment of woodiness."
+    """
+    if family in EXCLUSIVELY_WOODY_FAMILIES:
+        return "exclusively woody"
+    elif family in PREDOMINANTLY_WOODY_FAMILIES:
+        return "mostly woody, but some herbaceous exceptions exist"
+    elif family in EXCLUSIVELY_HERBACEOUS_FAMILIES:
+        return "exclusively herbaceous"
+    elif family in PREDOMINANTLY_HERBACEOUS_FAMILIES:
+        return "mostly herbaceous, but some woody exceptions exist"
+    elif family in GRASS_FAMILIES:
+        return "grass family (exclusively herbaceous)"
+    elif family in LEGUME_FAMILIES:
+        return "legume family (herbaceous or woody)"
+    else:
+        return "not allowing clear assignment of woodiness"
 
 
 def get_lookup_tables(
@@ -1437,38 +1683,62 @@ def get_all_infos_and_pft(
         info_source_2="Zanne",
     )
 
-    # Find PFT based on differnt combinations of Family and Woodiness sources
-    pft_family_try_woodiness_try = get_species_pft_from_family_woodiness(
-        species_to_lookup,
-        family_try,
-        woodiness_try,
-        file_name=file_name,
-        lookup_source_family="TRY",
-        lookup_source_woodiness="TRY",
+    # Find PFT based on different combinations of Family and Woodiness sources
+    pft_family_try_woodiness_try, pft_from_family_summary = (
+        get_species_pft_from_family_woodiness(
+            species_to_lookup,
+            family_try,
+            woodiness_try,
+            file_name=file_name,
+            lookup_source_family="TRY",
+            lookup_source_woodiness="TRY",
+        )
     )
-    pft_family_gbif_woodiness_try = get_species_pft_from_family_woodiness(
-        species_to_lookup,
-        family_gbif,
-        woodiness_try,
-        file_name=file_name,
-        lookup_source_family="GBIF",
-        lookup_source_woodiness="TRY",
+    pft_family_gbif_woodiness_try, pft_from_family_counts = (
+        get_species_pft_from_family_woodiness(
+            species_to_lookup,
+            family_gbif,
+            woodiness_try,
+            file_name=file_name,
+            lookup_source_family="GBIF",
+            lookup_source_woodiness="TRY",
+        )
     )
-    pft_family_gbif_woodiness_zanne = get_species_pft_from_family_woodiness(
-        species_to_lookup,
-        family_gbif,
-        woodiness_zanne,
-        file_name=file_name,
-        lookup_source_family="GBIF",
-        lookup_source_woodiness="Zanne",
+    pft_from_family_summary = ut.add_to_dict(
+        pft_from_family_summary,
+        pft_from_family_counts,
+        value_prev="family_try_woodiness_try",
+        value_add="family_gbif_woodiness_try",
     )
-    pft_family_gbif_woodiness_combined = get_species_pft_from_family_woodiness(
-        species_to_lookup,
-        family_gbif,
-        woodiness_combined,
-        file_name=file_name,
-        lookup_source_family="GBIF",
-        lookup_source_woodiness="combined",
+    pft_family_gbif_woodiness_zanne, pft_from_family_counts = (
+        get_species_pft_from_family_woodiness(
+            species_to_lookup,
+            family_gbif,
+            woodiness_zanne,
+            file_name=file_name,
+            lookup_source_family="GBIF",
+            lookup_source_woodiness="Zanne",
+        )
+    )
+    pft_from_family_summary = ut.add_to_dict(
+        pft_from_family_summary,
+        pft_from_family_counts,
+        value_add="family_gbif_woodiness_zanne",
+    )
+    pft_family_gbif_woodiness_combined, pft_from_family_counts = (
+        get_species_pft_from_family_woodiness(
+            species_to_lookup,
+            family_gbif,
+            woodiness_combined,
+            file_name=file_name,
+            lookup_source_family="GBIF",
+            lookup_source_woodiness="combined",
+        )
+    )
+    pft_from_family_summary = ut.add_to_dict(
+        pft_from_family_summary,
+        pft_from_family_counts,
+        value_add="family_gbif_woodiness_combined",
     )
 
     # Combine and resolve PFT from multiple sources
@@ -1500,13 +1770,20 @@ def get_all_infos_and_pft(
         species_original[index]: pft_combined[species_to_lookup[index]]
         for index in range(len(species_to_lookup))
     }
-    pft_family_extra_woodiness_combined = get_species_pft_from_family_woodiness(
-        species_original,
-        family_extra,
-        woodiness_combined_original_keys,
-        file_name=file_name,
-        lookup_source_family="Extra",
-        lookup_source_woodiness="combined",
+    pft_family_extra_woodiness_combined, pft_from_family_counts = (
+        get_species_pft_from_family_woodiness(
+            species_original,
+            family_extra,
+            woodiness_combined_original_keys,
+            file_name=file_name,
+            lookup_source_family="Extra",
+            lookup_source_woodiness="combined",
+        )
+    )
+    pft_from_family_summary = ut.add_to_dict(
+        pft_from_family_summary,
+        pft_from_family_counts,
+        value_add="family_extra_woodiness_combined",
     )
     pft_combined_extra = resolve_species_info_dicts(
         "PFT",
@@ -1536,6 +1813,12 @@ def get_all_infos_and_pft(
             pft_combined_extra,
             ut.add_string_to_file_name(file_name, "__PFT__combined_Extra"),
             column_names=["Species", "PFT Combined incl. Extra"],
+        )
+        sample_entry = next(iter(pft_from_family_summary.values()))
+        ut.dict_to_file(
+            pft_from_family_summary,
+            ut.add_string_to_file_name(file_name, "__PFT__from_Family__counts"),
+            column_names=["Family assignment"] + list(sample_entry.keys()),
         )
 
     # Add PFT combined column to species list
@@ -1780,7 +2063,7 @@ def assign_pfts_for_sites(
             "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
             "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
             "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
-            # not eLTER plus
+            # # not eLTER plus
             "KUL-site",  # KU Leuven, Belgium
             "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
             "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4",  # BEXIS-site-SEG

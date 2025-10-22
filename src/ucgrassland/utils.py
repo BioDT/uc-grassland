@@ -347,6 +347,7 @@ def remove_duplicates(input_list, *, duplicates=None, header_lines=0):
     if duplicates is None:
         duplicates = count_duplicates(input_list, key_column="all")
 
+    # TODO: shortcut if no duplicates found, but still sort apart from header lines
     tuple_list = get_tuple_list(
         input_list, return_sorted=True, header_lines=header_lines
     )
@@ -717,8 +718,52 @@ def get_list_of_columns(input_list, columns_wanted):
     return sublist, columns_found
 
 
+def unify_dict_keys(
+    dict_1, dict_2, *, default_value_1=None, default_value_2=None, sort_keys=False
+):
+    """
+    Unify keys of two dictionaries by adding missing keys with a default value.
+
+    Parameters:
+        dict1 (dict): First dictionary.
+        dict2 (dict): Second dictionary.
+        default_value1: Default value to assign to missing keys in dict1 (default is None).
+        default_value2: Default value to assign to missing keys in dict2 (default is None).
+        sort_keys (bool): Whether to sort the unified keys (default is False).
+
+    Returns:
+        tuple: Two dictionaries with unified keys.
+    """
+    all_keys = set(dict_1.keys()) | set(dict_2.keys())
+
+    if sort_keys:
+        all_keys = sorted(all_keys)
+
+    # If a default value is a dict, copy it for each key to avoid shared references
+    if isinstance(default_value_1, dict):
+        unified_dict_1 = {
+            key: dict_1.get(key, default_value_1.copy()) for key in all_keys
+        }
+    else:
+        unified_dict_1 = {key: dict_1.get(key, default_value_1) for key in all_keys}
+
+    if isinstance(default_value_2, dict):
+        unified_dict_2 = {
+            key: dict_2.get(key, default_value_2.copy()) for key in all_keys
+        }
+    else:
+        unified_dict_2 = {key: dict_2.get(key, default_value_2) for key in all_keys}
+
+    return unified_dict_1, unified_dict_2
+
+
 def add_to_dict(
-    dict_prev, dict_to_add, value_name_prev="info1", value_name_add="info2"
+    dict_prev,
+    dict_to_add,
+    *,
+    value_prev="info1",
+    value_add="info2",
+    unify_keys=True,
 ):
     """
     Add values from a dictionary to an existing dictionary under a specified key.
@@ -726,31 +771,57 @@ def add_to_dict(
     Parameters:
         dict_prev (dict): Existing dictionary.
         dict_to_add (dict): Dictionary of new values to add.
-        value_name_prev (str): Name for existing values in the updated dictionary (default is 'info1').
-        value_name_add (str): Name for new values in the updated dictionary (default is 'info2').
+        value_prev (str): Name for existing values in the updated dictionary (default is 'info1').
+        value_add (str): Name for new values in the updated dictionary (default is 'info2').
+        unify_keys (bool): Unify keys of both dictionaries if different (default is True).
 
     Returns:
         dict: Updated dictionary with combined old and new values.
     """
-    # Check if keys are the same
+    if dict_prev == {}:
+        dict_prev = {"no_entries": 1}
+
+    if dict_to_add == {}:
+        dict_to_add = {"no_entries": 1}
+    else:
+        # not needed, but to consistently have a "no_entries" key in the result
+        dict_to_add["no_entries"] = 0
+
     if set(dict_prev.keys()) != set(dict_to_add.keys()):
-        try:
-            raise ValueError(
-                "Keys in previous dictionary and added dictionary must be the same."
+        if unify_keys:
+            if all(isinstance(value, dict) for value in dict_prev.values()):
+                # default value as dict with keys of first entry of dict_prev, and values 0
+                default_value_prev = {
+                    key: 0 for key in dict_prev[next(iter(dict_prev))].keys()
+                }
+            else:
+                default_value_prev = 0
+
+            dict_prev, dict_to_add = unify_dict_keys(
+                dict_prev,
+                dict_to_add,
+                default_value_1=default_value_prev,
+                default_value_2=0,
+                sort_keys=True,
             )
-        except ValueError as e:
-            logger.error(e)
-            raise
+        else:
+            try:
+                raise ValueError(
+                    "Keys in previous dictionary and added dictionary differ and unifying is set to False. Cannot add values."
+                )
+            except ValueError as e:
+                logger.error(e)
+                raise
 
     # Convert dict_prev to a dictionary of dictionaries if not already
     if all(isinstance(value, dict) for value in dict_prev.values()):
         dict_added = dict_prev
     else:
-        dict_added = {key: {value_name_prev: value} for key, value in dict_prev.items()}
+        dict_added = {key: {value_prev: value} for key, value in dict_prev.items()}
 
     # Add new values to each key
     for key, value in dict_to_add.items():
-        dict_added[key][value_name_add] = value
+        dict_added[key][value_add] = value
 
     return dict_added
 
@@ -793,23 +864,6 @@ def add_to_list(list_prev, list_to_add):
         (*prev[0:], *to_add[1:]) for prev, to_add in zip(list_prev, list_to_add)
     ]
     return list_added
-
-
-def lookup_info_in_dict(key, info_lookup):
-    """
-    Look up info for a given key in a dictionary.
-
-    Parameters:
-        key: Key to look up.
-        info_lookup (dict): Dictionary containing key-value pairs.
-
-    Returns:
-        Value associated with given key if found, or "not found" otherwise.
-    """
-    if key in info_lookup:
-        return info_lookup[key]
-
-    return "not found"
 
 
 def add_columns_to_list(input_list, columns_to_add):
@@ -860,11 +914,11 @@ def add_info_to_list(list_to_lookup, info_dict):
 
     for entry in list_to_lookup:
         if isinstance(entry, tuple):
-            info_list.append(entry + (lookup_info_in_dict(entry[0], info_dict),))
+            info_list.append(entry + (info_dict.get(entry[0], "not found"),))
         elif isinstance(entry, list):
-            info_list.append(entry + [lookup_info_in_dict(entry[0], info_dict)])
+            info_list.append(entry + [info_dict.get(entry[0], "not found")])
         else:
-            info_list.append((entry, lookup_info_in_dict(entry, info_dict)))
+            info_list.append((entry, info_dict.get(entry, "not found")))
 
     return info_list
 
@@ -1198,7 +1252,7 @@ def get_plot_locations_from_csv(
 
             return None
 
-        def check_altitude(lat, lon, altitude_from_file, station_code):
+        def check_altitude(lat, lon, altitude_from_file, station_code, tolerance=10):
             """Helper function to get altitude for coordinates and compare with station file altitude."""
             altitude = get_elevation(lat, lon)
 
@@ -1216,7 +1270,7 @@ def get_plot_locations_from_csv(
                     altitude = altitude_from_file
             else:
                 if not np.isnan(altitude_from_file) and not np.isclose(
-                    altitude_from_file, altitude, atol=5
+                    altitude_from_file, altitude, atol=tolerance
                 ):
                     logger.warning(
                         f"Altitude from elevation data ({altitude:.0f} m) and station file ({altitude_from_file:.0f} m) "

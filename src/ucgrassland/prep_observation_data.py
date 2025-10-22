@@ -773,8 +773,32 @@ def read_observation_data(
 
 
 def process_single_plot_observation_data(
-    plot_data, columns, plot_name, variable, pft_lookup, observation_pft, *, pfts=None
+    plot_data,
+    columns,
+    plot_name,
+    variable,
+    pft_lookup,
+    observation_pft,
+    *,
+    pfts=None,
+    woody_maximum=5.0,
 ):
+    """
+    Process observation data for a single plot and variable, aggregating to PFTs.
+
+    Parameters:
+        plot_data (list): List of lists with observation data for the plot.
+        columns (dict): Dictionary mapping required column names to their indices in plot_data.
+        plot_name (str): Name of the plot.
+        variable (str): Variable name of the observation data.
+        pft_lookup (dict): Dictionary mapping species names to PFTs.
+        observation_pft (pd.DataFrame): DataFrame to store processed PFT observation data.
+        pfts (list): List of PFT names to aggregate to (default is None, which uses default PFTs).
+        woody_maximum (float): Maximum allowed cover value for woody PFTs (default is 5.0).
+
+    Returns:
+        pd.DataFrame: Updated DataFrame with processed PFT observation data.
+    """
     target_unit = get_target_unit(variable)
 
     # Use default PFTs if not specified
@@ -786,18 +810,22 @@ def process_single_plot_observation_data(
     )
 
     if "value" in columns:
+        unit_check = None  # init unit_check, iteratively updated
+
+        # Check for non-grass (and non-moss) maximum based on layer information
         if "layer" in columns:
             for time_point in time_points:
                 time_data = ut.get_rows_with_value_in_column(
                     plot_data, columns["time"], time_point
                 )
+                time_data = ut.remove_duplicates(time_data)
                 grass_layer_check = check_for_grass_layer(
                     time_data,
                     columns,
                     plot_name=plot_name,
                     time_point=time_point,
                     variable=variable,
-                    non_grass_maximum=5.0,  # allow up to 5% cover from non-grass layer
+                    woody_maximum=woody_maximum,
                 )
 
                 if grass_layer_check is not True:
@@ -809,13 +837,32 @@ def process_single_plot_observation_data(
             )
             grass_layer_check = True
 
+        # Check for woody maximum based on PFT information
+        for time_point in time_points:
+            time_data = ut.get_rows_with_value_in_column(
+                plot_data, columns["time"], time_point
+            )
+            time_data = ut.remove_duplicates(time_data)
+            woody_value_check = check_woody_values(
+                time_data,
+                columns,
+                pft_lookup,
+                plot_name=plot_name,
+                time_point=time_point,
+                variable=variable,
+                woody_maximum=woody_maximum,
+            )
+
+            if woody_value_check is not True:
+                break  # no need to check further time points if one failed
+
         for time_point in time_points:
             # Get rows from observation data for this plot and time point
             time_data = ut.get_rows_with_value_in_column(
                 plot_data, columns["time"], time_point
             )
 
-            if grass_layer_check is True:
+            if grass_layer_check is True and woody_value_check is True:
                 # Remove remaining duplicates from retrieved observation data for this plot and time point
                 duplicates = ut.count_duplicates(time_data, key_column="all")
 
@@ -866,7 +913,6 @@ def process_single_plot_observation_data(
                         key: 0
                         for key in [f"#{pft}" for pft in pfts] + ["#invalid_value"]
                     }
-                    unit_check = None
 
                     for entry in time_data:
                         species = (
@@ -904,13 +950,20 @@ def process_single_plot_observation_data(
                     new_row.update(pft_values)
                     new_row.update(pft_counts)
             else:
-                # Grass layer check failed. Store error message string
+                # Grass layer and/or woody values check failed. Store error message string.
+                if grass_layer_check is True:
+                    check_message = woody_value_check
+                elif woody_value_check is True:
+                    check_message = grass_layer_check
+                else:
+                    check_message = f"{grass_layer_check}; {woody_value_check}"
+
                 new_row = {key: "" for key in observation_pft.columns}
                 new_row.update(
                     {
                         "plot": plot_name,
                         "time": time_point,
-                        "invalid_observation": grass_layer_check,
+                        "invalid_observation": check_message,
                     }
                 )
 
@@ -947,12 +1000,13 @@ def check_for_grass_layer(
     plot_name="not specified",
     time_point="not specified",
     variable="not specified",
-    non_grass_maximum=0,
+    woody_maximum=0,
     grass_layer_names=["F", "COVE_F", "herb layer"],
     moss_layer_names=["moss layer"],  # "M", "COVE_M" ?
 ):
     """
-    Check if data snippet only includes entries from the grass layer.
+    Check if data snippet includes only entries from the grass layer, or otherwise if sum of woody layer entries
+        (i.e. ignoring grass and moss layers) exceeds maximum allowed value.
 
     Parameters:
         data_snippet (list): List of lists with observation data.
@@ -960,6 +1014,7 @@ def check_for_grass_layer(
         plot_name (str): Plot name of the data (default is "not specified").
         time_point (str): Time point of the data (default is "not specified").
         variable (str): Variable name of the data (default is "not specified").
+        woody_maximum (float): Maximum allowed value for woody layer entries (default is 0).
         grass_layer_names (list): List of valid grass layer names to look for (default is ["F", "COVE_F", "herb layer"]).
         moss_layer_names (list): List of valid moss layer names to look for (default is ["moss layer"]).
 
@@ -974,14 +1029,9 @@ def check_for_grass_layer(
         if len(layer_entries) == 1:
             if layer_entries[0] in grass_layer_names:
                 # Only one valid layer entry found, use this layer
-                # logger.info(
-                #     f"All entries belong to grass layer ('{layer_entries[0]}') for plot '{plot_name}' at time '{time_point}'."
-                # )
                 return True
             elif layer_entries[0] == "nan":
                 # No layer information, use this layer
-                # Problem: nan could point to missing info, potentially not all data from grass layer,
-                #          might be cause for duplicates, but also go unnoticed if no duplicates are found
                 logger.warning(
                     f"Only 'nan' found as layer entry for plot '{plot_name}' at time '{time_point}'."
                     " Assuming all entries belong to grass layer, but this might not be the case."
@@ -997,7 +1047,8 @@ def check_for_grass_layer(
         else:
             # Multiple layers found, inspect more thouroughly
             logger.warning(
-                f"{len(layer_entries)} different layer entries ({layer_entries}) found for plot '{plot_name}' at time '{time_point}'."
+                f"{len(layer_entries)} different layer entries ({layer_entries}) "
+                f"found for plot '{plot_name}' at time '{time_point}'."
             )
             grass_layer_count = sum(
                 1 for entry in layer_entries if entry in grass_layer_names
@@ -1005,16 +1056,16 @@ def check_for_grass_layer(
 
             if grass_layer_count > 1:
                 # Multiple valid grass layer entries found, skip data
-                # NOTE: zero grass layer entries are allowed, unless non-grass layer cover is too high, cf. below
+                # NOTE: the case of zero grass layer entries is allowed, unless non-grass layer cover is too high, cf. below
                 logger.warning(
                     f"{grass_layer_count} valid grass layer entries found ({layer_entries}) for plot '{plot_name}' at time '{time_point}'."
                     " Need exactly one valid grass layer entry to safely filter data. Skipping data."
                 )
 
-                return "Different grass layer entries. Data not usable."
+                return "Different grass layer entries."
 
-        # Total value for all entries not belonging to grass layer or moss layer
-        non_grass_value = 0
+        # Total value for all entries not belonging to grass layer or moss layer, i.e. woody layers
+        woody_value = 0
 
         for i in range(len(data_snippet)):
             if data_snippet[i][columns["layer"]] not in [
@@ -1025,19 +1076,89 @@ def check_for_grass_layer(
                 )
 
                 if value is not None and not pd.isna(value):
-                    non_grass_value += value
+                    woody_value += value
 
-        if non_grass_value > non_grass_maximum:
+        if woody_value > woody_maximum:
             logger.warning(
-                f"Non-grass layer cover exceeds maximum allowed ({non_grass_value:.2f} > {non_grass_maximum}) "
+                f"Woody cover (neither grass nor moss layer) exceeds maximum "
+                f"allowed ({woody_value:.2f} > {woody_maximum}) "
                 f"for plot '{plot_name}' at time '{time_point}'. Skipping all data for this plot."
             )
 
-            return f"Non-grass layer cover too high ({non_grass_value:.2f} > {non_grass_maximum}%). Data not usable."
+            return (
+                f"Woody layers cover too high ({woody_value:.2f} > {woody_maximum}%)."
+            )
     else:
         logger.warning(
             "No 'layer' column found. Assuming all data belong to grass layer."
         )
+
+    return True
+
+
+def check_woody_values(
+    data_snippet,
+    columns,
+    pft_lookup,
+    *,
+    plot_name="not specified",
+    time_point="not specified",
+    variable="not specified",
+    woody_maximum=5.0,
+):
+    """
+    Check woody values in the data snippet.
+
+    Parameters:
+        data_snippet (list): List of lists with observation data.
+        columns (dict): Dictionary with column names for the data.
+        pft_lookup (dict): Dictionary mapping species to their PFTs
+        plot_name (str): Plot name of the data (default is "not specified").
+        time_point (str): Time point of the data (default is "not specified").
+        variable (str): Variable name of the data (default is "not specified").
+        woody_maximum (float): Maximum allowed woody cover percentage (default is 5.0).
+
+    Returns:
+        bool or str: True if woody values are within limits, otherwise a string with an error message.
+    """
+    unit_check = None
+    woody_value = 0
+
+    for entry in data_snippet:
+        species = (
+            entry[columns["species"]].rstrip()  # remove spaces at end
+            if isinstance(entry[columns["species"]], str)
+            else entry[columns["species"]]
+        )
+        pft = apft.reduce_pft_info(
+            pft_lookup.get(species, "not found"), separate_woody=True
+        )
+
+        if pft == "woody":
+            unit = entry[columns["unit"]]
+            value = check_observation_value(
+                entry[columns["value"]],
+                variable,
+                unit=unit,
+                unit_check=unit_check,
+                plot_name=plot_name,
+                time_point=time_point,
+                species=species,
+            )
+
+            if not pd.isna(value):
+                woody_value += value
+
+                if not pd.isna(unit):
+                    unit_check = unit
+
+    if woody_value > woody_maximum:
+        logger.warning(
+            f"Woody PFT cover exceeds maximum allowed ({woody_value:.2f} > {woody_maximum}) "
+            f"for plot '{plot_name}' at time '{time_point}'. Skipping all data for this plot."
+        )
+
+        return f"Woody PFT cover too high ({woody_value:.2f} > {woody_maximum}%)."
 
     return True
 
