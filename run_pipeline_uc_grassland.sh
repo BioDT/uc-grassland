@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 # Bash equivalent of the Windows batch script excerpt
 # Requires environment variables: LAT, LON, startYear, endYear, DEIMS
 
