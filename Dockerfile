@@ -51,5 +51,6 @@ RUN pip install /tmp/uc-grassland/
 WORKDIR /uc-grassland-model/
 
 COPY run_pipeline_uc_grassland.sh /uc-grassland-model/run_pipeline_uc_grassland.sh
-RUN chmod +x /uc-grassland-model/run_pipeline_uc_grassland.sh
+RUN sed -i 's/\r$//' /uc-grassland-model/run_pipeline_uc_grassland.sh && \
+    chmod +x /uc-grassland-model/run_pipeline_uc_grassland.sh
 CMD ["/uc-grassland-model/run_pipeline_uc_grassland.sh"]
