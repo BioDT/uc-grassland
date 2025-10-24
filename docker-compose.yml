@@ -22,4 +22,6 @@ services:
     volumes:
       # Mount output directory that won't conflict with container content
       - ./output:/output
+      # Mount .env file for environment variables
+      - ./.env:/uc-grassland-model/.env:ro
     working_dir: /uc-grassland-model
