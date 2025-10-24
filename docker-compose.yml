@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: grassmind-simulation:latest
+    image: ghcr.io/biodt/uc-grassland:latest
     container_name: grassmind-simulation
     environment:
       # Coordinates and time range
