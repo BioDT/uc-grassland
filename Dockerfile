@@ -40,12 +40,17 @@ RUN git clone --depth 1 --branch unix https://github.com/BioDT/uc-grassland-mode
 WORKDIR /uc-grassland-model/build 
 RUN cmake .. && make
 
-# Copy local source code and install from source
-COPY . /tmp/uc-grassland/
+# Copy only necessary files for Python package installation
+COPY setup.py /tmp/uc-grassland/
+COPY requirements.txt /tmp/uc-grassland/
+COPY README.md /tmp/uc-grassland/
+COPY LICENSE /tmp/uc-grassland/
+COPY src/ /tmp/uc-grassland/src/
 RUN pip install /tmp/uc-grassland/
 
 WORKDIR /uc-grassland-model/
 
 COPY run_pipeline_uc_grassland.sh /uc-grassland-model/run_pipeline_uc_grassland.sh
-RUN chmod +x /uc-grassland-model/run_pipeline_uc_grassland.sh
+RUN sed -i 's/\r$//' /uc-grassland-model/run_pipeline_uc_grassland.sh && \
+    chmod +x /uc-grassland-model/run_pipeline_uc_grassland.sh
 CMD ["/uc-grassland-model/run_pipeline_uc_grassland.sh"]

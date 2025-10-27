@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: grassmind-simulation:latest
+    image: ghcr.io/biodt/uc-grassland:latest
     container_name: grassmind-simulation
     environment:
       # Coordinates and time range
@@ -22,4 +22,6 @@ services:
     volumes:
       # Mount output directory that won't conflict with container content
       - ./output:/output
+      # Mount .env file for environment variables
+      - ./.env:/uc-grassland-model/.env:ro
     working_dir: /uc-grassland-model
