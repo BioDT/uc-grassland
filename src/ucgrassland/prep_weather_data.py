@@ -53,7 +53,7 @@ def prep_weather_data(
         target_folder (str or Path): Target folder for .txt files (default is 'weatherDataPrepared').
     """
     if years is None:
-        years = list(range(1998, 2000))
+        years = list(range(2002, 2007))
         # years = list(range(1999, 2011))  # list(range(..., 2023))
 
     if coordinates_list:
@@ -84,6 +84,12 @@ def prep_weather_data(
 
         # # # test location Samuel
         # coordinates = {"lat": 53.331387, "lon": 8.096045}
+
+        # # test metropolitan france, bounding box, plus 0.1 degree buffer
+        # coordinates_list = [
+        #     {"lat": 41.23, "lon": -5.24},
+        #     {"lat": 51.19, "lon": 9.66},
+        # ]
 
         # # test locations with larger time zone offset, eastern and western
         # coordinates_list = [

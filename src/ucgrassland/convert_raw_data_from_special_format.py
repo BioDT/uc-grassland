@@ -209,12 +209,12 @@ def convert_raw_data_KUL(forbidden_cover_threshold=0):
     for _, row in other_data.iterrows():
         station_code = row["Plot_ID"]
         cover_woody = float(row["Cover_woody"]) if pd.notna(row["Cover_woody"]) else 0.0
-        cover_reed = float(row["Cover_reed"]) if pd.notna(row["Cover_reed"]) else 0.0
-        forbidden_cover = cover_woody + cover_reed
+        # cover_reed = float(row["Cover_reed"]) if pd.notna(row["Cover_reed"]) else 0.0
+        forbidden_cover = cover_woody  # + cover_reed
 
         if forbidden_cover > forbidden_cover_threshold:
             logger.warning(
-                f"Excluding plot {station_code} due to cover of non-grassland species (woody, reed): "
+                f"Excluding plot {station_code} due to cover of non-grassland species (woody): "  # (woody, reed)
                 f"{forbidden_cover:.2f} > {forbidden_cover_threshold}."
             )
             plots_excluded.append(station_code)
@@ -451,7 +451,6 @@ def convert_raw_data_CVL(moss_cover_threshold=50):
     new_rows = []
     site_code = "https://deims.org/4c8082f9-1ace-4970-a603-330544f22a23"
     vert_offset = "NA"
-
     plots_excluded = []
 
     # For each row in raw_data, extract the column entries with general information
@@ -535,13 +534,13 @@ def convert_raw_data_BEXIS(forbidden_cover_threshold=0, moss_cover_threshold=50.
         "gräser": "grass",
         "leguminosen": "legume",
         "kräuter": "forb",
-        "bäume und sträucher": "(woody)",
         "farngewächse": "(fern)",
+        "bäume und sträucher": "(woody)",
     }
 
     first_observation_row = 13
-    valid_entries = ["gräser", "leguminosen", "kräuter"]
-    forbidden_entries = ["bäume und sträucher", "farngewächse"]
+    valid_entries = ["gräser", "leguminosen", "kräuter", "farngewächse"]
+    forbidden_entries = ["bäume und sträucher"]
     pft_list = valid_entries + forbidden_entries
 
     # Read data from xls files
@@ -585,7 +584,6 @@ def convert_raw_data_BEXIS(forbidden_cover_threshold=0, moss_cover_threshold=50.
                 "Artenzahl",
                 "Biomasse (dt/ha)",
             ]
-            # columns_to_convert = remove_duplicates(columns_to_convert)
             columns_to_convert = np.unique(columns_to_convert)
 
             for column in columns_to_convert:
@@ -636,25 +634,26 @@ def convert_raw_data_BEXIS(forbidden_cover_threshold=0, moss_cover_threshold=50.
                         break
 
             if forbidden_entry_indexes:
-                # Invalid entries are expected at the end after the valid entries
-                if max(valid_entry_indexes.values()) > min(
+                logger.warning(f"Plot {station_code} has entries for woody species.")
+                # Valid entries of PFT "Farngewächse" can occur after the invalid entries
+                fern_index = valid_entry_indexes.get("farngewächse")
+                forbidden_start_index = min(
                     forbidden_entry_indexes.values()
-                ):
-                    raise ValueError(
-                        f"Plot {station_code} has valid entries after entries for non-grassland species."
-                    )
+                )  # only one entry expected, but would work with multiple as well
+
+                if fern_index is not None and fern_index > forbidden_start_index:
+                    # we need to store the range from forbidden_start_index to fern_index - 1 for later use
+                    forbidden_range = range(forbidden_start_index, fern_index)
                 else:
-                    logger.warning(
-                        f"Plot {station_code} has entries for non-grassland species."
+                    forbidden_range = range(
+                        forbidden_start_index, len(raw_data.columns)
                     )
 
                 # Get sum of all entries from min(forbidden_entry_indexes.values()) to end for each row
                 for year, row in raw_data.iterrows():
                     sum_forbidden = 0
 
-                    for column in raw_data.columns[
-                        min(forbidden_entry_indexes.values()) :
-                    ]:
+                    for column in raw_data.columns[forbidden_range]:
                         if pd.notna(row[column]):
                             sum_forbidden += row[column]
 
@@ -737,8 +736,10 @@ def convert_raw_data_BEXIS(forbidden_cover_threshold=0, moss_cover_threshold=50.
                 # Extract values for each species column
                 for column in raw_data.columns[first_observation_row + 1 :]:
                     if column.lower() in pft_list:
+                        # Read and set PFT for following species entries
                         pft = pft_map[column.lower()]
                     else:
+                        # Read species entry
                         if pft == "NA":
                             raise ValueError(
                                 f"Missing PFT information for species '{column}' in plot {station_code}, year {year}."

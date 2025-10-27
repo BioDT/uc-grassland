@@ -154,41 +154,42 @@ def replace_substrings(
         str or list: If input_data is a string, the modified string; if input_data is a list, a new list with specified substrings replaced in each element.
     """
 
-    # Nested functions for either replacing substring at end or everywhere
-    def replace_substring_at_end(original_string, substring_to_replace):
+    def _replace_substring_at_end(original_string, substring_to_replace):
+        """Helper function for replacing substring at end."""
         return (
             original_string[: -len(substring_to_replace)] + replacement_string
             if original_string.endswith(substring_to_replace)
             else original_string
         )
 
-    def replace_substring(original_string, substring_to_replace):
+    def _replace_substring(original_string, substring_to_replace):
+        """Helper function for replacing substring anywhere."""
         return original_string.replace(substring_to_replace, replacement_string)
 
     # Convert single strings to lists for unified handling
     if isinstance(substrings_to_replace, str):
         substrings_to_replace = [substrings_to_replace]
 
-    # Recursive function to handle strings and nested lists
-    def process_item(item):
+    def _process_item(item):
+        """Recursive helper function to handle strings and nested lists."""
         if isinstance(item, str):
             modified_string = item
             for substring in substrings_to_replace:
                 modified_string = (
-                    replace_substring_at_end(modified_string, substring)
+                    _replace_substring_at_end(modified_string, substring)
                     if at_end
-                    else replace_substring(modified_string, substring)
+                    else _replace_substring(modified_string, substring)
                 )
             return modified_string
         elif isinstance(item, list):
-            return [process_item(sub_item) for sub_item in item]
+            return [_process_item(sub_item) for sub_item in item]
         elif warning_no_string:
             logger.warning(f"{item} is not a string. No replacements performed.")
         return item  # If it's not a string or list, return as is
 
     # Process input_data, which can be a string, list, or list of lists
     if isinstance(input_data, (str, list)):
-        return process_item(
+        return _process_item(
             input_data
         )  # Process both string and list of strings or list of lists
     else:
@@ -1233,7 +1234,7 @@ def get_plot_locations_from_csv(
         entries_required = ["lat", "lon", "station_code", "site_code"]
         # or leave out site code and station code?
 
-        def find_existing_coordinates(lat, lon):
+        def _find_existing_coordinates(lat, lon):
             """Helper function to check if coordinates already exist in locations."""
             for location in locations:
                 if location["lat"] == lat and location["lon"] == lon:
@@ -1241,7 +1242,7 @@ def get_plot_locations_from_csv(
 
             return None
 
-        def find_existing_station_code(station_code):
+        def _find_existing_station_code(station_code):
             """Helper function to check if station code already exists in locations."""
             for location in locations:
                 if isinstance(location["station_code"], list):
@@ -1252,7 +1253,7 @@ def get_plot_locations_from_csv(
 
             return None
 
-        def check_altitude(lat, lon, altitude_from_file, station_code, tolerance=10):
+        def _check_altitude(lat, lon, altitude_from_file, station_code, tolerance=10):
             """Helper function to get altitude for coordinates and compare with station file altitude."""
             altitude = get_elevation(lat, lon)
 
@@ -1298,6 +1299,7 @@ def get_plot_locations_from_csv(
                 lat = entries_raw["lat"]
                 lon = entries_raw["lon"]
                 station_code = entries_raw["station_code"]
+                station_code = str(station_code).replace("/", "_").replace("?", "？")
                 site_code = entries_raw["site_code"]
 
                 if pd.isna(lat) or pd.isna(lon):
@@ -1319,7 +1321,7 @@ def get_plot_locations_from_csv(
 
                 if merge_same_locations:
                     # Check if coordinates already exist in locations
-                    existing_location = find_existing_coordinates(lat, lon)
+                    existing_location = _find_existing_coordinates(lat, lon)
 
                     if existing_location:
                         if station_code not in existing_location["station_code"]:
@@ -1332,7 +1334,7 @@ def get_plot_locations_from_csv(
                         #       - it saves requests to elevation service
                         #       - such cases are unlikely,
                         #       - altitude from elevation service is preferred anyways
-                        altitude = check_altitude(
+                        altitude = _check_altitude(
                             lat, lon, altitude_from_file, station_code
                         )
                         location = {
@@ -1348,10 +1350,7 @@ def get_plot_locations_from_csv(
 
                         locations.append(location)
                 else:
-                    station_code = (
-                        str(station_code).replace("/", "_").replace("?", "？")
-                    )
-                    existing_location = find_existing_station_code(station_code)
+                    existing_location = _find_existing_station_code(station_code)
 
                     if existing_location:
                         if site_code != existing_location["site_code"]:
@@ -1369,7 +1368,7 @@ def get_plot_locations_from_csv(
                             )
                     else:
                         # Add new location with just one (modified) station and site code
-                        altitude = check_altitude(
+                        altitude = _check_altitude(
                             lat, lon, altitude_from_file, station_code
                         )
                         location = {

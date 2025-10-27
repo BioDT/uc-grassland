@@ -856,9 +856,10 @@ def get_pft_from_family_woodiness(
     # NOTE: assigning woodiness based on family is not implemented to keep the (missing) woodiness info
     woodiness_info = get_woodiness_info_from_family(family)
 
-    def throw_log_message(
+    def _throw_log_message(
         woodiness, spec, family, woodiness_info, pft_assigned, *, log_level="warning"
     ):
+        """Helper function to throw log messages for PFT assignment based on woodiness and family."""
         message = (
             f"Woodiness is '{woodiness}' for '{spec}'. Family '{family}' is {woodiness_info}. "
             f"Assigning PFT '{pft_assigned}'."
@@ -884,7 +885,7 @@ def get_pft_from_family_woodiness(
             "(moss)",
             "(lichen)",
         ] or woodiness.startswith("conflicting"):
-            throw_log_message(
+            _throw_log_message(
                 woodiness, spec, family, woodiness_info, pft_assigned, log_level="error"
             )
             pft_from_family_counts[family + "_conflict"] += 1
@@ -893,7 +894,7 @@ def get_pft_from_family_woodiness(
             pft_assigned = "legume"
         elif family in EXCLUSIVELY_WOODY_FAMILIES:
             pft_assigned = "conflicting (forb vs. woody)"
-            throw_log_message(
+            _throw_log_message(
                 woodiness, spec, family, woodiness_info, pft_assigned, log_level="error"
             )
             pft_from_family_counts[family + "_conflict"] += 1
@@ -901,12 +902,14 @@ def get_pft_from_family_woodiness(
             pft_assigned = "forb"
 
             if family in PREDOMINANTLY_WOODY_FAMILIES:
-                throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
+                _throw_log_message(
+                    woodiness, spec, family, woodiness_info, pft_assigned
+                )
                 pft_from_family_counts[family + "_conflict"] += 1
     elif woodiness in ["woody", "(woody)"]:
         if family in EXCLUSIVELY_HERBACEOUS_FAMILIES:
             pft_assigned = "conflicting (forb vs. woody)"
-            throw_log_message(
+            _throw_log_message(
                 woodiness, spec, family, woodiness_info, pft_assigned, log_level="error"
             )
             pft_from_family_counts[family + "_conflict"] += 1
@@ -914,7 +917,9 @@ def get_pft_from_family_woodiness(
             pft_assigned = "(woody)"
 
             if family in PREDOMINANTLY_HERBACEOUS_FAMILIES:
-                throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
+                _throw_log_message(
+                    woodiness, spec, family, woodiness_info, pft_assigned
+                )
                 pft_from_family_counts[family + "_conflict"] += 1
     elif woodiness in ["fern", "moss", "lichen", "(fern)", "(moss)", "(lichen)"]:
         if family in LEGUME_FAMILIES:
@@ -928,7 +933,7 @@ def get_pft_from_family_woodiness(
 
         if pft_assigned.startswith("conflicting"):
             if woodiness in ["fern", "(fern)"]:
-                throw_log_message(
+                _throw_log_message(
                     woodiness,
                     spec,
                     family,
@@ -937,7 +942,7 @@ def get_pft_from_family_woodiness(
                     log_level="error",
                 )
             else:
-                throw_log_message(
+                _throw_log_message(
                     woodiness,
                     spec,
                     family,
@@ -959,11 +964,11 @@ def get_pft_from_family_woodiness(
 
         # Error if family is strictly herbaceous or strictly woody, warning otherwise
         if woodiness_info.startswith("exclusively"):
-            throw_log_message(
+            _throw_log_message(
                 woodiness, spec, family, woodiness_info, pft_assigned, log_level="error"
             )
         else:
-            throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
+            _throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
 
         pft_from_family_counts[family + "_conflict"] += 1
     elif family in EXCLUSIVELY_WOODY_FAMILIES:
@@ -971,7 +976,7 @@ def get_pft_from_family_woodiness(
         pft_from_family_counts[family + "_assigned"] += 1
     elif accept_predominantly_woody_families and family in PREDOMINANTLY_WOODY_FAMILIES:
         pft_assigned = "(woody)"
-        throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
+        _throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
         pft_from_family_counts[family + "_assigned"] += 1
     elif family in EXCLUSIVELY_HERBACEOUS_FAMILIES:
         pft_assigned = "forb"
@@ -981,11 +986,11 @@ def get_pft_from_family_woodiness(
         and family in PREDOMINANTLY_HERBACEOUS_FAMILIES
     ):
         pft_assigned = "forb"
-        throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
+        _throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
         pft_from_family_counts[family + "_assigned"] += 1
     else:
         pft_assigned = "not assigned"
-        throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
+        _throw_log_message(woodiness, spec, family, woodiness_info, pft_assigned)
         pft_from_family_counts[family + "_not_assignable"] += 1
         # NOTE: conflicting woodiness cannot be resolved here
         # NOTE: legume families could be legume or woody, cannot be resolved here

@@ -1727,18 +1727,18 @@ def get_observations_from_files(
                     location_summary[variable].update(observation_summary)
 
                     # Keep only entries from coordinates_list that occur in observation_pft
-                    # NOTE: entries with excluded observation data will remain, as they have an entry in observation_pft
-
-                    for plot_name in observation_pft["plot"].values:
-                        for entry in coordinates_list:
-                            if entry["station_code"] == plot_name:
-                                coordinates_found.append(entry)
-                                coordinates_list.remove(entry)
-                                break
+                    # NOTE: entries with excluded observation data based on single plant entries will remain,
+                    #       as they have an entry in the data from file and thus in observation_pft
+                    for plot_name in observation_pft["plot"].astype(str).unique():
+                        coordinates_list, coordinates_found = remove_plot_coordinates(
+                            plot_name,
+                            coordinates_list,
+                            coordinates_found=coordinates_found,
+                        )
 
                     if coordinates_list != []:
                         logger.warning(
-                            f"{len(coordinates_list)} plots were not found in processed observation data "
+                            f"{len(coordinates_list)} plots from station file were not found in processed observation data "
                             f"for site {location['name']} and variable '{variable}': "
                             f"{[entry['station_code'] for entry in coordinates_list]}."
                         )
@@ -1760,6 +1760,115 @@ def get_observations_from_files(
         except ValueError as e:
             logger.error(e)
             raise
+
+
+def remove_plot_coordinates(plot_name, coordinates_list, *, coordinates_found=None):
+    """
+    Remove entry from coordinates list if plot was found in observation data.
+
+    Parameters:
+        plot_name (str): Plot name to look for.
+        coordinates_list (list of dict): List of dictionaries with plot names ('station_code') and their coordinates ('lat' and 'lon').
+        coordinates_found (list of dict): List of dictionaries with plot names already found (default is None; list will be created).
+
+    Returns:
+        tuple: Updated coordinates_list and coordinates_found.
+    """
+
+    def _plot_already_found(plot_name_to_check, coordinates_found, coordinates_list):
+        """Helper function to check if plot was already found."""
+        for entry in coordinates_found:
+            if entry["station_code"] == plot_name_to_check:
+                if entry in coordinates_list:
+                    try:
+                        raise ValueError(
+                            f"Plot '{plot_name_to_check}' was already found in observation data and is still in the coordinates list."
+                        )
+                    except ValueError as e:
+                        logger.error(e)
+                        raise
+
+                return True
+
+        return False
+
+    # Exact match of plot name with coordinate list entries
+    if _plot_already_found(plot_name, coordinates_found, coordinates_list):
+        return coordinates_list, coordinates_found
+
+    for entry in coordinates_list:
+        if entry["station_code"] == plot_name:
+            coordinates_found.append(entry)
+            coordinates_list.remove(entry)
+
+            return coordinates_list, coordinates_found
+
+    # Not found: plot name adjustment
+    plot_name_revised = plot_name.replace(" ", "-")
+
+    if _plot_already_found(plot_name_revised, coordinates_found, coordinates_list):
+        logger.warning(
+            f"Adjusted plot name from '{plot_name}' to "
+            f"'{plot_name_revised}' for matching station file entry."
+        )
+
+        return coordinates_list, coordinates_found
+
+    for entry in coordinates_list:
+        if entry["station_code"] == plot_name_revised:
+            coordinates_found.append(entry)
+            coordinates_list.remove(entry)
+            logger.warning(
+                f"Adjusted plot name from '{plot_name}' to "
+                f"'{plot_name_revised}' for matching station file entry."
+            )
+
+            return coordinates_list, coordinates_found
+
+    # Not found: specific, mutually exclusive adjustments for known plot name patterns
+    plot_name_split = plot_name.split(" ")
+
+    if len(plot_name_split) == 2 and plot_name_split[1].startswith("Q"):
+        # adjust for multiple 'Q##' (LTSER Zone Atelier Armorique)
+        plot_name_revised = f"{plot_name_split[0]} Q01"
+    else:
+        # containing subplot (Norholm Hede or Rhine-Main-Observatory)
+        plot_name_split = plot_name.split("__")
+
+        if len(plot_name_split) == 2 and (
+            (plot_name_split[0].startswith("Norholm") and len(plot_name_split[1]) == 2)
+            or (
+                len(plot_name_split[0]) == 2
+                and plot_name_split[1].lower().startswith(plot_name_split[0].lower())
+            )
+        ):
+            plot_name_revised = plot_name_split[0]
+        else:
+            plot_name_revised = None
+
+    if plot_name_revised is not None:
+        if _plot_already_found(plot_name_revised, coordinates_found, coordinates_list):
+            logger.warning(
+                f"Adjusted plot name from '{plot_name}' to "
+                f"'{plot_name_revised}' for matching station file entry."
+            )
+
+            return coordinates_list, coordinates_found
+
+        for entry in coordinates_list:
+            if entry["station_code"] == plot_name_revised:
+                coordinates_found.append(entry)
+                coordinates_list.remove(entry)
+                logger.warning(
+                    f"Adjusted plot name from '{plot_name}' to "
+                    f"'{plot_name_revised}' for matching station file entry."
+                )
+
+                return coordinates_list, coordinates_found
+
+    logger.warning(f"Plot '{plot_name}' not found in coordinates list.")
+
+    return coordinates_list, coordinates_found
 
 
 def prep_observation_data(
