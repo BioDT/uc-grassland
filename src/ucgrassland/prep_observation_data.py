@@ -1533,6 +1533,7 @@ def get_observation_summary(observation_pft, *, new_file=None):
         dict: Dictionary with summary statistics from processed observation data.
     """
     pfts = ["grass", "forb", "legume", "other", "not_assigned"]
+    grassland_pfts = ["grass", "forb", "legume"]
 
     # Fill missing values in pft entries with nan to allow calculations
     columns_to_convert = pfts + [f"#{pft}" for pft in pfts] + ["#invalid_value"]
@@ -1549,6 +1550,39 @@ def get_observation_summary(observation_pft, *, new_file=None):
     # Count invalid time points, and invalid species entries (due to invalid values)
     observations_invalid = observation_pft["invalid_observation"].notna().sum()
     entries_invalid = observation_pft["#invalid_value"].sum()
+
+    # Get "plot" name for entries that have non-nan in "invalid_observation" column
+    plots_invalid = observation_pft.loc[
+        observation_pft["invalid_observation"].notna(), "plot"
+    ]
+
+    plots_valid = observation_pft.loc[
+        observation_pft["invalid_observation"].isna(), "plot"
+    ]
+
+    # Check if any plot name is in both included and excluded lists
+    plots_both = set(plots_valid).intersection(set(plots_invalid))
+    if len(plots_both) > 0:
+        try:
+            raise ValueError(
+                f"Some plots have both valid and invalid observations: {plots_both}"
+            )
+        except ValueError as e:
+            logger.error(str(e))
+            raise
+
+    # count of unique plots with invalid and valid observations
+    plots_invalid = plots_invalid.nunique()
+    plots_valid = plots_valid.nunique()
+
+    if plots_valid + plots_invalid != plot_count:
+        try:
+            raise ValueError(
+                "Mismatch in plot counts: included + excluded != total plot count"
+            )
+        except ValueError as e:
+            logger.error(str(e))
+            raise
 
     # Mean species counts and proportions (omitting invalid values)
     species_count_per_observation = observation_pft[[f"#{pft}" for pft in pfts]].sum(
@@ -1571,6 +1605,8 @@ def get_observation_summary(observation_pft, *, new_file=None):
 
     observation_summary = {
         "plot_count": plot_count,
+        "invalid_plots_omitted": plots_invalid,
+        "proportion_invalid_plots": plots_invalid / plot_count,
         "time_points_count": time_points_count,
         "observation_count": observation_count,
         "invalid_observations_omitted": observations_invalid,
@@ -1603,6 +1639,17 @@ def get_observation_summary(observation_pft, *, new_file=None):
         observation_summary[f"mean_relative_value_{pft}"] = (
             observation_pft[pft] / total_value_per_observation
         ).mean()
+
+    # Absolute and relative mean values of the three "grassland" PFTs together
+    values_grassland_pft = observation_pft[grassland_pfts].sum(axis=1, skipna=False)
+    mean_value_grassland_pft = values_grassland_pft.mean()
+    mean_relative_value_grassland_pft = (
+        values_grassland_pft / total_value_per_observation
+    ).mean()
+    observation_summary["mean_value_grassland_pft"] = mean_value_grassland_pft
+    observation_summary["mean_relative_value_grassland_pft"] = (
+        mean_relative_value_grassland_pft
+    )
 
     if new_file:
         ut.dict_to_file(observation_summary, new_file, column_names=None)
@@ -2019,7 +2066,7 @@ def prep_observation_data_for_sites(
             # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
             "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
             "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
-            "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
+            # "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
             "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
             "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
             "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
