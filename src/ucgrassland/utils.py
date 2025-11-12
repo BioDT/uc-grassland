@@ -66,6 +66,122 @@ NON_DEIMS_LOCATIONS = MappingProxyType(
         },
     }
 )
+KNOWN_DEIMS_LOCATIONS = MappingProxyType(
+    {
+        "11696de6-0ab9-4c94-a06b-7ce40f56c964": {
+            "lat": 46.692800,
+            "lon": 10.615700,
+            "deims_id": "11696de6-0ab9-4c94-a06b-7ce40f56c964",
+            "found": True,
+            "name": "IT25 - Val Mazia-Matschertal",
+        },
+        "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
+            "lat": 48.600000,
+            "lon": -1.533330,
+            "deims_id": "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",
+            "found": True,
+            "name": "LTSER Zone Atelier Armorique",
+        },
+        "324f92a3-5940-4790-9738-5aa21992511c": {
+            "lat": 47.116700,
+            "lon": 11.300000,
+            "deims_id": "324f92a3-5940-4790-9738-5aa21992511c",
+            "found": True,
+            "name": "Stubai (combination of Neustift meadows and Kaserstattalm)",
+        },
+        "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d": {
+            "lat": 47.622020,
+            "lon": 15.149292,
+            "deims_id": "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",
+            "found": True,
+            "name": "Hochschwab (AT-HSW) GLORIA",
+        },
+        "61c188bc-8915-4488-8d92-6d38483406c0": {
+            "lat": 57.814301,
+            "lon": 24.339609,
+            "deims_id": "61c188bc-8915-4488-8d92-6d38483406c0",
+            "found": True,
+            "name": "Randu meadows",
+        },
+        "66431807-ebf1-477f-aa52-3716542f3378": {
+            "lat": 57.216700,
+            "lon": 23.135000,
+            "deims_id": "66431807-ebf1-477f-aa52-3716542f3378",
+            "found": True,
+            "name": "LTSER Engure",
+        },
+        "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1": {
+            "lat": 47.041162,
+            "lon": 11.098057,
+            "deims_id": "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",
+            "found": True,
+            "name": "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen",
+        },
+        "9f9ba137-342d-4813-ae58-a60911c3abc1": {
+            "lat": 50.267302,
+            "lon": 9.269139,
+            "deims_id": "9f9ba137-342d-4813-ae58-a60911c3abc1",
+            "found": True,
+            "name": "Rhine-Main-Observatory",
+        },
+        "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
+            "lat": 45.846063,
+            "lon": 7.579028,
+            "deims_id": "a03ef869-aa6f-49cf-8e86-f791ee482ca9",
+            "found": True,
+            "name": "Torgnon grassland Tellinod (IT19 Aosta Valley)",
+        },
+        "c0738b00-854c-418f-8d4f-69b03486e9fd": {
+            "lat": 42.44625,
+            "lon": 13.554978,
+            "deims_id": "c0738b00-854c-418f-8d4f-69b03486e9fd",
+            "found": True,
+            "name": "Appennino centrale: Gran Sasso d'Italia",
+        },
+        "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
+            "lat": 42.086116,
+            "lon": 14.085206,
+            "deims_id": "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",
+            "found": True,
+            "name": "Appennino centro-meridionale: Majella-Matese",
+        },
+        "e13f1146-b97a-4bc5-9bc5-65322379a567": {
+            "lat": 49.2178,
+            "lon": 19.6719,
+            "deims_id": "e13f1146-b97a-4bc5-9bc5-65322379a567",
+            "found": True,
+            "name": "Jalovecka dolina",
+        },
+        "4c8082f9-1ace-4970-a603-330544f22a23": {
+            "lat": 48.8542,
+            "lon": 17.4261,
+            "deims_id": "4c8082f9-1ace-4970-a603-330544f22a23",
+            "found": True,
+            "name": "Certoryje-Vojsicke Louky meadows",
+        },
+        "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4": {
+            "lat": 53.0071,
+            "lon": 13.7695,
+            "deims_id": "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4",
+            "found": True,
+            "name": "DFG_Biodiversity_Exploratory_Schorfheide-Chorin",
+        },
+        "56c467e5-093f-4b60-b5cf-880490621e8d": {
+            "lat": 51.158,
+            "lon": 10.4762,
+            "deims_id": "56c467e5-093f-4b60-b5cf-880490621e8d",
+            "found": True,
+            "name": "DFG_Biodiversity_Exploratory_Hainich-Duen",
+        },
+        "a51f9249-ddc8-4a90-95a8-c7bbebb35d29": {
+            "lat": 48.4374,
+            "lon": 9.38938,
+            "deims_id": "a51f9249-ddc8-4a90-95a8-c7bbebb35d29",
+            "found": True,
+            "name": "DFG_Biodiversity_Exploratory_SchwaebischeAlb",
+        },
+    }
+)
 
 
 def add_string_to_file_name(file_name, string_to_add, *, new_suffix=None):
@@ -1125,9 +1241,15 @@ def get_deims_coordinates(deims_id):
             'found': Flag whether coordinates were found (bool).
             'name': Site name (str), if found.
     """
-    if deims_id in NON_DEIMS_LOCATIONS.keys():
-        # Use non-DEIMS location coordinates if available
-        location = NON_DEIMS_LOCATIONS[deims_id]
+
+    # Use known DEIMS location coordinates if available
+    location = KNOWN_DEIMS_LOCATIONS.get(deims_id)
+    if location is not None:
+        return location
+
+    # Use non-DEIMS location coordinates if available
+    location = NON_DEIMS_LOCATIONS.get(deims_id)
+    if location is not None:
         logger.warning(
             f"Using non-DEIMS coordinates for ID '{deims_id}': Latitude: {location['lat']}, longitude: {location['lon']}."
         )
@@ -1260,12 +1382,12 @@ def get_plot_locations_from_csv(
             if np.isnan(altitude):
                 if np.isnan(altitude_from_file):
                     logger.warning(
-                        f"Could not get altitude for latitude '{lat}' and longitude '{lon}' "
-                        f"for station code '{station_code}' (neither from elevation data nor from station file)."
+                        f"Could not get altitude for latitude: {lat}, longitude: {lon} "
+                        f"for station code '{station_code}' (neither from Open-Elevation data nor from station file)."
                     )
                 else:
                     logger.warning(
-                        f"Could not get altitude from elevation data for latitude '{lat}' and longitude '{lon}' "
+                        f"Could not get altitude from elevation data for latitude: {lat}, longitude: {lon} "
                         f"for station code '{station_code}'. Using altitude from station file ({altitude_from_file} m)."
                     )
                     altitude = altitude_from_file
@@ -1274,10 +1396,12 @@ def get_plot_locations_from_csv(
                     altitude_from_file, altitude, atol=tolerance
                 ):
                     logger.warning(
-                        f"Altitude from elevation data ({altitude:.0f} m) and station file ({altitude_from_file:.0f} m) "
+                        f"Altitude from Open-Elevation data ({altitude:.0f} m) and station file ({altitude_from_file:.0f} m) "
                         f"differ by {altitude - altitude_from_file:.0f} m for "
-                        f"latitude '{lat}' and longitude '{lon}' (station code '{station_code}'). Using altitude from elevation data."
+                        f"latitude: {lat}, longitude: {lon} (station code '{station_code}'). Using altitude from station file data."
+                        # f"latitude '{lat}' and longitude '{lon}' (station code '{station_code}'). Using altitude from Open-Elevation data."
                     )
+                    altitude = altitude_from_file
 
             return altitude
 
@@ -1325,6 +1449,26 @@ def get_plot_locations_from_csv(
 
                     if existing_location:
                         if station_code not in existing_location["station_code"]:
+                            if not np.isnan(altitude_from_file) and not np.isclose(
+                                altitude_from_file,
+                                existing_location["altitude"],
+                                atol=0.5,
+                            ):
+                                n_stations = len(existing_location["station_code"])
+                                weighted_mean_altitude = (
+                                    existing_location["altitude"] * n_stations
+                                    + altitude_from_file
+                                ) / (n_stations + 1)
+
+                                logger.warning(
+                                    f"Altitude from station file ({altitude_from_file} m) for station code "
+                                    f"'{station_code}' differs from existing altitude "
+                                    f"({existing_location['altitude']:.2f} m) for station code(s) '{"', '".join(existing_location['station_code'])}' with equal coordinates "
+                                    f"(latitude: {lat}, longitude: {lon}). Using mean altitude, weighted by "
+                                    f"number of station codes ({weighted_mean_altitude:.2f} m)."
+                                )
+                                existing_location["altitude"] = weighted_mean_altitude
+
                             existing_location["station_code"].append(station_code)
                         if site_code not in existing_location["site_code"]:
                             existing_location["site_code"].append(site_code)
@@ -1332,8 +1476,7 @@ def get_plot_locations_from_csv(
                         # Check altitude only for new coordinates
                         # NOTE: this could miss altitude differences for same coordinates but different station codes in station file, but:
                         #       - it saves requests to elevation service
-                        #       - such cases are unlikely,
-                        #       - altitude from elevation service is preferred anyways
+                        #       - such cases are unlikely
                         altitude = _check_altitude(
                             lat, lon, altitude_from_file, station_code
                         )
@@ -1907,13 +2050,20 @@ def get_country(coordinates, *, attempts=5, delay_exponential=2, delay_linear=2)
     return None
 
 
-def get_elevation(lat, lon, *, attempts=5, delay_exponential=2, delay_linear=2):
+def get_elevation(
+    lat, lon, *, attempts=5, delay_exponential=2, delay_linear=2, log_info=False
+):
     """
     Get elevation for specified coordinates using Open-Elevation API.
 
     Parameters:
         lat (float): Latitude.
         lon (float): Longitude.
+        attempts (int): Number of attempts in case of connection errors or specific status codes (default is 5).
+        delay_exponential (int): Initial delay for exponential backoff (default is 2 seconds).
+        delay_linear (int): Initial delay for linear backoff (default is 2 seconds).
+        log_info (bool): Log info message for successful elevation retrieval (default is False).
+
     Returns:
         float: Elevation in meters or NA if not found.
     """
@@ -1932,10 +2082,14 @@ def get_elevation(lat, lon, *, attempts=5, delay_exponential=2, delay_linear=2):
 
                 if elevation is None:
                     logger.warning(
-                        f"Elevation not found for latitude '{lat}' and longitude '{lon}'."
+                        f"Elevation not found for latitude: {lat}, longitude: {lon}."
                     )
                     return pd.NA
                 else:
+                    if log_info:
+                        logger.info(
+                            f"Elevation of {elevation} m found for latitude: {lat}, longitude: {lon}."
+                        )
                     return elevation
             else:
                 logger.error(
@@ -1954,7 +2108,7 @@ def get_elevation(lat, lon, *, attempts=5, delay_exponential=2, delay_linear=2):
                 logger.info(f"Retrying in {delay_linear} seconds ...")
                 time.sleep(delay_linear)
 
-    return pd.NA
+    return np.nan
 
 
 def get_file_date(file_name):
