@@ -66,8 +66,8 @@ Data sources:
       Zenodo, https://zenodo.org/records/10640528
 
     "GER_Lange":
-    - German ATKIS digital landscape model 2015
-      Bundesamt für Kartographie und Geodäsie, 2015.
+    - Federal Agency for Cartography and Geodesy (BKG) (2015).
+      German ATKIS digital landscape model 2015.
       Digitales Basis-Landschaftsmodell (AAA-Modellierung).
       GeoBasis-DE. Geodaten der deutschen Landesvermessung.
     - derived via land use maps by Lange et al. (2022), https://data.mendeley.com/datasets/m9rrv26dvf/1

@@ -58,7 +58,7 @@ Data sources:
     Mowing default dates:
     - Filipiak, M., Gabriel, D., Kuka, K. (2022).
       Simulation-based assessment of the soil organic carbon sequestration in grasslands in relation to
-      management and climate change scenarios, https://doi.org/10.1016/j.heliyon.2023.e17287
+      management and climate change scenarios, Heliyon, https://doi.org/10.1016/j.heliyon.2023.e17287
     - See also:
       Schmid, J. (2022).
       Modeling species-rich ecosystems to understand community dynamics and structures emerging from
@@ -1323,6 +1323,15 @@ def get_management_data(
         except ValueError as e:
             logger.error(e)
             raise
+
+    if "altitude" not in coordinates:
+        logger.warning(
+            f"Altitude not provided with coordinates (lat: {coordinates['lat']:.6f}, lon: {coordinates['lon']:.6f}). "
+            "Obtaining altitude from open-elevation API ..."
+        )
+        coordinates["altitude"] = ut.get_elevation(
+            coordinates["lat"], coordinates["lon"]
+        )
 
     if map_key == "GER_Lange":
         management_data_raw, data_query_protocol, map_properties = get_GER_Lange_data(
