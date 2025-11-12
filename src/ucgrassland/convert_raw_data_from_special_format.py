@@ -71,6 +71,11 @@ def convert_raw_data_MAM_C():
 
             # Add new row if column value is finite and greater than 0
             if pd.notna(column_value) and column_value > 0:
+                column_name = column_name.replace("Ã‚Â", "")
+                column_name = column_name.replace("Â", "")
+                column_name = column_name.replace("Ã", "")
+                column_name = column_name.replace("\xa0", " ")
+                column_name = column_name.strip()
                 new_rows.append(
                     {
                         "SITE_CODE": site_code,
