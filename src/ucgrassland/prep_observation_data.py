@@ -166,7 +166,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             "name": "Hochschwab (AT-HSW) GLORIA",
             "variables": [
                 "cover",
-                "abundance_gloria_1_8",
+                # "abundance_gloria_1_8",
             ],  # abundance categories 1-8, very rare to dominant, visual estimate
             "short_names": {"cover": "HSW-C", "abundance_gloria_1_8": "HSW-C18"},
             "file_names": {
@@ -373,7 +373,7 @@ OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
             },
             "observation_columns": {"cover": "default", "management": None},
             "pft_lookup_files": {
-                "cover": "lat42.086116_lon14.085206__PFT__data_cover.txt"
+                "cover": "lat42.086116_lon14.085206__PFT__data_cover__from_FEM_Revised.txt"
             },
             "pft_lookup_specs": {"cover": "default"},
             "station_file": "IT_AppenninoCentroMeridionale_station.csv",
@@ -2058,7 +2058,7 @@ def prep_observation_data_for_sites(
             "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
             "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
             # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-            # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
             "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
             "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
             "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen

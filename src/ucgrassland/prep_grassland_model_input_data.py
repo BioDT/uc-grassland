@@ -321,9 +321,9 @@ def prep_grassland_model_input_data(
                 logger.error(e)
                 raise
     else:
-        # skip_grass_check = True
+        skip_grass_check = True
         skip_weather = True
-        # skip_soil = True
+        skip_soil = True
         # skip_management = True
 
         # Example locations list
@@ -397,7 +397,7 @@ def prep_grassland_model_input_data(
             "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
             "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
             # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-            # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
+            "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
             "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
             "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
             "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
