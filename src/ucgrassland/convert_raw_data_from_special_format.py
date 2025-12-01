@@ -500,6 +500,212 @@ def convert_raw_data_CVL(moss_cover_threshold=50):
     new_data.to_csv(source_folder / new_file_name, index=False, sep=";")
 
 
+def convert_raw_data_MDT():
+    dotenv_config = dotenv_values(".env")
+    source_folder = Path(
+        f"{dotenv_config['ELTER_DATA_PROCESSED']}/6b62feb2-61bf-47e1-b97f-0e909c408db8"
+    )
+    file_name = "Longterm_monitoring_plant_diversity_data_Montagna_Torricchio_strict_Nature_Reserve_Italy_v.2.xlsx"
+    site_code = "https://deims.org/6b62feb2-61bf-47e1-b97f-0e909c408db8"
+
+    # Read data from xls file
+    raw_plot_info = pd.read_excel(source_folder / file_name, sheet_name="Plot info")
+    raw_flora_plot = pd.read_excel(source_folder / file_name, sheet_name="Flora plot")
+    raw_flora_subplot = pd.read_excel(
+        source_folder / file_name, sheet_name="Flora subplots"
+    )
+
+    # convert plot names to strings with leading zeros, e.g. 1 --> 01
+    raw_plot_info["Plot"] = raw_plot_info["Plot"].apply(lambda x: f"{x:02d}")
+    raw_flora_plot["Plot"] = raw_flora_plot["Plot"].apply(lambda x: f"{x:02d}")
+    raw_flora_subplot["Plot"] = raw_flora_subplot["Plot"].apply(lambda x: f"{x:02d}")
+
+    # Create station file
+    station_data = raw_plot_info
+
+    # rename columns
+    station_data = station_data.rename(columns={"Plot": "STATION_CODE"})
+    station_data = station_data.rename(columns={"X coord. (EPSG:4326)": "LON"})
+    station_data = station_data.rename(columns={"Y coord. (EPSG:4326)": "LAT"})
+    station_data = station_data.rename(columns={"Altitude (m a.s.l.)": "ALTITUDE"})
+
+    # drop all other columns, change order of lat and lon columns
+    station_data = station_data[["STATION_CODE", "LAT", "LON", "ALTITUDE"]]
+
+    # only keep unique rows
+    station_data = station_data.drop_duplicates()
+
+    # check if number of rows matches number of unique station codes
+    assert len(station_data) == station_data["STATION_CODE"].nunique(), (
+        "Number of rows in station data does not match number of unique station codes."
+    )
+
+    # add PLOTSIZE column at end
+    station_data.insert(len(station_data.columns), "PLOTSIZE", 100)
+
+    # match station file entries with plot and subplot data
+    subplot_cover_years = [2002, 2003]
+    plot_cover_years = [2015, 2020, 2024]
+
+    # drop rows in raw_flora_plot that are not in plot_cover_years, same for subplot
+    raw_flora_plot = raw_flora_plot[raw_flora_plot["Year"].isin(plot_cover_years)]
+    raw_flora_subplot = raw_flora_subplot[
+        raw_flora_subplot["Year"].isin(subplot_cover_years)
+    ]
+
+    # get unique station codes from merged plot entries in plot and subplot data
+    plot_names = pd.concat([raw_flora_plot["Plot"], raw_flora_subplot["Plot"]]).unique()
+
+    # check if station data contains all plot names
+    missing_plots = set(plot_names) - set(station_data["STATION_CODE"])
+
+    if missing_plots:
+        logger.warning(f"Missing plots in station data: {missing_plots}")
+
+    # check if station data contains any plots not in plot names
+    extra_plots = set(station_data["STATION_CODE"]) - set(plot_names)
+
+    if extra_plots:
+        logger.warning(f"Deleting extra plots in station data: {extra_plots}")
+        station_data = station_data[~station_data["STATION_CODE"].isin(extra_plots)]
+        station_data = station_data.reset_index(drop=True)
+
+    new_rows = []
+
+    # create addtional station codes from combining plot and subplot ids
+    for _, row in raw_flora_subplot.iterrows():
+        plot_id = row["Plot"]
+        subplot_id = row["Subplot"]
+        station_code = f"{plot_id}_{subplot_id}"
+
+        if station_code not in [row["STATION_CODE"] for row in new_rows]:
+            # get lat, lon, altitude from plot id
+            plot_row = station_data[station_data["STATION_CODE"] == plot_id]
+            if plot_row.empty:
+                raise ValueError(
+                    f"Plot ID {plot_id} not found in station data for subplot {station_code}."
+                )
+
+            lat = plot_row["LAT"].values[0]
+            lon = plot_row["LON"].values[0]
+            altitude = plot_row["ALTITUDE"].values[0]
+
+            new_rows.append(
+                {
+                    "STATION_CODE": station_code,
+                    "LAT": lat,
+                    "LON": lon,
+                    "ALTITUDE": altitude,
+                    "PLOTSIZE": 1,
+                }
+            )
+
+    # add new rows to station_data
+    if new_rows:
+        station_data = pd.concat(
+            [station_data, pd.DataFrame(new_rows)], ignore_index=True
+        )
+
+    # sort by STATION_CODE
+    station_data = station_data.sort_values(by="STATION_CODE").reset_index(drop=True)
+
+    # add SITE_CODE column at the beginning
+    station_data.insert(0, "SITE_CODE", site_code)
+
+    # save to csv file
+    station_data.to_csv(
+        source_folder / "IT_MontagnadiTorricchio_v2_station.csv", index=False, sep=";"
+    )
+
+    # Read subplot and plot cover data
+    new_rows = []
+
+    for _, row in raw_flora_subplot.iterrows():
+        year = row["Year"]
+
+        if year in subplot_cover_years:
+            plot_id = row["Plot"]
+            subplot_id = row["Subplot"]
+            station_code = f"{plot_id}_{subplot_id}"
+            species = row["Bartolucci et al._2024"]
+            species_alternative = row["Pignatti_1982"]
+            cover_value = row["spp_presence_cover"]
+
+            # get obs date form plot info
+            plot_info_row = raw_plot_info[
+                (raw_plot_info["Plot"] == plot_id) & (raw_plot_info["Year"] == year)
+            ]
+
+            # error if multiple or no entries found
+            if len(plot_info_row) != 1:
+                raise ValueError(
+                    f"Expected one entry in plot info for plot {plot_id} and year {year}, but found {len(plot_info_row)}."
+                )
+
+            time = plot_info_row["Date"].values[0]
+
+            new_rows.append(
+                {
+                    "SITE_CODE": site_code,
+                    "STATION_CODE": station_code,
+                    "VERT_OFFSET": "NA",
+                    "VARIABLE": "Cover",
+                    "TIME": time,
+                    "LAYER": "F",  # herb layer for all subplot entries
+                    "TAXA": species,
+                    "TAXA_ALT": species_alternative,
+                    "VALUE": cover_value,
+                    "UNIT": "dimless",
+                }
+            )
+
+    layer_mapping = {"A": "T", "B": "S", "C": "F"}
+
+    for _, row in raw_flora_plot.iterrows():
+        year = row["Year"]
+
+        if year in plot_cover_years:
+            station_code = row["Plot"]
+            species = row["Bartolucci et al_2024"]
+            species_alternative = row["Pignatti_1982"]
+            cover_value = row["spp_presence_cover "]
+            layer = layer_mapping.get(row["Layer "], "NA")
+
+            # get obs date form plot info
+            plot_info_row = raw_plot_info[
+                (raw_plot_info["Plot"] == station_code)
+                & (raw_plot_info["Year"] == year)
+            ]
+
+            # error if multiple or no entries found
+            if len(plot_info_row) != 1:
+                raise ValueError(
+                    f"Expected one entry in plot info for plot {station_code} and year {year}, but found {len(plot_info_row)}."
+                )
+
+            time = plot_info_row["Date"].values[0]
+
+            new_rows.append(
+                {
+                    "SITE_CODE": site_code,
+                    "STATION_CODE": station_code,
+                    "VERT_OFFSET": "NA",
+                    "VARIABLE": "Cover",
+                    "TIME": time,
+                    "LAYER": layer,
+                    "TAXA": species,
+                    "TAXA_ALT": species_alternative,
+                    "VALUE": cover_value,
+                    "UNIT": "dimless",
+                }
+            )
+
+    # write to csv file
+    new_file_name = "IT_MontagnadiTorricchio_v2_cover.csv"
+    new_data = pd.DataFrame(new_rows)
+    new_data.to_csv(source_folder / new_file_name, index=False, sep=";")
+
+
 def convert_raw_data_BEXIS(forbidden_cover_threshold=0, moss_cover_threshold=50.0):
     """
     Convert raw data from xls file to standard format for eLTER site
@@ -799,11 +1005,12 @@ def convert_raw_data_BEXIS(forbidden_cover_threshold=0, moss_cover_threshold=50.
 if __name__ == "__main__":
     forbidden_cover_threshold = 5.0
     moss_cover_threshold = 200.0
-    convert_raw_data_BEXIS(
-        forbidden_cover_threshold=forbidden_cover_threshold,
-        moss_cover_threshold=moss_cover_threshold,
-    )
-    convert_raw_data_KUL(forbidden_cover_threshold=forbidden_cover_threshold)
-    convert_raw_data_CVL(moss_cover_threshold=moss_cover_threshold)
-    convert_raw_data_MAM_C()
+    # convert_raw_data_BEXIS(
+    #     forbidden_cover_threshold=forbidden_cover_threshold,
+    #     moss_cover_threshold=moss_cover_threshold,
+    # )
+    # convert_raw_data_KUL(forbidden_cover_threshold=forbidden_cover_threshold)
+    # convert_raw_data_CVL(moss_cover_threshold=moss_cover_threshold)
+    # convert_raw_data_MAM_C()
+    convert_raw_data_MDT()
     # convert_raw_data_ASQ_C()
