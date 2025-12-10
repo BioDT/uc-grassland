@@ -29,12 +29,12 @@ Science Ltd., Finland and the LUMI consortium through a EuroHPC Development Acce
 
 import argparse
 from pathlib import Path
-from types import MappingProxyType
 
 import pandas as pd
 from dotenv import dotenv_values
 
 from ucgrassland import assign_pfts as apft
+from ucgrassland import elter_site_specs as essp
 from ucgrassland import utils as ut
 from ucgrassland.logger_config import logger
 
@@ -47,532 +47,10 @@ from ucgrassland.logger_config import logger
 #     pft_lookup_specs (dict): Dictionary with PFT lookup specifications for observation variables.
 
 # TODO: have layer in obs columns only if exisiting in data tables (can be empty though)
-OBSERVATION_DATA_SPECS_PER_SITE = MappingProxyType(
-    {
-        "11696de6-0ab9-4c94-a06b-7ce40f56c964": {
-            "name": "IT25 - Val Mazia-Matschertal",
-            "variables": ["cover"],
-            "short_names": {"cover": "VMM-C"},
-            "file_names": {"cover": "IT_Matschertal_data_abund.csv"},
-            "observation_columns": {"cover": "default", "management": "default"},
-            "pft_lookup_files": {
-                "cover": "lat46.692800_lon10.615700__PFT__data_abund.txt"
-            },
-            "pft_lookup_specs": {"cover": "default"},
-            "station_file": "IT_Matschertal_station.csv",
-            "start_year": 2009,
-        },
-        "270a41c4-33a8-4da6-9258-2ab10916f262": {
-            "name": "AgroScapeLab Quillow (ZALF)",
-            "variables": ["cover"],
-            "short_names": {"cover": "ASQ-C"},
-            # "file_names": {"cover": "DE_AgroScapeQuillow_data_cover.csv"},
-            # "observation_columns": {"cover": "default"},
-            "file_names": {
-                "cover": "DE_AgroScapeQuillow_data_cover__from_SpeciesFiles.csv"
-            },
-            "observation_columns": {
-                "cover": {
-                    "plot": "STATION_CODE",
-                    "subplot": "REPLICATION",
-                    "time": "TIME",
-                    "species": "TAXA",
-                    "value": "VALUE",
-                    "unit": "UNIT",
-                },
-                "management": None,
-            },
-            # "pft_lookup_files": {
-            #     "cover": "lat53.360000_lon13.800000__PFT__data_cover.txt"
-            # },
-            # "pft_lookup_specs": {"cover": "default"},
-            "pft_lookup_files": {"cover": "lat53.360000_lon13.800000__PFT__names.txt"},
-            "pft_lookup_specs": {
-                "cover": {
-                    "key_column": "Code",
-                    "info_column": "PFT combined",
-                    "info_name": "PFT",
-                }
-            },
-            "station_file": "DE_AgroScapeQuillow_station.csv",
-            "start_year": 2000,
-        },
-        "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
-            "name": "LTSER Zone Atelier Armorique",
-            "variables": ["cover", "indices"],  # indices not considered yet
-            "short_names": {"cover": "ZAA-C", "indices": "ZAA-I"},
-            "file_names": {
-                "cover": "FR_AtelierArmorique_data_cover.csv",
-                "indices": "FR_AtelierArmorique_data_indices.csv",
-            },
-            "observation_columns": {
-                "cover": "default",  # "TAXA" uses species codes
-                "indices": {
-                    "plot": "STATION_CODE",
-                    "time": "TIME",
-                    "species": "Dominant species",
-                    "value": "",
-                    "unit": "",
-                },
-                "management": None,
-            },
-            "pft_lookup_files": {
-                "cover": "lat48.600000_lon-1.533330__PFT__reference.txt",
-                "indices": "lat48.600000_lon-1.533330__PFT__data_indices.txt",
-            },
-            "pft_lookup_specs": {
-                "cover": {
-                    "key_column": "CODE",
-                    "info_column": "PFT combined",
-                    "info_name": "PFT",
-                },
-                "indices": "default",
-            },
-            "station_file": "FR_AtelierArmorique_station.csv",
-            "start_year": 2015,
-        },
-        "324f92a3-5940-4790-9738-5aa21992511c": {
-            "name": "Stubai (combination of Neustift meadows and Kaserstattalm)",
-            "variables": ["cover"],
-            "short_names": {"cover": "STB-C"},
-            "file_names": {"cover": "AT_Stubai_data_abund.csv"},
-            "observation_columns": {"cover": "default", "management": "default"},
-            "pft_lookup_files": {
-                "cover": "lat47.116700_lon11.300000__PFT__data_abund.txt"
-            },
-            "pft_lookup_specs": {"cover": "default"},
-            "station_file": "AT_Stubai_station.csv",
-            "start_year": 1995,
-        },
-        "3de1057c-a364-44f2-8a2a-350d21b58ea0": {
-            "name": "Obergurgl",
-            "variables": [
-                "absolute_frequency"
-            ],  # FREQ (pres/abs in 100 subplots of 1 m²)
-            "short_names": {"absolute_frequency": "OGL-AF"},
-            "file_names": {"absolute_frequency": "AT_Obergurgl_data.csv"},
-            "observation_columns": {
-                "absolute_frequency": "default",
-                "management": None,
-            },
-            "pft_lookup_files": {
-                "absolute_frequency": "lat46.867100_lon11.024900__PFT__data.txt"
-            },
-            "pft_lookup_specs": {"absolute_frequency": "default"},
-            "station_file": "AT_Obergurgl_station.csv",
-            "start_year": 2000,
-        },
-        "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d": {
-            "name": "Hochschwab (AT-HSW) GLORIA",
-            "variables": [
-                "cover",
-                # "abundance_gloria_1_8",
-            ],  # abundance categories 1-8, very rare to dominant, visual estimate
-            "short_names": {"cover": "HSW-C", "abundance_gloria_1_8": "HSW-C18"},
-            "file_names": {
-                "cover": "AT_Hochschwab_data_cover.csv",
-                "abundance_gloria_1_8": "AT_Hochschwab_data_abund.csv",
-            },
-            "observation_columns": {
-                "cover": "default",
-                "abundance_gloria_1_8": "default",
-                "management": None,
-            },
-            "pft_lookup_files": {
-                "cover": "lat47.622020_lon15.149292__PFT__data_cover.txt",
-                "abundance_gloria_1_8": "lat47.622020_lon15.149292__PFT__data_abund.txt",
-            },
-            "pft_lookup_specs": {"cover": "default", "abundance_gloria_1_8": "default"},
-            "station_file": "AT_Hochschwab_station.csv",
-            "start_year": 1998,
-        },
-        "61c188bc-8915-4488-8d92-6d38483406c0": {
-            "name": "Randu meadows",
-            "variables": ["cover_braun_blanquet"],
-            "short_names": {"cover_braun_blanquet": "RND-CBB"},
-            "file_names": {"cover_braun_blanquet": "LV_RanduMeadows_data_abund.csv"},
-            "observation_columns": {
-                "cover_braun_blanquet": "default",
-                "management": None,
-            },
-            "pft_lookup_files": {
-                "cover_braun_blanquet": "lat57.814301_lon24.339609__PFT__data_abund.txt"
-            },
-            "pft_lookup_specs": {"cover_braun_blanquet": "default"},
-            "station_file": "LV_RanduMeadows_station.csv",
-            "start_year": 1996,
-        },
-        "66431807-ebf1-477f-aa52-3716542f3378": {
-            "name": "LTSER Engure",
-            "variables": ["cover"],
-            "short_names": {"cover": "ENG-C"},
-            "file_names": {"cover": "LV_Engure_data_cover.csv"},
-            "observation_columns": {"cover": "default", "management": None},
-            "pft_lookup_files": {
-                "cover": "lat57.216700_lon23.135000__PFT__data_cover.txt"
-            },
-            "pft_lookup_specs": {"cover": "default"},
-            "station_file": "LV_Engure_station.csv",
-            "start_year": 1997,
-        },
-        "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1": {
-            "name": "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen",
-            "variables": ["cover"],
-            "short_names": {"cover": "SCH-C"},
-            "file_names": {"cover": "AT_Schrankogel_data_cover.csv"},
-            "observation_columns": {"cover": "default", "management": None},
-            "pft_lookup_files": {
-                "cover": "lat47.041162_lon11.098057__PFT__data_cover.txt"
-            },
-            "pft_lookup_specs": {"cover": "default"},
-            "station_file": "AT_Schrankogel_station.csv",
-            "start_year": 1994,
-        },
-        "6b62feb2-61bf-47e1-b97f-0e909c408db8": {
-            "name": "Montagna di Torricchio",
-            "variables": ["cover_braun_blanquet"],
-            "short_names": {"cover_braun_blanquet": "MDT-CBB"},
-            "file_names": {
-                "cover_braun_blanquet": "IT_MontagnadiTorricchio_data_abund.csv"
-            },
-            "observation_columns": {
-                "cover_braun_blanquet": "default",
-                "management": None,
-            },
-            "pft_lookup_files": {
-                "cover_braun_blanquet": "lat42.961400_lon13.019200__PFT__reference.txt"
-            },
-            "pft_lookup_specs": {
-                "cover_braun_blanquet": {
-                    "key_column": "CODE",
-                    "info_column": "PFT combined",
-                    "info_name": "PFT",
-                }
-            },
-            "station_file": "IT_MontagnadiTorricchio_station.csv",
-            "start_year": 2006,
-        },
-        "829a2bcc-79d6-462f-ae2c-13653124359d": {
-            "name": "Ordesa y Monte Perdido / Huesca ES",
-            "variables": [
-                "absolute_frequency"
-            ],  # abundance number of contacts each 10 cm in 20 m transects ()
-            "short_names": {"absolute_frequency": "OMP-AF"},
-            "file_names": {
-                "absolute_frequency": "ES_OrdesaYMontePerdido_data_freq.csv"
-            },
-            "observation_columns": {
-                "absolute_frequency": "default",
-                "management": None,
-            },
-            "pft_lookup_files": {
-                "absolute_frequency": "lat42.650000_lon0.030000__PFT__data_freq.txt"
-            },
-            "pft_lookup_specs": {"absolute_frequency": "default"},
-            "station_file": "ES_OrdesaYMontePerdido_station.csv",
-            "start_year": 1993,
-        },
-        "9f9ba137-342d-4813-ae58-a60911c3abc1": {
-            "name": "Rhine-Main-Observatory",
-            "variables": ["cover_braun_blanquet"],
-            "short_names": {"cover_braun_blanquet": "RMO-CBB"},
-            "file_names": {
-                "cover_braun_blanquet": "DE_RhineMainObservatory_data_abund_V3__2016_2020.csv"
-            },
-            "observation_columns": {
-                "cover_braun_blanquet": {
-                    "plot": "STATION_CODE",
-                    "subplot": "SUBAREA",
-                    "layer": "LAYER",
-                    "time": "TIME",
-                    "species": "TAXA",
-                    "value": "VALUE",
-                    "unit": "UNIT",
-                },
-                "management": None,
-            },
-            "pft_lookup_files": {
-                # "cover_braun_blanquet": "lat50.267302_lon9.269139__PFT__abund_data.txt"
-                "cover_braun_blanquet": "lat50.267302_lon9.269139__PFT__data_abund_V2.txt"
-            },
-            "pft_lookup_specs": {"cover_braun_blanquet": "default"},
-            "station_file": "DE_RhineMainObservatory_station_reduced.csv",
-            "start_year": 2010,
-        },
-        "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
-            "name": "Torgnon grassland Tellinod (IT19 Aosta Valley)",
-            "variables": ["frequency_daget_poissonet"],  # relative abundance?
-            # According to the method of Daget and Poissonet (1971), the specific contributions
-            # are derived as the quotient between the frequency of a species and the sum
-            # of the frequencies of all species.
-            "short_names": {"frequency_daget_poissonet": "TGT-F"},
-            "file_names": {
-                "frequency_daget_poissonet": "IT_TorgnonGrasslandTellinod_data_abund.csv"
-            },
-            "observation_columns": {
-                "frequency_daget_poissonet": "default",
-                "management": None,
-            },
-            "pft_lookup_files": {
-                "frequency_daget_poissonet": "lat45.846063_lon7.579028__PFT__data_abund.txt"
-            },
-            "pft_lookup_specs": {"frequency_daget_poissonet": "default"},
-            "station_file": "IT_TorgnonGrasslandTellinod_station.csv",
-            "start_year": 2009,
-        },
-        "b356da08-15ac-42ad-ba71-aadb22845621": {
-            "name": "Nørholm Hede",
-            "variables": ["cover"],
-            "short_names": {"cover": "NHH-C"},
-            "file_names": {"cover": "DK_NorholmHede_data_cover.csv"},
-            "observation_columns": {
-                "cover": {
-                    "plot": "STATION_CODE",
-                    "subplot": "PLOT (10x10m)",
-                    "layer": "LAYER",
-                    "time": "TIME",
-                    "species": "TAXA",
-                    "value": "VALUE",
-                    "unit": "UNIT",
-                },
-                "management": None,
-            },
-            "pft_lookup_files": {
-                "cover": "lat55.680000_lon8.610000__PFT__data_cover.txt"
-            },
-            "pft_lookup_specs": {"cover": "default"},
-            "station_file": "DK_NorholmHede_station.csv",
-            "start_year": 1921,
-        },
-        "c0738b00-854c-418f-8d4f-69b03486e9fd": {
-            "name": "Appennino centrale: Gran Sasso d'Italia",
-            "variables": ["cover_braun_blanquet"],
-            "short_names": {"cover_braun_blanquet": "GSI-CBB"},
-            "file_names": {
-                "cover_braun_blanquet": "IT_AppenninoCentrale_data_abund.csv"
-            },
-            "observation_columns": {
-                "cover_braun_blanquet": "default",
-                "management": None,
-            },
-            "pft_lookup_files": {
-                "cover_braun_blanquet": "lat42.446250_lon13.554978__PFT__data_abund.txt"
-            },
-            "pft_lookup_specs": {"cover_braun_blanquet": "default"},
-            "station_file": "IT_AppenninoCentrale_station.csv",
-            "start_year": 1986,
-        },
-        "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
-            "name": "Appennino centro-meridionale: Majella-Matese",
-            "variables": ["cover"],
-            "short_names": {"cover": "MAM-C"},
-            # "file_names": {"cover": "IT_AppenninoCentroMeridionale_data_cover.csv"},
-            # "observation_columns": {"cover": "default"},
-            "file_names": {
-                "cover": "IT_AppenninoCentroMeridionale_data_cover__from_FEM_Revised.csv"
-            },
-            "observation_columns": {"cover": "default", "management": None},
-            "pft_lookup_files": {
-                "cover": "lat42.086116_lon14.085206__PFT__data_cover__from_FEM_Revised.txt"
-            },
-            "pft_lookup_specs": {"cover": "default"},
-            "station_file": "IT_AppenninoCentroMeridionale_station.csv",
-            "start_year": 2001,
-        },
-        "e13f1146-b97a-4bc5-9bc5-65322379a567": {
-            "name": "Jalovecka dolina",
-            "variables": [
-                "cover_categories_1_9"
-            ],  # unit of measure of density or biomass - semi-quantitative ordinal scale
-            "short_names": {"cover_categories_1_9": "JAD-C19"},
-            "file_names": {"cover_categories_1_9": "SK_JaloveckaDolina_data_cover.csv"},
-            "observation_columns": {
-                "cover_categories_1_9": "default",
-                "management": None,
-            },
-            "pft_lookup_files": {
-                "cover_categories_1_9": "lat49.217800_lon19.671900__PFT__data_cover.txt"
-            },
-            "pft_lookup_specs": {"cover_categories_1_9": "default"},
-            "station_file": "SK_JaloveckaDolina_station.csv",
-            "start_year": 2002,
-        },
-        # not eLTER plus
-        "KUL-site": {
-            "name": "KUL-site (KU Leuven)",
-            "variables": ["cover"],  # "biomass"
-            "short_names": {"cover": "KUL-C"},
-            "file_names": {"cover": "BE_KUL-site_cover__from_VanMeerbeek_data.csv"},
-            "observation_columns": {
-                "cover": "default",
-                "management": None,
-            },  # TODO: handle specific management data
-            "pft_lookup_files": {
-                "cover": "lat51.000000_lon5.000000__PFT__cover__from_VanMeerbeek_data.txt"
-            },
-            "pft_lookup_specs": {"cover": "default"},
-            "station_file": "BE_KUL-site_station_from_shape.csv",  # "BE_KUL-site_station_from_obs.csv"
-            "start_year": 2009,
-        },
-        "4c8082f9-1ace-4970-a603-330544f22a23": {
-            "name": "Certoryje-Vojsicke Louky meadows",
-            "variables": ["cover"],
-            "short_names": {"cover": "CVL-C"},
-            "file_names": {
-                "cover": "CZ_Certoryje-Vojsice_cover__from_regrassed_fields_Bile_Karpaty.csv"
-            },
-            "observation_columns": {
-                "cover": "default",
-                "management": None,
-            },  # TODO: handle specific management data
-            "pft_lookup_files": {
-                "cover": "lat48.854200_lon17.426100__PFT__cover__from_regrassed_fields_Bile_Karpaty.txt"
-            },
-            "pft_lookup_specs": {"cover": "default"},
-            "station_file": "CZ_Certoryje-Vojsice_station.csv",
-            "start_year": 2009,
-        },
-        "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4": {
-            "name": "DFG_Biodiversity_Exploratory_Schorfheide-Chorin",
-            "variables": ["cover"],
-            "short_names": {"cover": "BX-S-C"},
-            "file_names": {
-                "cover": "DE_BEXIS-site-SEG_data_cover__from_31973_5_Dataset.csv"
-            },
-            "observation_columns": {"cover": "default", "management": None},
-            "pft_lookup_files": {
-                "cover": "lat53.007100_lon13.769500__PFT__data_cover__from_31973_5_Dataset.txt"
-            },
-            "pft_lookup_specs": {"cover": "default"},
-            "station_file": "DE_BEXIS-site-SEG_station.csv",
-            "start_year": 2008,
-        },
-        "56c467e5-093f-4b60-b5cf-880490621e8d": {
-            "name": "DFG_Biodiversity_Exploratory_Hainich-Duen",
-            "variables": ["cover"],
-            "short_names": {"cover": "BX-H-C"},
-            "file_names": {
-                "cover": "DE_BEXIS-site-HEG_data_cover__from_31973_5_Dataset.csv"
-            },
-            "observation_columns": {"cover": "default", "management": None},
-            "pft_lookup_files": {
-                "cover": "lat51.158000_lon10.476200__PFT__data_cover__from_31973_5_Dataset.txt"
-            },
-            "pft_lookup_specs": {"cover": "default"},
-            "station_file": "DE_BEXIS-site-HEG_station.csv",
-            "start_year": 2008,
-        },
-        "a51f9249-ddc8-4a90-95a8-c7bbebb35d29": {
-            "name": "DFG_Biodiversity_Exploratory_SchwaebischeAlb",
-            "variables": ["cover"],
-            "short_names": {"cover": "BX-A-C"},
-            "file_names": {
-                "cover": "DE_BEXIS-site-AEG_data_cover__from_31973_5_Dataset.csv"
-            },
-            "observation_columns": {"cover": "default", "management": None},
-            "pft_lookup_files": {
-                "cover": "lat48.437400_lon9.389380__PFT__data_cover__from_31973_5_Dataset.txt"
-            },
-            "pft_lookup_specs": {"cover": "default"},
-            "station_file": "DE_BEXIS-site-AEG_station.csv",
-            "start_year": 2008,
-        },
-    }
-)
 
-# Define target variable names.
-TARGET_VARIABLE_NAMES = MappingProxyType(
-    {
-        "cover_braun_blanquet": "Cover_from_braun_blanquet",
-        "cover_categories_1_9": "Cover_from_categories_1_9",
-        "abundance_gloria_1_8": "Cover_from_abundance_1_8",
-        "frequency_daget_poissonet": "Frequency",
-    }
-)
-
-# Define default observation column names for observation data.
-DEFAULT_OBSERVATION_COLUMNS = MappingProxyType(
-    {
-        "plot": "STATION_CODE",
-        # "subplot": "PLOT (10x10m)",
-        # "event_id": "EVENT_ID",  # removed because only used in excluded observation data
-        "layer": "LAYER",  # layer added to use only layer 'F', could be adjusted to use also other layers
-        "time": "TIME",
-        "species": "TAXA",
-        "value": "VALUE",
-        "unit": "UNIT",
-    }
-)
-
-# default management columns, NOTE: no subplot or layer handling!
-DEFAULT_MANAGEMENT_COLUMNS = MappingProxyType(
-    {
-        "plot": "STATION_CODE",
-        "time": "TIME",
-        "defoliation": "DEFOLIATION_TYPE",  # M: mowing, G: grazing, C: combined, A: abandoned, N: no
-        "mowing": "ANNUAL_MOWINGS",  # mowing events per year
-        "fertilization": "ANNUAL_FERTILIZATIONS",  # fertilization events per year
-        "fertilization_organic": "ANNUAL_FERT_ORGANIC",  # fertilization with organic manure
-        "fertilization_mineral": "ANNUAL_FERT_MINERAL",  # fertilization with mineral fertilizer
-        "grazing": "ANNUAL_GRAZING",  # grazing months per year
-    }
-)
-
-# Define default PFT lookup specifications.
-DEFAULT_PFT_LOOKUP_SPECS = MappingProxyType(
-    {
-        "key_column": "Species Original",
-        "info_column": "PFT combined",
-        "info_name": "PFT",
-    }
-)
-
-# Define mappings of categorical codes to cover values (in %)
-BRAUN_BLANQUET_TO_COVER = MappingProxyType(
-    {
-        # "x", presence, but value unclear, occurs in RMO
-        "r": 0.1,
-        "R": 0.1,  # assuming same as "r", typo
-        "+": 0.3,
-        "1": 2.8,
-        "2m": 4.5,
-        "2a": 10,
-        "2b": 20.5,
-        "2": 15,  # ??  MDT: 5-25%, also used by: RMO (no info in method file), GSI ("Braun-Blanquet scale (1921), as modified by Pignatti (1959).")
-        "3": 37.5,  # modified after expert consultations (was 38 or 38.5 before)
-        "4": 62.5,
-        "5": 87.5,
-    }
-)
-ABUNDANCE_GLORIA_1_8_TO_COVER = MappingProxyType(
-    {
-        # Map abundance codes to cover values for "summit area sections" (SAS) as
-        # defined in the GLORIA field manual (https://gloria.ac.at/downloads/Manual_5thEd_ENG.pdf, p.41f).
-        # Uses interpretation of verbal descriptions, no clear quantitative values found for all codes!
-        1: 0.5,  # r! (very rare): One or a few small individuals
-        2: 1,  # r (rare): Some individuals at several locations that can hardly be overlooked in a careful observation;
-        3: 3,  # rare-scattered
-        4: 5,  # s (scattered): Widespread within the section, species can hardly be overlooked, but the presence is not obvious at first glance; individuals are not necessarily evenly dispersed over the entire summit area section
-        5: 10,  # scattered-common
-        6: 25,  # c (common): Occurring frequently and widespread within the section – presence is obvious at first glance, it covers, however, less than 50% of the SAS’s area;
-        7: 50,  # common-dominant
-        8: 75,  # d (dominant): Very abundant, making up a high proportion of the phytomass, often forming more or less patchy or dense vegetation layers; species covers more than 50% of the area of the SAS
-    }
-)
-CATEGORIES_1_9_TO_COVER = MappingProxyType(
-    {
-        # Uses interpretation of verbal descriptions, no clear quantitative values found for codes 1-4!
-        1: 0.5,  # very few individuals (1-2)
-        2: 1,  # few individuals
-        3: 2.5,  # cover < 5%, not abundant
-        4: 4.5,  # cover < 5%, abundant
-        5: 8.75,  # cover 5 - 12.5%
-        6: 18.75,  # cover 12.5 - 25%
-        7: 37.5,  # cover 25 - 50%
-        8: 62.5,  # cover 50 - 75%
-        9: 87.5,  # cover 75 - 100%
-    }
-)
+DUPLICATE_ROWS_COLUMN_NAME = "#Duplicate rows"
+INVALID_VALUES_COLUMN_NAME = "#invalid_value"
+NOT_SPECIFIED_DEFAULT_STRING = "not specified"
 
 
 def read_observation_data(
@@ -630,7 +108,7 @@ def read_observation_data(
                         df.at[index, "STATION_CODE"] = new_station_code
 
         observation_data = [df_column_names]
-        observation_data.extend(df.values.tolist())
+        observation_data.extend(df.to_numpy().tolist())
 
         if new_file:
             ut.list_to_file(observation_data, new_file)
@@ -711,7 +189,7 @@ def read_observation_data(
                             + "__duplicate_rows_except_scientific_name"
                             + new_file.suffix
                         ),
-                        column_names=observation_data[0] + ["#Duplicate rows"],
+                        column_names=observation_data[0] + [DUPLICATE_ROWS_COLUMN_NAME],
                     )
 
                 # Remove duplicates from observation data, keep first occurrence
@@ -763,7 +241,7 @@ def read_observation_data(
                         ),
                         column_names=observation_data[0][:value_column]
                         + observation_data[0][value_column + 1 :]
-                        + ["#Duplicate rows"],
+                        + [DUPLICATE_ROWS_COLUMN_NAME],
                     )
 
         return observation_data
@@ -781,7 +259,7 @@ def process_single_plot_observation_data(
     observation_pft,
     *,
     pfts=None,
-    woody_maximum=5.0,
+    woody_maximum=10.0,
 ):
     """
     Process observation data for a single plot and variable, aggregating to PFTs.
@@ -794,7 +272,7 @@ def process_single_plot_observation_data(
         pft_lookup (dict): Dictionary mapping species names to PFTs.
         observation_pft (pd.DataFrame): DataFrame to store processed PFT observation data.
         pfts (list): List of PFT names to aggregate to (default is None, which uses default PFTs).
-        woody_maximum (float): Maximum allowed cover value for woody PFTs (default is 5.0).
+        woody_maximum (float): Maximum allowed cover value for woody PFTs (default is 10.0).
 
     Returns:
         pd.DataFrame: Updated DataFrame with processed PFT observation data.
@@ -898,7 +376,7 @@ def process_single_plot_observation_data(
                             ]
                         )
                     )
-                    new_row = {key: "" for key in observation_pft.columns}
+                    new_row = dict.fromkeys(observation_pft.columns, "")
                     new_row.update(
                         {
                             "plot": plot_name,
@@ -908,11 +386,10 @@ def process_single_plot_observation_data(
                     )
                 else:
                     # Collect entries and add to PFTs
-                    pft_values = {key: 0 for key in pfts}
-                    pft_counts = {
-                        key: 0
-                        for key in [f"#{pft}" for pft in pfts] + ["#invalid_value"]
-                    }
+                    pft_values = dict.fromkeys(pfts, 0)
+                    pft_counts = dict.fromkeys(
+                        [f"#{pft}" for pft in pfts] + [INVALID_VALUES_COLUMN_NAME], 0
+                    )
 
                     for entry in time_data:
                         species = (
@@ -933,7 +410,7 @@ def process_single_plot_observation_data(
                         )
 
                         if pd.isna(value):
-                            pft_counts["#invalid_value"] += 1
+                            pft_counts[INVALID_VALUES_COLUMN_NAME] += 1
                         else:
                             pft_values[pft] += value
                             pft_counts[f"#{pft}"] += 1
@@ -958,7 +435,7 @@ def process_single_plot_observation_data(
                 else:
                     check_message = f"{grass_layer_check}; {woody_value_check}"
 
-                new_row = {key: "" for key in observation_pft.columns}
+                new_row = dict.fromkeys(observation_pft.columns, "")
                 new_row.update(
                     {
                         "plot": plot_name,
@@ -975,7 +452,7 @@ def process_single_plot_observation_data(
     else:
         # No 'value' column found, add empty row for this plot and all time points
         for time_point in time_points:
-            new_row = {key: "" for key in observation_pft.columns}
+            new_row = dict.fromkeys(observation_pft.columns, "")
             new_row.update(
                 {
                     "plot": plot_name,
@@ -997,10 +474,10 @@ def check_for_grass_layer(
     data_snippet,
     columns,
     *,
-    plot_name="not specified",
-    time_point="not specified",
-    variable="not specified",
-    woody_maximum=0,
+    plot_name=NOT_SPECIFIED_DEFAULT_STRING,
+    time_point=NOT_SPECIFIED_DEFAULT_STRING,
+    variable=NOT_SPECIFIED_DEFAULT_STRING,
+    woody_maximum=10.0,
     grass_layer_names=["F", "COVE_F", "herb layer"],
     moss_layer_names=["moss layer"],  # "M", "COVE_M" ?
 ):
@@ -1014,7 +491,7 @@ def check_for_grass_layer(
         plot_name (str): Plot name of the data (default is "not specified").
         time_point (str): Time point of the data (default is "not specified").
         variable (str): Variable name of the data (default is "not specified").
-        woody_maximum (float): Maximum allowed value for woody layer entries (default is 0).
+        woody_maximum (float): Maximum allowed value for woody layer entries (default is 10.0).
         grass_layer_names (list): List of valid grass layer names to look for (default is ["F", "COVE_F", "herb layer"]).
         moss_layer_names (list): List of valid moss layer names to look for (default is ["moss layer"]).
 
@@ -1101,10 +578,10 @@ def check_woody_values(
     columns,
     pft_lookup,
     *,
-    plot_name="not specified",
-    time_point="not specified",
-    variable="not specified",
-    woody_maximum=5.0,
+    plot_name=NOT_SPECIFIED_DEFAULT_STRING,
+    time_point=NOT_SPECIFIED_DEFAULT_STRING,
+    variable=NOT_SPECIFIED_DEFAULT_STRING,
+    woody_maximum=10.0,
 ):
     """
     Check woody values in the data snippet.
@@ -1116,7 +593,7 @@ def check_woody_values(
         plot_name (str): Plot name of the data (default is "not specified").
         time_point (str): Time point of the data (default is "not specified").
         variable (str): Variable name of the data (default is "not specified").
-        woody_maximum (float): Maximum allowed woody cover percentage (default is 5.0).
+        woody_maximum (float): Maximum allowed woody cover percentage (default is 10.0).
 
     Returns:
         bool or str: True if woody values are within limits, otherwise a string with an error message.
@@ -1221,12 +698,12 @@ def process_observation_data(
             )
 
     if columns == "default":  # or columns is None:
-        columns = DEFAULT_OBSERVATION_COLUMNS
+        columns = essp.DEFAULT_OBSERVATION_COLUMNS
 
     # Export management data if existing
     if management_columns is not None:
         if management_columns == "default":
-            management_columns = DEFAULT_MANAGEMENT_COLUMNS
+            management_columns = essp.DEFAULT_MANAGEMENT_COLUMNS
 
         management_data, management_columns_found = ut.get_list_of_columns(
             observation_data, management_columns.values()
@@ -1296,7 +773,7 @@ def process_observation_data(
             + pfts
             + ["unit"]
             + [f"#{pft}" for pft in pfts]
-            + ["#invalid_value"]
+            + [INVALID_VALUES_COLUMN_NAME]
             + ["invalid_observation"]
         )
 
@@ -1380,9 +857,9 @@ def check_observation_value(
     *,
     unit=None,
     unit_check=None,
-    plot_name="not specified",
-    time_point="not specified",
-    species="not specified",
+    plot_name=NOT_SPECIFIED_DEFAULT_STRING,
+    time_point=NOT_SPECIFIED_DEFAULT_STRING,
+    species=NOT_SPECIFIED_DEFAULT_STRING,
 ):
     """
     Check observation value for validity and return corrected value if necessary.
@@ -1391,9 +868,9 @@ def check_observation_value(
         value (str): Observation value.
         variable (str): Observation variable name.
         unit (str): Observation unit (default is None).
-        plot_name (str): Plot name (default is None).
-        time_point (str): Time point (default is None).
-        species (str): Species name (default is None).
+        plot_name (str): Plot name (default is "not specified").
+        time_point (str): Time point (default is "not specified").
+        species (str): Species name (default is "not specified").
 
     Returns:
         str: Corrected observation value or original value if valid.
@@ -1413,7 +890,7 @@ def check_observation_value(
                 return None
         except ValueError:
             # Check for Braun-Blanquet code
-            value = BRAUN_BLANQUET_TO_COVER.get(value_in)
+            value = essp.BRAUN_BLANQUET_TO_COVER.get(value_in)
 
             if value is not None:
                 logger.warning(
@@ -1436,7 +913,7 @@ def check_observation_value(
             )
 
     elif variable == "cover_braun_blanquet":
-        value = BRAUN_BLANQUET_TO_COVER.get(value_in)
+        value = essp.BRAUN_BLANQUET_TO_COVER.get(value_in)
 
         if value is None:
             logger.error(
@@ -1457,7 +934,7 @@ def check_observation_value(
                 )
 
     elif variable == "cover_categories_1_9":
-        value = CATEGORIES_1_9_TO_COVER.get(value_in)
+        value = essp.CATEGORIES_1_9_TO_COVER.get(value_in)
 
         if value is None:
             logger.error(
@@ -1473,7 +950,7 @@ def check_observation_value(
                 )
 
     elif variable == "abundance_gloria_1_8":
-        value = ABUNDANCE_GLORIA_1_8_TO_COVER.get(value_in)
+        value = essp.ABUNDANCE_GLORIA_1_8_TO_COVER.get(value_in)
 
         if value is None:
             logger.error(
@@ -1536,7 +1013,9 @@ def get_observation_summary(observation_pft, *, new_file=None):
     grassland_pfts = ["grass", "forb", "legume"]
 
     # Fill missing values in pft entries with nan to allow calculations
-    columns_to_convert = pfts + [f"#{pft}" for pft in pfts] + ["#invalid_value"]
+    columns_to_convert = (
+        pfts + [f"#{pft}" for pft in pfts] + [INVALID_VALUES_COLUMN_NAME]
+    )
     observation_pft[columns_to_convert] = observation_pft[columns_to_convert].apply(
         pd.to_numeric, errors="coerce"
     )
@@ -1549,10 +1028,10 @@ def get_observation_summary(observation_pft, *, new_file=None):
 
     # Count invalid time points, and invalid species entries (due to invalid values)
     observations_invalid = observation_pft["invalid_observation"].notna().sum()
-    entries_invalid = observation_pft["#invalid_value"].sum()
+    entries_invalid = observation_pft[INVALID_VALUES_COLUMN_NAME].sum()
 
     # Get "plot" name for entries that have non-nan in "invalid_observation" column
-    plots_invalid = observation_pft.loc[
+    plots_with_invalid_obs = observation_pft.loc[
         observation_pft["invalid_observation"].notna(), "plot"
     ]
 
@@ -1560,16 +1039,16 @@ def get_observation_summary(observation_pft, *, new_file=None):
         observation_pft["invalid_observation"].isna(), "plot"
     ]
 
-    # Check if any plot name is in both included and excluded lists
-    plots_both = set(plots_valid).intersection(set(plots_invalid))
+    # Check if any plot name is in both lists
+    plots_both = set(plots_valid).intersection(set(plots_with_invalid_obs))
     if len(plots_both) > 0:
-        try:
-            raise ValueError(
-                f"Some plots have both valid and invalid observations: {plots_both}"
-            )
-        except ValueError as e:
-            logger.error(str(e))
-            raise
+        logger.warning(
+            f"Some plots have both valid and invalid observations: {plots_both}"
+        )
+        # plots_invalid are only those plots that are exclusively invalid
+        plots_invalid = plots_with_invalid_obs[~plots_with_invalid_obs.isin(plots_both)]
+    else:
+        plots_invalid = plots_with_invalid_obs
 
     # count of unique plots with invalid and valid observations
     plots_invalid = plots_invalid.nunique()
@@ -1730,7 +1209,7 @@ def get_observations_from_files(
                 lookup_specs = observation_data_specs["pft_lookup_specs"][variable]
 
                 if lookup_specs == "default" or lookup_specs is None:
-                    lookup_specs = DEFAULT_PFT_LOOKUP_SPECS
+                    lookup_specs = essp.DEFAULT_PFT_LOOKUP_SPECS
 
                 pft_lookup = apft.read_info_dict(
                     lookup_file,
@@ -1740,7 +1219,7 @@ def get_observations_from_files(
                 )
 
                 # Process raw observation data
-                target_variable = TARGET_VARIABLE_NAMES.get(
+                target_variable = essp.TARGET_VARIABLE_NAMES.get(
                     variable, variable.capitalize()
                 )
                 target_file = (
@@ -1933,7 +1412,7 @@ def prep_observation_data(
     Returns:
         dict: Dictionary with summary statistics from processed observation data, if found.
     """
-    observation_data_specs = OBSERVATION_DATA_SPECS_PER_SITE.get(deims_id)
+    observation_data_specs = essp.OBSERVATION_DATA_SPECS_PER_SITE.get(deims_id)
 
     if observation_data_specs is None:
         logger.error(
@@ -1946,49 +1425,47 @@ def prep_observation_data(
 
     location = ut.get_deims_coordinates(deims_id)
 
-    if location["found"]:
-        source_subfolder = source_folder / location["deims_id"]
-        target_subfolder = target_folder / location["deims_id"]
-        location["formatted_lat"] = f"lat{location['lat']:.6f}"
-        location["formatted_lon"] = f"lon{location['lon']:.6f}"
-
-        # Create coordinates file
-        station_file = (
-            source_folder
-            / location["deims_id"]
-            / observation_data_specs["station_file"]
-        )
-        coordinates_list = ut.get_plot_locations_from_csv(
-            station_file, merge_same_locations=False
-        )
-
-        # Get observation data from files
-        location_summary, coordinates_list = get_observations_from_files(
-            location,
-            observation_data_specs,
-            source_subfolder,
-            coordinates_list,
-            target_folder=target_subfolder,
-            target_suffix=target_suffix,
-        )
-
-        # Save coordinates of plots used in observation data to file
-        if coordinates_list != []:
-            coordinates_file = (
-                target_subfolder
-                / "Observations"
-                / f"{location['formatted_lat']}_{location['formatted_lon']}__Observation__Plot_Coordinates.txt"
-            )
-            ut.list_to_file(
-                coordinates_list,
-                coordinates_file,
-                column_names=["site_code", "station_code", "lat", "lon", "altitude"],
-            )
-
-        return location_summary
-    else:
+    if not location["found"]:
         logger.error(f"Coordinates not found for DEIMS ID '{deims_id}'. Skipping site.")
-        return
+        return None
+
+    source_subfolder = source_folder / location["deims_id"]
+    target_subfolder = target_folder / location["deims_id"]
+    location["formatted_lat"] = f"lat{location['lat']:.6f}"
+    location["formatted_lon"] = f"lon{location['lon']:.6f}"
+
+    # Create coordinates file
+    station_file = (
+        source_folder / location["deims_id"] / observation_data_specs["station_file"]
+    )
+    coordinates_list = ut.get_plot_locations_from_csv(
+        station_file, merge_same_locations=False
+    )
+
+    # Get observation data from files
+    location_summary, coordinates_list = get_observations_from_files(
+        location,
+        observation_data_specs,
+        source_subfolder,
+        coordinates_list,
+        target_folder=target_subfolder,
+        target_suffix=target_suffix,
+    )
+
+    # Save coordinates of plots used in observation data to file
+    if coordinates_list != []:
+        coordinates_file = (
+            target_subfolder
+            / "Observations"
+            / f"{location['formatted_lat']}_{location['formatted_lon']}__Observation__Plot_Coordinates.txt"
+        )
+        ut.list_to_file(
+            coordinates_list,
+            coordinates_file,
+            column_names=["site_code", "station_code", "lat", "lon", "altitude"],
+        )
+
+    return location_summary
 
 
 def observation_summaries_to_list(observation_summaries, *, new_file=None):
@@ -2009,7 +1486,9 @@ def observation_summaries_to_list(observation_summaries, *, new_file=None):
             if key not in site_keys and isinstance(variable_summary, dict):
                 # Add dict values from variable_summary to list
                 short_name = (
-                    OBSERVATION_DATA_SPECS_PER_SITE.get(site_summary["site_id"], {})
+                    essp.OBSERVATION_DATA_SPECS_PER_SITE.get(
+                        site_summary["site_id"], {}
+                    )
                     .get("short_names", {})
                     .get(key, "n.f.")
                 )
@@ -2052,31 +1531,10 @@ def prep_observation_data_for_sites(
     # Examples if not specified otherwise in function call
     if site_ids is None:
         # Specify selected site IDs, these need to be in species_data_specs
-        site_ids = [
-            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia-Matschertal
-            # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
-            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
-            "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
-            # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-            "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
-            "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
-            "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
-            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
-            # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
-            # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
-            "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
-            "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
-            # "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
-            "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
-            "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
-            "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
-            # not eLTER plus
-            "KUL-site",  # KU Leuven, Belgium
-            "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
-            "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4",  # BEXIS-site-SEG
-            "56c467e5-093f-4b60-b5cf-880490621e8d",  # BEXIS-site-HEG
-            "a51f9249-ddc8-4a90-95a8-c7bbebb35d29",  # BEXIS-site-AEG
-        ]
+        site_ids = essp.ELTER_SITE_IDS
+        # site_ids = [
+        #     "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
+        # ]
 
     if source_folder is None:
         dotenv_config = dotenv_values(".env")

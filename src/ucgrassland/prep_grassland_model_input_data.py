@@ -38,9 +38,10 @@ from ucgrassland import (
     prep_soil_data,
     prep_weather_data,
 )
+from ucgrassland import elter_site_specs as essp
 from ucgrassland import utils as ut
+from ucgrassland.elter_site_specs import OBSERVATION_DATA_SPECS_PER_SITE
 from ucgrassland.logger_config import logger
-from ucgrassland.prep_observation_data import OBSERVATION_DATA_SPECS_PER_SITE
 
 
 def add_coordinate_infos(coordinates):
@@ -321,9 +322,9 @@ def prep_grassland_model_input_data(
                 logger.error(e)
                 raise
     else:
-        skip_grass_check = True
-        skip_weather = True
-        skip_soil = True
+        # skip_grass_check = True
+        # skip_weather = True
+        # skip_soil = True
         # skip_management = True
 
         # Example locations list
@@ -391,30 +392,12 @@ def prep_grassland_model_input_data(
         # #     header_row=1,
         # #     country="ALL",  # "DE" "AT"
         # # )
+        site_ids = essp.ELTER_SITE_IDS
+
+        # manual reduction for testing
         site_ids = [
-            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia-Matschertal
-            # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
-            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
-            "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
-            # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
+            "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
             "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
-            "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
-            "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
-            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
-            # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
-            # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
-            "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
-            "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
-            "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
-            "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
-            "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
-            "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
-            # # # # not eLTER plus
-            "KUL-site",  # KU Leuven, Belgium
-            "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
-            "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4",  # BEXIS-site-SEG
-            "56c467e5-093f-4b60-b5cf-880490621e8d",  # BEXIS-site-HEG
-            "a51f9249-ddc8-4a90-95a8-c7bbebb35d29",  # BEXIS-site-AEG
         ]
 
         # Get the last full year from now
