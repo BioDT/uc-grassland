@@ -40,7 +40,6 @@ import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from types import MappingProxyType
 
 import deims
 import numpy as np
@@ -50,138 +49,12 @@ import rasterio
 import requests
 from dateutil.parser import parse
 
+from ucgrassland import elter_site_specs as essp
 from ucgrassland.logger_config import logger
 
 # will be "https://opendap.biodt.eu/..."
 OPENDAP_ROOT = "http://opendap.biodt.eu/grasslands-pdt/"
-NON_DEIMS_LOCATIONS = MappingProxyType(
-    {
-        # rough means of coordinates of all plots for non-DEIMS sites
-        "KUL-site": {
-            "lat": 51.0,
-            "lon": 5.0,
-            "deims_id": "KUL-site",
-            "found": True,
-            "name": "KUL-site (KU Leuven)",
-        },
-    }
-)
-KNOWN_DEIMS_LOCATIONS = MappingProxyType(
-    {
-        "11696de6-0ab9-4c94-a06b-7ce40f56c964": {
-            "lat": 46.692800,
-            "lon": 10.615700,
-            "deims_id": "11696de6-0ab9-4c94-a06b-7ce40f56c964",
-            "found": True,
-            "name": "IT25 - Val Mazia-Matschertal",
-        },
-        "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
-            "lat": 48.600000,
-            "lon": -1.533330,
-            "deims_id": "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",
-            "found": True,
-            "name": "LTSER Zone Atelier Armorique",
-        },
-        "324f92a3-5940-4790-9738-5aa21992511c": {
-            "lat": 47.116700,
-            "lon": 11.300000,
-            "deims_id": "324f92a3-5940-4790-9738-5aa21992511c",
-            "found": True,
-            "name": "Stubai (combination of Neustift meadows and Kaserstattalm)",
-        },
-        "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d": {
-            "lat": 47.622020,
-            "lon": 15.149292,
-            "deims_id": "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",
-            "found": True,
-            "name": "Hochschwab (AT-HSW) GLORIA",
-        },
-        "61c188bc-8915-4488-8d92-6d38483406c0": {
-            "lat": 57.814301,
-            "lon": 24.339609,
-            "deims_id": "61c188bc-8915-4488-8d92-6d38483406c0",
-            "found": True,
-            "name": "Randu meadows",
-        },
-        "66431807-ebf1-477f-aa52-3716542f3378": {
-            "lat": 57.216700,
-            "lon": 23.135000,
-            "deims_id": "66431807-ebf1-477f-aa52-3716542f3378",
-            "found": True,
-            "name": "LTSER Engure",
-        },
-        "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1": {
-            "lat": 47.041162,
-            "lon": 11.098057,
-            "deims_id": "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",
-            "found": True,
-            "name": "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen",
-        },
-        "9f9ba137-342d-4813-ae58-a60911c3abc1": {
-            "lat": 50.267302,
-            "lon": 9.269139,
-            "deims_id": "9f9ba137-342d-4813-ae58-a60911c3abc1",
-            "found": True,
-            "name": "Rhine-Main-Observatory",
-        },
-        "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
-            "lat": 45.846063,
-            "lon": 7.579028,
-            "deims_id": "a03ef869-aa6f-49cf-8e86-f791ee482ca9",
-            "found": True,
-            "name": "Torgnon grassland Tellinod (IT19 Aosta Valley)",
-        },
-        "c0738b00-854c-418f-8d4f-69b03486e9fd": {
-            "lat": 42.44625,
-            "lon": 13.554978,
-            "deims_id": "c0738b00-854c-418f-8d4f-69b03486e9fd",
-            "found": True,
-            "name": "Appennino centrale: Gran Sasso d'Italia",
-        },
-        "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
-            "lat": 42.086116,
-            "lon": 14.085206,
-            "deims_id": "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",
-            "found": True,
-            "name": "Appennino centro-meridionale: Majella-Matese",
-        },
-        "e13f1146-b97a-4bc5-9bc5-65322379a567": {
-            "lat": 49.2178,
-            "lon": 19.6719,
-            "deims_id": "e13f1146-b97a-4bc5-9bc5-65322379a567",
-            "found": True,
-            "name": "Jalovecka dolina",
-        },
-        "4c8082f9-1ace-4970-a603-330544f22a23": {
-            "lat": 48.8542,
-            "lon": 17.4261,
-            "deims_id": "4c8082f9-1ace-4970-a603-330544f22a23",
-            "found": True,
-            "name": "Certoryje-Vojsicke Louky meadows",
-        },
-        "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4": {
-            "lat": 53.0071,
-            "lon": 13.7695,
-            "deims_id": "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4",
-            "found": True,
-            "name": "DFG_Biodiversity_Exploratory_Schorfheide-Chorin",
-        },
-        "56c467e5-093f-4b60-b5cf-880490621e8d": {
-            "lat": 51.158,
-            "lon": 10.4762,
-            "deims_id": "56c467e5-093f-4b60-b5cf-880490621e8d",
-            "found": True,
-            "name": "DFG_Biodiversity_Exploratory_Hainich-Duen",
-        },
-        "a51f9249-ddc8-4a90-95a8-c7bbebb35d29": {
-            "lat": 48.4374,
-            "lon": 9.38938,
-            "deims_id": "a51f9249-ddc8-4a90-95a8-c7bbebb35d29",
-            "found": True,
-            "name": "DFG_Biodiversity_Exploratory_SchwaebischeAlb",
-        },
-    }
-)
+NOT_FOUND_DEFAULT_STRING = "not found"
 
 
 def add_string_to_file_name(file_name, string_to_add, *, new_suffix=None):
@@ -908,9 +781,9 @@ def add_to_dict(
         if unify_keys:
             if all(isinstance(value, dict) for value in dict_prev.values()):
                 # default value as dict with keys of first entry of dict_prev, and values 0
-                default_value_prev = {
-                    key: 0 for key in dict_prev[next(iter(dict_prev))].keys()
-                }
+                default_value_prev = dict.fromkeys(
+                    dict_prev[next(iter(dict_prev))].keys(), 0
+                )
             else:
                 default_value_prev = 0
 
@@ -1031,11 +904,15 @@ def add_info_to_list(list_to_lookup, info_dict):
 
     for entry in list_to_lookup:
         if isinstance(entry, tuple):
-            info_list.append(entry + (info_dict.get(entry[0], "not found"),))
+            info_list.append(
+                entry + (info_dict.get(entry[0], NOT_FOUND_DEFAULT_STRING),)
+            )
         elif isinstance(entry, list):
-            info_list.append(entry + [info_dict.get(entry[0], "not found")])
+            info_list.append(
+                entry + [info_dict.get(entry[0], NOT_FOUND_DEFAULT_STRING)]
+            )
         else:
-            info_list.append((entry, info_dict.get(entry, "not found")))
+            info_list.append((entry, info_dict.get(entry, NOT_FOUND_DEFAULT_STRING)))
 
     return info_list
 
@@ -1098,17 +975,31 @@ def combine_info_strings(info_1, info_2):
     info_1_core = replace_substrings(info_1, ["(", ")", "conflicting "], "")
     info_2_core = replace_substrings(info_2, ["(", ")", "conflicting "], "")
 
-    # Allow combination without conflict of infos that can be woody
+    # Allow combination without conflict of infos that CAN be woody
     woody_infos = [
         "woody",
         "tree",
         "shrub",
         "shrub/tree",
+        "fern",
         "legume?",
         "legume?/tree",
         "legume?/shrub",
         "legume?/shrub/tree",
     ]
+
+    # Allow combination without conflict of infos that CAN be non-woody
+    non_woody_infos = ["non-woody", "herbaceous", "fern"]
+
+    info_both = sorted((info_1_core, info_2_core))
+
+    # Treat special case, "non-woody" contains the string "woody" but is a conflict
+    if info_both in [
+        ["non-woody", "woody"],
+        ["non-woody", "non-woody vs. woody"],
+        ["non-woody vs. woody", "woody"],
+    ]:
+        return "conflicting (non-woody vs. woody)"
 
     # Return one info, if it already contains the other info
     if info_1_core in info_2_core:
@@ -1116,10 +1007,11 @@ def combine_info_strings(info_1, info_2):
     elif info_2_core in info_1_core:
         return info_1
     else:
-        info_both = sorted((info_1_core, info_2_core))
-
-        # Combine without conflict, if both infos are woody (PFT or Woodiness)
+        # Combine without conflict, if both infos can be woody (PFT or Woodiness)
         if info_1_core in woody_infos and info_2_core in woody_infos:
+            return f"({info_both[0]}/{info_both[1]})"
+        # Combine without conflict, if both infos can be non-woody (PFT or Woodiness)
+        elif info_1_core in non_woody_infos and info_2_core in non_woody_infos:
             return f"({info_both[0]}/{info_both[1]})"
         # Combine as conflicting otherwise
         else:
@@ -1192,7 +1084,11 @@ def sort_and_cleanup_list(
         else:
             # Check if all entries are identical
             first_entry = group[0]
-            differing_entries = [entry for entry in group if entry != first_entry]
+            differing_entries = []
+
+            for entry in group:
+                if entry != first_entry and entry not in differing_entries:
+                    differing_entries.append(entry)
 
             if differing_entries:
                 logger.warning(
@@ -1243,12 +1139,12 @@ def get_deims_coordinates(deims_id):
     """
 
     # Use known DEIMS location coordinates if available
-    location = KNOWN_DEIMS_LOCATIONS.get(deims_id)
+    location = essp.KNOWN_DEIMS_LOCATIONS.get(deims_id)
     if location is not None:
         return location
 
     # Use non-DEIMS location coordinates if available
-    location = NON_DEIMS_LOCATIONS.get(deims_id)
+    location = essp.NON_DEIMS_LOCATIONS.get(deims_id)
     if location is not None:
         logger.warning(
             f"Using non-DEIMS coordinates for ID '{deims_id}': Latitude: {location['lat']}, longitude: {location['lon']}."
@@ -1309,7 +1205,7 @@ def get_deims_ids_from_xls(xls_file, header_row, country="ALL"):
     df = pd.read_excel(xls_file, header=header_row)
 
     # Filter by country code
-    if not country == "ALL":
+    if country != "ALL":
         df = df[df["Country"] == country]
 
         if df.empty:
@@ -1696,15 +1592,6 @@ def extract_raster_value(
 
                 # Extract value from specified band number at specified coordinates
                 value = next(src.sample([(east, north)], indexes=band_number))[0]
-
-                # # testing
-                # print("Original coordinates:", location["lat"], location["lon"])
-                # print("Projected coordinates:", east, north)
-                # print("Raster bounds:", src.bounds)
-                # row, col = src.index(east, north)
-                # print("Pixel indices:", row, col)
-                # print("Raster value via indices:", src.read(band_number)[row, col])
-                # print("Raster value via sample:", value)
 
                 if file_date_for_time_stamp:
                     if is_url:

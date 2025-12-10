@@ -68,6 +68,7 @@ Data sources:
 import argparse
 import calendar
 from pathlib import Path
+from types import MappingProxyType
 
 import numpy as np
 import pandas as pd
@@ -75,6 +76,53 @@ import pandas as pd
 from ucgrassland import utils as ut
 from ucgrassland.get_wekeo_data import request_hda_grassland_data
 from ucgrassland.logger_config import logger
+
+# Define specific days for each number of mow events (cf. Filipiak et al. 2022, Table S6)
+DEFAULT_MOWING_DAYS = MappingProxyType(
+    {
+        1: [213],  # 08-01
+        2: [121, 244],  # 05-01, 09-01
+        3: [121, 182, 244],  # 05-01, 07-01, 09-01
+        4: [105, 166, 213, 274],  # 04-15, 06-15, 08-01, 10-01
+        5: [91, 135, 182, 227, 288],  # 04-01, 05-15, 07-01, 08-15, 10-15
+    }
+)
+
+# Define specific days for each number of fertilisation events (cf. Filipiak et al. 2022, Table S6)
+DEFAULT_FERTILISATION_DAYS = MappingProxyType(
+    {
+        1: [91],  # 04-01
+        2: [91, 166],  # 04-01, 06-15
+        3: [74, 135, 196],  # 03-15, 05-15, 07-15
+        4: [60, 121, 182, 227],  # 03-01, 05-01, 07-01, 08-15
+        5: [60, 105, 152, 196, 244],  # 03-01, 04-15, 06-01, 07-15, 09-01
+    }
+)
+
+# Define specific amounts for each number of fertilisation events (cf. Filipiak et al. 2022, Table S6)
+# 2025-12-12: amounts adjusted to not exceed total of 17 g/m² per year (seems the limit from DüV for all kinds of fertilizers)
+DEFAULT_FERTILISATION_AMOUNTS = MappingProxyType(
+    {  # in g/m²
+        1: [5.5],
+        2: [6.5, 3.5],
+        3: [10.5, 3.25, 3.25],  # Filipiak: [12.5, 3.25, 3.25]
+        4: [9, 4, 2, 2],  # Filipiak: [16.5, 4, 2, 2]
+        5: [7, 2.5, 2.5, 2.5, 2.5],  # Filipiak: [21, 2.5, 2.5, 2.5, 2.5]
+    }
+)
+
+# Define time deltas between default mowing and fertilisation events (cf. Filipiak et al. 2022, Table S6)
+# resulting from DEFAULT_MOWING_DAYS - DEFAULT_FERTILISATION_DAYS
+DEFAULT_FERTILISATION_DAYS_AHEAD_OF_MOWING = MappingProxyType(
+    {
+        0: [],  # allow empty mow day lists
+        1: [122],
+        2: [30, 78],
+        3: [47, 47, 48],
+        4: [45, 45, 31, 47],
+        5: [31, 30, 30, 31, 44],
+    }
+)
 
 
 def construct_management_data_file_name(
@@ -852,18 +900,9 @@ def get_mow_schedule(year, mow_count, data_source, mow_height=0.07):
             "'mow_count' is greater than 5. Value between 1 and 5 expected. Set to 5."
         )
 
-    # Define specific days for each number of mow events (cf. Filipiak et al. 2022, Table S6)
-    mow_days = {
-        1: [213],  # 08-01
-        2: [121, 244],  # 05-01, 09-01
-        3: [121, 182, 244],  # 05-01, 07-01, 09-01
-        4: [105, 166, 213, 274],  # 04-15, 06-15, 08-01, 10-01
-        5: [91, 135, 182, 227, 288],  # 04-01, 05-15, 07-01, 08-15, 10-15
-    }
-
     mow_events = get_mow_events(
         year,
-        mow_days[mow_count],
+        DEFAULT_MOWING_DAYS[mow_count],
         data_source,
         mow_height=mow_height,
         leap_year_considered=False,
@@ -886,16 +925,9 @@ def get_fert_days(mow_days, year):
         list of int: List with day of year for each fertilisation event.
     """
     event_count = len(mow_days)
-    days_ahead = {
-        0: [],  # allow empty mow day lists
-        1: [122],
-        2: [30, 78],
-        3: [47, 47, 48],
-        4: [45, 45, 31, 47],
-        5: [31, 30, 30, 31, 44],
-    }
+    deltas = DEFAULT_FERTILISATION_DAYS_AHEAD_OF_MOWING.get(event_count, None)
 
-    if event_count not in days_ahead:
+    if deltas is None:
         try:
             raise ValueError(
                 f"No fertilisation day values defined for list of {event_count} mow days."
@@ -904,9 +936,6 @@ def get_fert_days(mow_days, year):
             logger.error(e)
             raise
 
-    deltas = days_ahead[event_count]
-    fert_days = []
-
     # Set earliest possible fertilisation date to 03-01
     earliest_fert_day = 61 if calendar.isleap(year) else 60
     earliest_fert_date_str = ut.day_of_year_to_date(year, earliest_fert_day).strftime(
@@ -914,6 +943,8 @@ def get_fert_days(mow_days, year):
     )
 
     # Calculate fertilisation dates using specific days ahead of corresponding mow events
+    fert_days = []
+
     for index, mow_day in enumerate(mow_days):
         fert_day = mow_day - deltas[index]
 
@@ -1002,6 +1033,7 @@ def get_fert_schedule(year, fert_count, data_source, fert_days=None):
                 f"List of fertilisation days for {year} has more entries than 'fert_count'."
                 f" Only first {fert_count} days will be used."
             )
+            fert_days = fert_days[:fert_count]
         elif len(fert_days) < fert_count:
             logger.warning(
                 f"List of fertilisation days for {year} has fewer entries than expected for 'fert_count' = {fert_count}."
@@ -1010,27 +1042,10 @@ def get_fert_schedule(year, fert_count, data_source, fert_days=None):
             fert_days = None
 
     if not fert_days:
-        # Define specific days for each number of fertilisation events (cf. Filipiak et al. 2022, Table S6)
-        fert_days_default = {
-            1: [91],  # 04-01
-            2: [91, 166],  # 04-01, 06-15
-            3: [74, 135, 196],  # 03-15, 05-15, 07-15
-            4: [60, 121, 182, 227],  # 03-01, 05-01, 07-01, 08-15
-            5: [60, 105, 152, 196, 244],  # 03-01, 04-15, 06-01, 07-15, 09-01
-        }
-        fert_days = fert_days_default[fert_count]
+        fert_days = DEFAULT_FERTILISATION_DAYS[fert_count]
 
         if calendar.isleap(year):
             fert_days = [day + 1 for day in fert_days]  # Adjust for leap year
-
-    # Define specific amounts for each number of fertilisation events (cf. Filipiak et al. 2022, Table S6)
-    fert_amounts = {  # in g/m²
-        1: [5.5],
-        2: [6.5, 3.5],
-        3: [12.5, 3.25, 3.25],
-        4: [16.5, 4, 2, 2],
-        5: [21, 2.5, 2.5, 2.5, 2.5],
-    }
 
     # Create result array, date in first row, fertilisation amount in third row, NaN for all other management rows
     fert_events = []
@@ -1040,7 +1055,7 @@ def get_fert_schedule(year, fert_count, data_source, fert_days=None):
         row = [
             fert_date.strftime("%Y-%m-%d"),
             "NaN",
-            fert_amounts[fert_count][d_index],
+            DEFAULT_FERTILISATION_AMOUNTS[fert_count][d_index],
             "NaN",
             "NaN",
             "NaN",

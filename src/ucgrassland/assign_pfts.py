@@ -79,6 +79,7 @@ import pandas as pd
 from dotenv import dotenv_values
 from pygbif import species
 
+from ucgrassland import elter_site_specs as essp
 from ucgrassland import utils as ut
 from ucgrassland.logger_config import logger
 
@@ -86,6 +87,68 @@ GRASS_FAMILIES = ("Poaceae", "Cyperaceae", "Juncaceae")
 LEGUME_FAMILIES = (
     "Fabaceae",  # legume family,
     "Leguminosae",  # legume family, old name
+)
+VALID_INFO_ENTRIES = MappingProxyType(
+    {
+        "PFT": [
+            "grass",
+            "forb",
+            "legume",
+            "(tree)",
+            "(shrub)",
+            "(shrub/tree)",
+            "(fern)",
+            "(fern/non-woody)",
+            "(fern/woody)",
+            "(moss)",
+            "(lichen)",
+            "(legume?)",
+            "(woody)",
+        ],
+        "Woodiness": ["woody", "non-woody"],  # "non-woody/woody"
+        "PlantGrowthForm": ["woody", "non-woody", "(fern)", "(lichen)", "(moss)"],
+    }
+)
+
+LOOKUP_TABLE_SPECS = MappingProxyType(
+    {
+        "TRY_Family": {
+            "file_name": "TRY_Categorical_traits__Family__GBIF_corrected.txt",
+            "info_name": "Family",
+            "found": False,
+            "raw_file_opendap": "TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx",
+            "raw_file": "TRY_Categorical_traits.xlsx",
+            "raw_species_column": "AccSpeciesName",
+            "raw_info_columns": ["Family", "PlantGrowthForm", "Woodiness"],
+        },
+        "TRY_PlantGrowthForm": {
+            "file_name": "TRY_Categorical_traits__PlantGrowthForm__GBIF_corrected.txt",
+            "info_name": "PlantGrowthForm",
+            "found": False,
+            "raw_file_opendap": "TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx",
+            "raw_file": "TRY_Categorical_traits.xlsx",
+            "raw_species_column": "AccSpeciesName",
+            "raw_info_columns": ["Family", "PlantGrowthForm", "Woodiness"],
+        },
+        "TRY_Woodiness": {
+            "file_name": "TRY_Categorical_traits__Woodiness__GBIF_corrected.txt",
+            "info_name": "Woodiness",
+            "found": False,
+            "raw_file_opendap": "TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx",
+            "raw_file": "TRY_Categorical_traits.xlsx",
+            "raw_species_column": "AccSpeciesName",
+            "raw_info_columns": ["Family", "PlantGrowthForm", "Woodiness"],
+        },
+        "Zanne_Woodiness": {
+            "file_name": "Zanne_Growth_form__Woodiness__GBIF_corrected.txt",
+            "info_name": "Woodiness",
+            "found": False,
+            "raw_file_opendap": "growth_form.csv",
+            "raw_file": "Zanne_Growth_form.csv",
+            "raw_species_column": "sp",
+            "raw_info_columns": ["Woodiness"],
+        },
+    }
 )
 
 # NOTE: Family classifications based on global botanical references
@@ -163,179 +226,6 @@ PREDOMINANTLY_HERBACEOUS_FAMILIES = (
     "Papaveraceae",  # poppy family
     "Ranunculaceae",  # buttercup family
     "Violaceae",  # violet family
-)
-
-
-# Define species data specifications for selected eLTER sites.
-# Cf. data at https://b2share.eudat.eu/records/?q=biodt&sort=-&page=1&size=25.
-SPECIES_DATA_SPECS_PER_SITE = MappingProxyType(
-    {
-        "11696de6-0ab9-4c94-a06b-7ce40f56c964": {
-            "name": "IT25 - Val Mazia-Matschertal",
-            "file_names": ["IT_Matschertal_data_abund.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "270a41c4-33a8-4da6-9258-2ab10916f262": {
-            "name": "AgroScapeLab Quillow (ZALF)",
-            "file_names": [
-                "DE_AgroScapeQuillow_data_cover.csv",
-                "Code_Species_names.csv",
-            ],
-            "species_columns": ["TAXA", "Speciesname"],
-            "extra_columns": [[], ["Code", "Family"]],
-        },
-        "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6": {
-            "name": "LTSER Zone Atelier Armorique",
-            "file_names": [
-                "FR_AtelierArmorique_reference.csv",
-                "FR_AtelierArmorique_data_indices.csv",
-            ],
-            "species_columns": ["NAME", "Dominant species"],
-            "extra_columns": [["CODE", "FAMILY_NAME"], []],
-        },
-        "324f92a3-5940-4790-9738-5aa21992511c": {
-            "name": "Stubai (combination of Neustift meadows and Kaserstattalm)",
-            "file_names": ["AT_Stubai_data_abund.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "3de1057c-a364-44f2-8a2a-350d21b58ea0": {
-            "name": "Obergurgl",
-            "file_names": [
-                "AT_Obergurgl_reference.csv",
-                "AT_Obergurgl_data.csv",
-            ],
-            "species_columns": ["NAME", "TAXA"],
-            "extra_columns": [[], []],
-        },
-        "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d": {
-            "name": "Hochschwab (AT-HSW) GLORIA",
-            "file_names": [
-                "AT_Hochschwab_reference.csv",
-                "AT_Hochschwab_data_cover.csv",
-                "AT_Hochschwab_data_abund.csv",
-            ],
-            "species_columns": ["NAME", "TAXA", "TAXA"],
-            "extra_columns": [["CODE"], [], []],
-        },
-        "61c188bc-8915-4488-8d92-6d38483406c0": {
-            "name": "Randu meadows",
-            "file_names": ["LV_RanduMeadows_data_abund.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "66431807-ebf1-477f-aa52-3716542f3378": {
-            "name": "LTSER Engure",
-            "file_names": ["LV_Engure_data_cover.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1": {
-            "name": "GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen",
-            "file_names": [
-                "AT_Schrankogel_reference.csv",
-                "AT_Schrankogel_data_cover.csv",
-            ],
-            "species_columns": ["NAME", "TAXA"],
-            "extra_columns": [["CODE"], []],
-        },
-        "6b62feb2-61bf-47e1-b97f-0e909c408db8": {
-            "name": "Montagna di Torricchio",
-            "file_names": [
-                "IT_MontagnadiTorricchio_reference.csv",
-                "IT_MontagnaTorricchio_data_abund.csv",
-            ],
-            "species_columns": ["NAME", "TAXA"],
-            "extra_columns": [["CODE"], []],
-        },
-        "829a2bcc-79d6-462f-ae2c-13653124359d": {
-            "name": "Ordesa y Monte Perdido / Huesca ES",
-            "file_names": [
-                "ES_OrdesaYMontePerdido_data_freq.csv"
-            ],  # "ES_OrdesaYMontePerdido_reference.csv",
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "9f9ba137-342d-4813-ae58-a60911c3abc1": {
-            "name": "Rhine-Main-Observatory",
-            "file_names": [
-                "DE_RhineMainObservatory_abund_data.csv",
-                "DE_RhineMainObservatory_data_abund_V2.xlsx",
-            ],
-            "species_columns": ["TAXA", "TAXA"],
-            "extra_columns": [[], []],
-        },
-        "a03ef869-aa6f-49cf-8e86-f791ee482ca9": {
-            "name": "Torgnon grassland Tellinod (IT19 Aosta Valley)",
-            "file_names": ["IT_TorgnonGrasslandTellinod_data_abund.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "b356da08-15ac-42ad-ba71-aadb22845621": {
-            "name": "Nørholm Hede",
-            "file_names": ["DK_NorholmHede_data_cover.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "c0738b00-854c-418f-8d4f-69b03486e9fd": {
-            "name": "Appennino centrale: Gran Sasso d'Italia",
-            "file_names": [
-                "IT_AppenninoCentrale_reference.csv",
-                "IT_AppenninoCentrale_data_abund.csv",
-            ],
-            "species_columns": ["CODE", "TAXA"],
-            "extra_columns": [[], []],
-        },
-        "c85fc568-df0c-4cbc-bd1e-02606a36c2bb": {
-            "name": "Appennino centro-meridionale: Majella-Matese",
-            "file_names": [
-                "IT_AppenninoCentroMeridionale_data_cover.csv",
-                "IT_AppenninoCentroMeridionale_data_cover__from_FEM_Revised.csv",
-            ],
-            "species_columns": ["TAXA", "TAXA"],
-            "extra_columns": [[], []],
-        },
-        "e13f1146-b97a-4bc5-9bc5-65322379a567": {
-            "name": "Jalovecka dolina",
-            "file_names": ["SK_JaloveckaDolina_data_cover.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        # not eLTER plus
-        "KUL-site": {
-            "name": "KUL-site (KU Leuven)",
-            "file_names": ["BE_KUL-site_cover__from_VanMeerbeek_data.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [["PFT_ORIGINAL"]],
-        },
-        "4c8082f9-1ace-4970-a603-330544f22a23": {
-            "name": "Certoryje-Vojsicke Louky meadows",
-            "file_names": [
-                "CZ_Certoryje-Vojsice_cover__from_regrassed_fields_Bile_Karpaty.csv"
-            ],
-            "species_columns": ["TAXA"],
-            "extra_columns": [[]],
-        },
-        "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4": {
-            "name": "DFG_Biodiversity_Exploratory_Schorfheide-Chorin",
-            "file_names": ["DE_BEXIS-site-SEG_data_cover__from_31973_5_Dataset.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [["PFT_ORIGINAL"]],
-        },
-        "56c467e5-093f-4b60-b5cf-880490621e8d": {
-            "name": "DFG_Biodiversity_Exploratory_Hainich-Duen",
-            "file_names": ["DE_BEXIS-site-HEG_data_cover__from_31973_5_Dataset.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [["PFT_ORIGINAL"]],
-        },
-        "a51f9249-ddc8-4a90-95a8-c7bbebb35d29": {
-            "name": "DFG_Biodiversity_Exploratory_SchwaebischeAlb",
-            "file_names": ["DE_BEXIS-site-AEG_data_cover__from_31973_5_Dataset.csv"],
-            "species_columns": ["TAXA"],
-            "extra_columns": [["PFT_ORIGINAL"]],
-        },
-    }
 )
 
 
@@ -462,9 +352,6 @@ def reduce_pft_info(info, *, separate_woody=False):
     Returns:
         str: Reduced PFT information entry.
     """
-    if info in ["(fern)", "conflicting (fern vs. forb)"]:
-        return "forb"
-
     if info in ["not assigned", "not found"]:  # or info.startswith("conflicting"):
         return "not_assigned"
 
@@ -472,46 +359,13 @@ def reduce_pft_info(info, *, separate_woody=False):
     if info.startswith("conflicting"):
         return "not_assigned"
 
-    if info in ["(tree)", "(shrub)", "(shrub/tree)", "(woody)"]:
+    if info in ["(tree)", "(shrub)", "(shrub/tree)", "(woody)", "(fern/woody)"]:
         return "woody" if separate_woody else "other"
 
-    if info in ["(moss)", "(lichen)", "(legume?)"]:
+    if info in ["(fern)", "(moss)", "(lichen)", "(legume?)", "(fern/non-woody)"]:
         return "other"
 
     return info
-
-
-def get_valid_infos(info_name):
-    """
-    Get valid information entries based on the specified information type.
-
-    Parameters:
-        info_name (str): Type of species information ('PFT' or 'Woodiness').
-
-    Returns:
-        list: List of valid information entries for the specified type.
-    """
-    if info_name == "PFT":
-        # Set valid grassland PFT entries
-        return [
-            "grass",
-            "forb",
-            "legume",
-            "(tree)",
-            "(shrub)",
-            "(shrub/tree)",
-            "(fern)",
-            "(moss)",
-            "(lichen)",
-            "(legume?)",
-            "(woody)",
-        ]
-    elif info_name == "Woodiness":
-        # Set valid Woodiness entries
-        return ["woody", "herbaceous", "(fern)", "(lichen)", "(moss)"]
-    else:
-        # No specific limitations for other information types
-        return ["any"]
 
 
 def replace_info_strings(info, info_name):
@@ -520,7 +374,7 @@ def replace_info_strings(info, info_name):
 
     Parameters:
         info (str): Original information entry.
-        info_name (str): Type of species information ('PFT' or 'Woodiness').
+        info_name (str): Type of species information ('PFT' or 'Woodiness' or 'PlantGrowthForm').
 
     Returns:
         str: Revised information entry.
@@ -536,16 +390,25 @@ def replace_info_strings(info, info_name):
         )
     elif info_name == "Woodiness":
         info = ut.replace_substrings(
+            info, "non-woody/woody", "conflicting (non-woody vs. woody)", at_end=True
+        )
+        info = ut.replace_substrings(info, "W", "woody", at_end=True)
+        info = ut.replace_substrings(info, "H", "non-woody", at_end=True)
+        info = ut.replace_substrings(
+            info, ["NA", "variable"], "not assigned", at_end=True
+        )
+    elif info_name == "PlantGrowthForm":
+        info = ut.replace_substrings(
             info,
-            ["conflicting", "herb/shrub", "herb/shrub/tree"],
-            "conflicting (herbaceous vs. woody)",
+            ["herb/shrub", "herb/shrub/tree"],
+            "conflicting (non-woody vs. woody)",
             at_end=True,
         )
         info = ut.replace_substrings(
             info, ["W", "shrub", "shrub/tree", "tree"], "woody", at_end=True
         )
         info = ut.replace_substrings(
-            info, ["H", "herb", "graminoid"], "herbaceous", at_end=True
+            info, ["H", "herb", "graminoid"], "non-woody", at_end=True
         )
         info = ut.replace_substrings(
             info, ["NA", "variable"], "not assigned", at_end=True
@@ -586,7 +449,7 @@ def read_info_dict(
         dict: Dictionary where key_column entries are keys, and infos are values.
     """
     if file_name.is_file():
-        valid_infos = get_valid_infos(info_name)
+        valid_infos = VALID_INFO_ENTRIES.get(info_name, ["any"])
         logger.info(f"Reading {info_name} lookup table from '{file_name}' ...")
 
         # Search for 'info_name' as column name if not specified otherwise
@@ -615,8 +478,8 @@ def read_info_dict(
                 info = replace_info_strings(info, info_name)
 
                 # Warning if info is not valid and not "not assigned"
-                if (
-                    not (valid_infos == ["any"] and info != "")
+                if info == "" or (
+                    valid_infos != ["any"]
                     and info not in valid_infos
                     and not info.startswith(
                         ("not assigned", "conflicting", "not found")
@@ -687,13 +550,13 @@ def gbif_request(spec, *, kingdom="plants", attempts=5, delay=2):
     return "not found"
 
 
-def get_gbif_species(spec, *, accepted_ranks=["GENUS"]):
+def get_gbif_species(spec, *, accepted_ranks=["GENUS", "FAMILY"]):
     """
     Retrieve a species name or higher rank from the GBIF taxonomic backbone.
 
     Parameters:
         spec (str): Species name to look up in the GBIF taxonomic backbone.
-        accepted_ranks (list): List of taxonomic ranks above SPECIES that can be used as new species entry (default is ["GENUS"]).
+        accepted_ranks (list): List of taxonomic ranks above SPECIES that can be used as new species entry (default is ["GENUS", "FAMILY"]).
 
     Returns:
         str: Matched or suggested species name from GBIF, or the original species name if no match is found.
@@ -769,20 +632,36 @@ def get_gbif_species(spec, *, accepted_ranks=["GENUS"]):
 
                 if len(spec_gbif_suggest) > 0:
                     # Suggestions found, use first (i.e. most relevant) suggestion
-                    spec_gbif_suggest = [sgs["species"] for sgs in spec_gbif_suggest]
-                    spec_match = spec_gbif_suggest[0]
-                    sgs_string = ", ".join([f"'{sgs}'" for sgs in spec_gbif_suggest])
-                    logger.info(f"Candidate species: {sgs_string}.")
-
-                    # Check if suggestions include the input species name but not at first position
-                    if spec in spec_gbif_suggest and spec_gbif_suggest.index(spec) > 0:
-                        logger.warning(
-                            f"'{spec}' included, but not the first GBIF suggestion."
-                        )
-
-                    logger.info(
-                        f"'{spec}' replaced with first GBIF suggestion '{spec_match}'."
+                    spec_gbif_suggest = [
+                        sgs.get("species") for sgs in spec_gbif_suggest
+                    ]
+                    spec_match = next(
+                        (sgs for sgs in spec_gbif_suggest if sgs is not None), None
                     )
+
+                    if spec_match is None:
+                        logger.info(
+                            f"No replacement (all GBIF suggestions for '{spec}' are None)."
+                        )
+                    else:
+                        sgs_string = ", ".join(
+                            [f"'{sgs}'" for sgs in spec_gbif_suggest]
+                        )
+                        logger.info(f"Candidate species: {sgs_string}.")
+
+                        # Check if suggestions include the input species name but not at first position
+                        if (
+                            spec in spec_gbif_suggest
+                            and spec_gbif_suggest.index(spec) > 0
+                        ):
+                            logger.warning(
+                                f"No replacement ('{spec}' included in GBIF suggestions, though not at the first position)."
+                            )
+                            return spec
+
+                        logger.info(
+                            f"'{spec}' replaced with first GBIF suggestion '{spec_match}'."
+                        )
                 else:
                     # No suggestions, return input species
                     logger.info(
@@ -889,7 +768,7 @@ def get_pft_from_family_woodiness(
                 woodiness, spec, family, woodiness_info, pft_assigned, log_level="error"
             )
             pft_from_family_counts[family + "_conflict"] += 1
-    elif woodiness == "herbaceous":
+    elif woodiness == "non-woody":
         if family in LEGUME_FAMILIES:
             pft_assigned = "legume"
         elif family in EXCLUSIVELY_WOODY_FAMILIES:
@@ -921,7 +800,30 @@ def get_pft_from_family_woodiness(
                     woodiness, spec, family, woodiness_info, pft_assigned
                 )
                 pft_from_family_counts[family + "_conflict"] += 1
-    elif woodiness in ["fern", "moss", "lichen", "(fern)", "(moss)", "(lichen)"]:
+    elif woodiness == "(fern/woody)":
+        if family in EXCLUSIVELY_HERBACEOUS_FAMILIES:
+            pft_assigned = "conflicting (fern/woody vs. forb)"
+            _throw_log_message(
+                woodiness, spec, family, woodiness_info, pft_assigned, log_level="error"
+            )
+            pft_from_family_counts[family + "_conflict"] += 1
+        else:
+            pft_assigned = "(fern/woody)"
+
+            if family in PREDOMINANTLY_HERBACEOUS_FAMILIES:
+                _throw_log_message(
+                    woodiness, spec, family, woodiness_info, pft_assigned
+                )
+                pft_from_family_counts[family + "_conflict"] += 1
+    elif woodiness in [
+        "fern",
+        "moss",
+        "lichen",
+        "(fern)",
+        "(moss)",
+        "(lichen)",
+        "(fern/non-woody)",
+    ]:
         if family in LEGUME_FAMILIES:
             pft_assigned = ut.combine_info_strings("legume", woodiness)
         elif family in EXCLUSIVELY_WOODY_FAMILIES:
@@ -952,7 +854,7 @@ def get_pft_from_family_woodiness(
                 )
 
             pft_from_family_counts[family + "_conflict"] += 1
-    elif woodiness == "conflicting (herbaceous vs. woody)":
+    elif woodiness == "conflicting (non-woody vs. woody)":
         # Assignment for conflict herbaceous vs. woody is possible here
         if family in LEGUME_FAMILIES:
             # Legumes can be herbaceous or woody, keep conflict but specify
@@ -1005,6 +907,7 @@ def read_species_list(
     extra_columns=[],
     header_lines=1,
     check_gbif=True,
+    accepted_ranks=["GENUS", "FAMILY"],
     save_new_file=True,
     new_suffix=None,
     add_species_column_copy=True,
@@ -1021,6 +924,7 @@ def read_species_list(
         extra_columns (list of str or int): Additional columns to include in the list (default is empty list).
         header_lines (int): Number of header line, lines before will be skipped (default is 1).
         check_gbif (bool): Check/correct species names with GBIF taxonomic backbone (default is True).
+        accepted_ranks (list): List of taxonomic ranks above SPECIES that can be used as new species entry (default is ["GENUS", "FAMILY"]).
         save_new_file (bool): Save species names (and info) retrieved to new file (default is True).
         new_suffix (str): Suffix for new file type (default is None for keeping the original file type).
         add_species_column_copy (bool): Add a copy of the original species column as a new first column to the output file (default is True).
@@ -1126,7 +1030,7 @@ def read_species_list(
 
         for entry in species_list:
             spec = entry if isinstance(entry, str) else entry[0]
-            spec_renamed = get_gbif_species(spec, accepted_ranks=["GENUS", "FAMILY"])
+            spec_renamed = get_gbif_species(spec, accepted_ranks=accepted_ranks)
             species_list_renamed.append(
                 [spec_renamed] + (entry if isinstance(entry, list) else [entry])
             )
@@ -1196,7 +1100,7 @@ def user_input_info(info_dict, info_name, *, start_string="not "):
     Returns:
         dict: Modified dictionary with updated infos based on user input.
     """
-    valid_choices = get_valid_infos(info_name)
+    valid_choices = VALID_INFO_ENTRIES.get(info_name)
     valid_choices.append("not assigned")
     choice_string = ""
     logger.info(f"Going through species with {info_name} '{start_string}' ...")
@@ -1459,42 +1363,12 @@ def get_lookup_tables(
         force_create (bool): Force creation of new lookup tables (default is False).
         cache (str): Path to local folder containing and/or receiving lookup tables and/or raw source files (default is None).
     """
-    lookup_tables = {}
-    lookup_table_specs = {
-        "TRY_Family": {
-            "file_name": "TRY_Categorical_traits__Family__GBIF_corrected.txt",
-            "info_name": "Family",
-            "found": False,
-            "raw_file_opendap": "TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx",
-            "raw_file": "TRY_Categorical_traits.xlsx",
-            "raw_species_column": "AccSpeciesName",
-            "raw_info_columns": ["Family", "PlantGrowthForm"],
-        },
-        "TRY_Woodiness": {
-            "file_name": "TRY_Categorical_traits__Woodiness__GBIF_corrected.txt",
-            "info_name": "Woodiness",
-            "found": False,
-            "raw_file_opendap": "TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx",
-            "raw_file": "TRY_Categorical_traits.xlsx",
-            "raw_species_column": "AccSpeciesName",
-            "raw_info_columns": ["Family", "PlantGrowthForm"],
-        },
-        "Zanne_Woodiness": {
-            "file_name": "Zanne_Growth_form__Woodiness__GBIF_corrected.txt",
-            "info_name": "Woodiness",
-            "found": False,
-            "raw_file_opendap": "growth_form.csv",
-            "raw_file": "Zanne_Growth_form.csv",
-            "raw_species_column": "sp",
-            "raw_info_columns": ["Woodiness"],
-        },
-    }
-
     # Define folder where lookup tables are expected, and will be stored
     lookup_folder = Path(cache) if cache else Path.cwd() / lookup_folder_name
+    lookup_tables = {}
 
     if not force_create:
-        for table_name, table_info in lookup_table_specs.items():
+        for table_name, table_info in LOOKUP_TABLE_SPECS.items():
             table_file = lookup_folder / table_info["file_name"]
 
             if not table_file.is_file():
@@ -1507,18 +1381,26 @@ def get_lookup_tables(
                 lookup_tables[table_name] = read_info_dict(
                     table_file, table_info["info_name"]
                 )
-                lookup_table_specs[table_name]["found"] = True
+                LOOKUP_TABLE_SPECS[table_name]["found"] = True
 
     # Create missing lookup tables (i.e. all in case of force_create) from raw tables
-    for index, (table_name, table_info) in enumerate(lookup_table_specs.items()):
+    for table_name, table_info in LOOKUP_TABLE_SPECS.items():
         if not table_info["found"]:
-            # Create lookup table from raw file
+            # Create lookup table from raw files
+            # raw file: the source data file (xlsx or csv) containing species and info columns
+            # raw list file: the processed txt file with species and selected info(s) extracted from raw file
             raw_file = lookup_folder / table_info["raw_file"]
             raw_list_file = ut.add_string_to_file_name(
                 raw_file, "__Species__GBIF_corrected", new_suffix=".txt"
             )
 
             if not raw_list_file.is_file():
+                ut.download_file_opendap(
+                    raw_list_file.name, lookup_folder_name, lookup_folder
+                )
+
+            if not raw_list_file.is_file():
+                # Processed raw list file not available, create it from raw file
                 if not raw_file.is_file():
                     # Download raw file from opendap, rename to standard name
                     ut.download_file_opendap(
@@ -1547,6 +1429,7 @@ def get_lookup_tables(
                     species_column=table_info["raw_species_column"],
                     extra_columns=table_info["raw_info_columns"],
                     check_gbif=True,
+                    accepted_ranks=[],  # cannot accept higher ranks for trait lookup tables
                     save_new_file=True,
                     new_suffix=".txt",
                     add_species_column_copy=False,
@@ -1559,9 +1442,8 @@ def get_lookup_tables(
                 lookup_tables[table_name] = read_info_dict(
                     raw_list_file,
                     table_info["info_name"],
-                    species_column=0,
                     new_file=lookup_folder / table_info["file_name"],
-                    info_column=table_info["raw_info_columns"][index],
+                    info_column=table_info["info_name"],
                 )
             else:
                 try:
@@ -1664,12 +1546,26 @@ def get_all_infos_and_pft(
     )
 
     # Find Woodiness infos based on sources, write to files if requested
-    woodiness_try = get_species_info(
+    plantgrowthform_try = get_species_info(
+        species_to_lookup,
+        lookup_tables["TRY_PlantGrowthForm"],
+        "PlantGrowthForm",
+        file_name=file_name,
+        lookup_source="TRY",
+    )
+    woodiness_column_try = get_species_info(
         species_to_lookup,
         lookup_tables["TRY_Woodiness"],
         "Woodiness",
         file_name=file_name,
         lookup_source="TRY",
+    )
+    woodiness_try = resolve_species_info_dicts(
+        "Woodiness",
+        plantgrowthform_try,
+        woodiness_column_try,
+        info_source_1="TRY PlantGrowthForm",
+        info_source_2="TRY Woodiness",
     )
     woodiness_zanne = get_species_info(
         species_to_lookup,
@@ -1765,7 +1661,7 @@ def get_all_infos_and_pft(
     # Treat extra family infos as additional source if found
     if not family_extra_found:
         # Create empty dict family_extra if not found
-        family_extra = {key: "not found" for key in species_original}
+        family_extra = dict.fromkeys(species_original, "not found")
 
     woodiness_combined_original_keys = {
         species_original[index]: woodiness_combined[species_to_lookup[index]]
@@ -1836,6 +1732,8 @@ def get_all_infos_and_pft(
         family_try,
         family_gbif,
         family_combined,
+        plantgrowthform_try,
+        woodiness_column_try,
         woodiness_try,
         woodiness_zanne,
         woodiness_combined,
@@ -1858,6 +1756,8 @@ def get_all_infos_and_pft(
             "Family TRY",
             "Family GBIF",
             "Family Combined (excl. Extra)",
+            "PlantGrowthForm TRY",
+            "Woodiness Column TRY",
             "Woodiness TRY",
             "Woodiness Zanne",
             "Woodiness Combined",
@@ -1890,8 +1790,8 @@ def get_species_data_specs(site_id):
             'extra_columns' (list of lists): Additional columns to retrieve from the files.
     """
     # Check if site_id is found in predefined species data specifications
-    if site_id in SPECIES_DATA_SPECS_PER_SITE.keys():
-        return SPECIES_DATA_SPECS_PER_SITE[site_id]
+    if site_id in essp.SPECIES_DATA_SPECS_PER_SITE.keys():
+        return essp.SPECIES_DATA_SPECS_PER_SITE[site_id]
     else:
         try:
             raise ValueError(
@@ -2049,32 +1949,8 @@ def assign_pfts_for_sites(
     """
     # Examples if not specified otherwise in function call
     if site_ids is None:
-        # Specify selected site IDs, these need to be in SPECIES_DATA_SPECS_PER_SITE
-        site_ids = [
-            "11696de6-0ab9-4c94-a06b-7ce40f56c964",  # IT25 - Val Mazia-Matschertal
-            # "270a41c4-33a8-4da6-9258-2ab10916f262",  # AgroScapeLab Quillow (ZALF)
-            "31e67a47-5f15-40ad-9a72-f6f0ee4ecff6",  # LTSER Zone Atelier Armorique
-            "324f92a3-5940-4790-9738-5aa21992511c",  # Stubai
-            # "3de1057c-a364-44f2-8a2a-350d21b58ea0",  # Obergurgl
-            # "4ac03ec3-39d9-4ca1-a925-b6c1ae80c90d",  # Hochschwab (AT-HSW) GLORIA
-            "61c188bc-8915-4488-8d92-6d38483406c0",  # Randu meadows
-            "66431807-ebf1-477f-aa52-3716542f3378",  # LTSER Engure
-            "6ae2f712-9924-4d9c-b7e1-3ddffb30b8f1",  # GLORIA Master Site Schrankogel (AT-SCH), Stubaier Alpen
-            # "6b62feb2-61bf-47e1-b97f-0e909c408db8",  # Montagna di Torricchio
-            # "829a2bcc-79d6-462f-ae2c-13653124359d",  # Ordesa y Monte Perdido / Huesca ES
-            "9f9ba137-342d-4813-ae58-a60911c3abc1",  # Rhine-Main-Observatory
-            "a03ef869-aa6f-49cf-8e86-f791ee482ca9",  # Torgnon grassland Tellinod (IT19 Aosta Valley)
-            "b356da08-15ac-42ad-ba71-aadb22845621",  # Nørholm Hede
-            "c0738b00-854c-418f-8d4f-69b03486e9fd",  # Appennino centrale: Gran Sasso d'Italia
-            "c85fc568-df0c-4cbc-bd1e-02606a36c2bb",  # Appennino centro-meridionale: Majella-Matese
-            "e13f1146-b97a-4bc5-9bc5-65322379a567",  # Jalovecka dolina
-            # # not eLTER plus
-            "KUL-site",  # KU Leuven, Belgium
-            "4c8082f9-1ace-4970-a603-330544f22a23",  # Certoryje-Vojsicke Louky meadows
-            "4d7b73d7-62da-4d96-8cb3-3a9a744ae1f4",  # BEXIS-site-SEG
-            "56c467e5-093f-4b60-b5cf-880490621e8d",  # BEXIS-site-HEG
-            "a51f9249-ddc8-4a90-95a8-c7bbebb35d29",  # BEXIS-site-AEG
-        ]
+        # Specify selected site IDs, these need to be in essp.SPECIES_DATA_SPECS_PER_SITE
+        site_ids = essp.ELTER_SITE_IDS
 
     if source_folder is None:
         dotenv_config = dotenv_values(".env")

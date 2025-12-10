@@ -29,8 +29,8 @@ from datetime import datetime
 from copernicus import get_weather_data
 
 from ucgrassland import utils as ut
+from ucgrassland.elter_site_specs import OBSERVATION_DATA_SPECS_PER_SITE
 from ucgrassland.logger_config import logger
-from ucgrassland.prep_observation_data import OBSERVATION_DATA_SPECS_PER_SITE
 
 
 def prep_weather_data(
