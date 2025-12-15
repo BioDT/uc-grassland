@@ -150,6 +150,68 @@ LOOKUP_TABLE_SPECS = MappingProxyType(
         },
     }
 )
+VALID_INFO_ENTRIES = MappingProxyType(
+    {
+        "PFT": [
+            "grass",
+            "forb",
+            "legume",
+            "(tree)",
+            "(shrub)",
+            "(shrub/tree)",
+            "(fern)",
+            "(fern/non-woody)",
+            "(fern/woody)",
+            "(moss)",
+            "(lichen)",
+            "(legume?)",
+            "(woody)",
+        ],
+        "Woodiness": ["woody", "non-woody"],  # "non-woody/woody"
+        "PlantGrowthForm": ["woody", "non-woody", "(fern)", "(lichen)", "(moss)"],
+    }
+)
+
+LOOKUP_TABLE_SPECS = MappingProxyType(
+    {
+        "TRY_Family": {
+            "file_name": "TRY_Categorical_traits__Family__GBIF_corrected.txt",
+            "info_name": "Family",
+            "found": False,
+            "raw_file_opendap": "TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx",
+            "raw_file": "TRY_Categorical_traits.xlsx",
+            "raw_species_column": "AccSpeciesName",
+            "raw_info_columns": ["Family", "PlantGrowthForm", "Woodiness"],
+        },
+        "TRY_PlantGrowthForm": {
+            "file_name": "TRY_Categorical_traits__PlantGrowthForm__GBIF_corrected.txt",
+            "info_name": "PlantGrowthForm",
+            "found": False,
+            "raw_file_opendap": "TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx",
+            "raw_file": "TRY_Categorical_traits.xlsx",
+            "raw_species_column": "AccSpeciesName",
+            "raw_info_columns": ["Family", "PlantGrowthForm", "Woodiness"],
+        },
+        "TRY_Woodiness": {
+            "file_name": "TRY_Categorical_traits__Woodiness__GBIF_corrected.txt",
+            "info_name": "Woodiness",
+            "found": False,
+            "raw_file_opendap": "TRY_Categorical_Traits_Lookup_Table_2012_03_17_TestRelease.xlsx",
+            "raw_file": "TRY_Categorical_traits.xlsx",
+            "raw_species_column": "AccSpeciesName",
+            "raw_info_columns": ["Family", "PlantGrowthForm", "Woodiness"],
+        },
+        "Zanne_Woodiness": {
+            "file_name": "Zanne_Growth_form__Woodiness__GBIF_corrected.txt",
+            "info_name": "Woodiness",
+            "found": False,
+            "raw_file_opendap": "growth_form.csv",
+            "raw_file": "Zanne_Growth_form.csv",
+            "raw_species_column": "sp",
+            "raw_info_columns": ["Woodiness"],
+        },
+    }
+)
 
 # NOTE: Family classifications based on global botanical references
 # (WFO, POWO, Judd et al.) and general botanical knowledge, with the

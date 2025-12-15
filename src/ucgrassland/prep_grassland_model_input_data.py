@@ -322,9 +322,9 @@ def prep_grassland_model_input_data(
                 logger.error(e)
                 raise
     else:
-        skip_grass_check = True
-        skip_weather = True
-        skip_soil = True
+        # skip_grass_check = True
+        # skip_weather = True
+        # skip_soil = True
         # skip_management = True
 
         # Example locations list
