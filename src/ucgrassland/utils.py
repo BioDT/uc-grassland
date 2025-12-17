@@ -1641,7 +1641,7 @@ def check_url(url, *, attempts=5, delay_exponential=2, delay_linear=2):
         attempts -= 1
 
         try:
-            response = requests.head(url, allow_redirects=True)
+            response = requests.head(url, allow_redirects=True, timeout=30)
 
             if response.status_code == 200:
                 return response.url
@@ -1666,7 +1666,7 @@ def check_url(url, *, attempts=5, delay_exponential=2, delay_linear=2):
                     f"Invalid URL: {url} (Status code {response.status_code})."
                 )
                 return None
-        except requests.ConnectionError as e:
+        except (requests.ConnectionError, requests.Timeout) as e:
             logger.error(f"Request failed ({e}).")
 
             if attempts > 0:
@@ -1708,7 +1708,7 @@ def download_file_opendap(
 
     while attempts > 0:
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=30)
 
             # # Variant with authentication using OPeNDAP credentials from .env file.
             # dotenv_config = dotenv_values(".env")
@@ -1740,7 +1740,7 @@ def download_file_opendap(
 
                 if attempts > 0:
                     time.sleep(delay)
-        except requests.ConnectionError:
+        except (requests.ConnectionError, requests.Timeout):
             attempts -= 1
 
             if attempts > 0:
@@ -1904,6 +1904,7 @@ def get_country(coordinates, *, attempts=5, delay_exponential=2, delay_linear=2)
                 headers={
                     "User-Agent": "ucgrassland (https://github.com/BioDT/uc-grassland)"
                 },
+                timeout=30,
             )
 
             if response.status_code == 200:
@@ -1930,7 +1931,7 @@ def get_country(coordinates, *, attempts=5, delay_exponential=2, delay_linear=2)
                     time.sleep(delay_exponential)
                     delay_exponential *= 2
 
-        except requests.ConnectionError as e:
+        except (requests.ConnectionError, requests.Timeout) as e:
             logger.error(f"Country code request failed ({e}).")
 
             if attempts > 0:
@@ -1964,6 +1965,7 @@ def get_elevation(
             response = requests.get(
                 "https://api.open-elevation.com/api/v1/lookup",
                 params={"locations": f"{lat},{lon}"},
+                timeout=30,
             )
 
             if response.status_code == 200:
@@ -1991,7 +1993,7 @@ def get_elevation(
                     time.sleep(delay_exponential)
                     delay_exponential *= 2
 
-        except requests.ConnectionError as e:
+        except (requests.ConnectionError, requests.Timeout) as e:
             logger.error(f"Elevation request failed ({e}).")
 
             if attempts > 0:

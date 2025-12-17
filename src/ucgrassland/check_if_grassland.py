@@ -370,14 +370,13 @@ def get_category_hrl_grassland(location):
 
     # Send request
     time_stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    response = requests.get(f"{url}/identify", params=params)
 
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Parse the JSON response
+    try:
+        response = requests.get(f"{url}/identify", params=params, timeout=30)
+        response.raise_for_status()  # Raises HTTPError for bad status codes (4xx, 5xx)
+
         data = response.json()
 
-        # Check if 'value' key exists in the response
         if "value" in data:
             value = data["value"]
 
@@ -398,9 +397,12 @@ def get_category_hrl_grassland(location):
             logger.error(f"Unknown value for specified location: {value}.")
             return value, time_stamp
         else:
-            logger.error("No value for specified location.")
-    else:
-        logger.error(f"{response.status_code}: {response.text}")
+            logger.error("No value for specified location in response.")
+
+    except requests.RequestException as e:
+        logger.error(
+            f"Request failed for location ({location['lat']}, {location['lon']}): {e}"
+        )
 
     return None, time_stamp
 
