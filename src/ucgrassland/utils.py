@@ -1355,11 +1355,14 @@ def get_plot_locations_from_csv(
                                     existing_location["altitude"] * n_stations
                                     + altitude_from_file
                                 ) / (n_stations + 1)
+                                station_codes_str = "', '".join(
+                                    existing_location["station_code"]
+                                )
 
                                 logger.warning(
                                     f"Altitude from station file ({altitude_from_file} m) for station code "
                                     f"'{station_code}' differs from existing altitude "
-                                    f"({existing_location['altitude']:.2f} m) for station code(s) '{"', '".join(existing_location['station_code'])}' with equal coordinates "
+                                    f"({existing_location['altitude']:.2f} m) for station code(s) '{station_codes_str}' with equal coordinates "
                                     f"(latitude: {lat}, longitude: {lon}). Using mean altitude, weighted by "
                                     f"number of station codes ({weighted_mean_altitude:.2f} m)."
                                 )
