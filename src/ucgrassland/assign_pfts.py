@@ -10,6 +10,8 @@ Description: Assign PFTs to species with the following options:
 Developed in the BioDT project by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ),
 Tuomas Rossi (CSC) and Taimur Haider Khan (UFZ).
 
+Further developed (from 2025-06) by Thomas Banitz (UFZ) with contributions by Franziska Taubert (UFZ).
+
 Copyright (C) 2024
 - Helmholtz Centre for Environmental Research GmbH - UFZ, Germany
 - CSC - IT Center for Science Ltd., Finland
@@ -776,7 +778,7 @@ def get_pft_from_family_woodiness(
         accept_predominantly_woody_families (bool): Accept predominantly woody families as PFT 'woody' if
           species woodiness is unclear (default is True).
         accept_predominantly_herbaceous_families (bool): Accept predominantly herbaceous families as PFT 'forb' if
-          species woodiness is unclear (default is False).
+          species woodiness is unclear (default is True).
         pft_from_family_counts (defaultdict): Dictionary to add counts of PFT assignments, conflicts or non-assignments
           from family info (default is None, new defaultdict(int) will be created).
 
